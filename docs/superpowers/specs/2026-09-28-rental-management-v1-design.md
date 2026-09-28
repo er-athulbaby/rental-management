@@ -62,7 +62,7 @@ v1 lets a company run its whole rental business:
 - **Background work:** `database` queue driver, `php artisan queue:work` under Supervisor; scheduler via cron `schedule:run` every minute.
 - **Files:** private disk `storage/app/private/{buildings,units,owners,customers,agreements,payments,expenses,statements}/…`. Nothing under `public/`. Downloads only through `DocumentController@download` (policy check + audit entry, §9.1).
 - **Money:** every monetary column is `DECIMAL(12,3)`. Money arithmetic in PHP uses **integer fils**, never floats. Rounding is half-up to the fil.
-- **Packages (latest stable majors, verified 2026-09-28):** `livewire/livewire` ^4, `livewire/flux` ^2 (free), `laravel/fortify` ^1, `spatie/laravel-permission` ^8, `spatie/laravel-activitylog` ^5, `spatie/laravel-backup` ^10, `wnx/laravel-backup-restore`, `spatie/simple-excel` ^3, `mpdf/mpdf` ^8.3, `mpdf/qrcode` ^1, `pestphp/pest` ^5, `larastan/larastan` ^3, `laravel/pint` ^1. Error tracking: Sentry or Flare.
+- **Packages (latest stable majors, verified 2026-09-28):** `livewire/livewire` ^4, `livewire/flux` ^2 (free), `laravel/fortify` ^1, `spatie/laravel-permission` ^8, `spatie/laravel-activitylog` ^5, `spatie/laravel-backup` ^10, `wnx/laravel-backup-restore` ^1.9, `league/flysystem-aws-s3-v3` ^3, `spatie/simple-excel` ^3, `mpdf/mpdf` ^8.3, `mpdf/qrcode` ^1, `sentry/sentry-laravel` ^4, `pestphp/pest` ^5, `larastan/larastan` ^3 (level 8), `laravel/pint` ^1.
 - **Database users:** two per install (§8.5): `rms_app` for the application, `rms_migrate` for migrations only.
 
 ---
@@ -464,7 +464,8 @@ Nightly, emailed to Vendor Support on any failure:
 - Roles are seeded defaults; Admin can change which permissions a role has (audited). A user can hold several roles.
 - **Self-change limits:** a user cannot change their own roles or the permissions of a role they hold. Admin never sets another user's password (users get a reset link). Any grant of `approvals.decide` or a finance `*.manage` permission, and any change to a user's email, is emailed to every other active `approvals.decide` holder (and to the old address).
 - **Admin has no finance-posting permissions by default.**
-- **Vendor Support:** the vendor's account in every install, with every permission **except** `approvals.decide` and the finance `*.manage` permissions, and it receives no business emails. `import.run` is seeded to it only. `rms:install` generates a unique password and TOTP secret per install. Admin cannot edit it, only deactivate it; re-enabling is only `php artisan rms:vendor-support --enable` on the server (audited). The vendor also has server access as the host (C3/DPA).
+- **"Finance `*.manage`"** means `invoices.manage`, `payments.manage`, `cheques.manage`, `disbursements.manage` and `expenses.manage`.
+- **Vendor Support:** the vendor's account in every install, with every permission **except** `approvals.decide`, `owners.bank.manage` and the finance `*.manage` permissions, and it receives no business emails. `import.run` is seeded to it only. `rms:install` generates a unique password and TOTP secret per install. Admin cannot edit it, only deactivate it; re-enabling is only `php artisan rms:vendor-support --enable` on the server (audited). The vendor also has server access as the host (C3/DPA).
 
 ### 8.2 Building assignment
 `building_user` (`building_id`, `user_id`). A user without `buildings.view-all` sees only their assigned buildings and everything under them: units, agreements (if any of the agreement's units is in an assigned building), owner contracts, expenses, customers, reports, exports, search results, dashboard tiles and emails. The scope is applied in one place (a query scope used by every list, report and export) and covered by the permission test (§14).
@@ -515,7 +516,8 @@ Triggers raise `SIGNAL SQLSTATE '45000'`. Corrections are always reversals, cred
   - expense amounts, `charge_to` and `owner_contract_id`;
   - `payments.amount` and `disbursements.amount`.
 - Other master data (buildings, units, owners, customers) is soft-deleted; foreign keys use `RESTRICT`, so anything still referenced can't be removed.
-- **Two database users per install:** `rms_app` (SELECT, INSERT, UPDATE, DELETE only) for web, queue and scheduler; `rms_migrate` (DDL and TRIGGER) used only by the deploy script (`migrate --database=migrator --force`). `rms_app` therefore cannot drop triggers or TRUNCATE (which would skip them).
+- **Two database users per install:** `rms_app` (SELECT, INSERT, UPDATE, DELETE, EXECUTE) for web, queue and scheduler; `rms_migrate` (all privileges on the schema, including DDL and TRIGGER) used by the deploy script (`migrate --database=migrator --force`) and by the nightly backup (mysqldump only includes triggers for a user holding TRIGGER). `rms_app` therefore cannot drop triggers or TRUNCATE (which would skip them). EXECUTE lets `rms_app` call the `SQL SECURITY DEFINER` function the integrity check uses to count triggers, since `rms_app` cannot see `information_schema.TRIGGERS`. The users are created by the provisioning script, not by `rms:install`.
+- The `rms_migrate` account is the DEFINER of every trigger: rotate its password with `ALTER USER`, never drop or recreate it (every write to a table with triggers would then fail with error 1449).
 - Every server and the CI MySQL set `log_bin_trust_function_creators=1` (needed to create triggers with binary logging on); CI migrates as a non-root user with binary logs on.
 - *Limit:* whoever holds `rms_migrate` or server root can still drop triggers. DDL auditing is not in v1; the integrity check (§7.11) asserts the trigger count.
 
@@ -540,8 +542,8 @@ Triggers raise `SIGNAL SQLSTATE '45000'`. Corrections are always reversals, cred
 - `DocumentPolicy::view` = the user can `view` the document's `documentable`. Previews use the same audited route.
 
 ### 9.2 PDF engine
-- **mPDF** renders Blade → HTML → PDF for every document. The Arabic font (Noto Naskh Arabic or Amiri) is shipped in `resources/fonts` and registered via `fontdata` with `useOTL => 0xFF` (without OpenType layout, Arabic letters don't join). PDFs are generated in a queued job and stored privately.
-- Layout: one table row per clause paragraph, so a long clause never forces mPDF to shrink the whole table.
+- **mPDF** renders Blade → HTML → PDF for every document. The Arabic font is **IBM Plex Sans Arabic** (OFL), shipped in `resources/fonts` and registered via `fontdata` with `useOTL => 0xFF` (without OpenType layout, Arabic letters don't join). Noto Naskh Arabic and Amiri cannot be used: mPDF 8.3.1 fails on their OpenType tables ("GPOS Lookup Type 5, Format 3 not supported"; verified 2026-09-28). PDFs are generated in a queued job and stored privately.
+- Layout: one table row per clause paragraph, so a long clause never forces mPDF to shrink the whole table. mPDF never splits a row across pages, so no paragraph may be longer than a page; the M2 template editor enforces a maximum paragraph length.
 - Clause bodies and merge values are escaped (`{{ }}`), and mPDF loads images only from code-supplied local paths (logo, QR).
 - **M0 spike (1 day):** a real two-unit contract with English and Arabic clauses side by side, including one clause longer than a page, the schedule-of-units table, a QR code, header/footer and page numbers. **Pass:** Arabic letters join correctly; numbers and dates inside Arabic text display in the right order; no table is scaled down; under 3 seconds per page. **Fallback if it fails:** `spatie/laravel-pdf` with the `chrome` or `weasyprint` driver (never the Cloudflare driver).
 
@@ -636,23 +638,24 @@ Customer-facing reminders (SMS/email) are v2/v3.
 ### 13.1 Hosting (assumes D12)
 - One server per company: 2 vCPU / 4 GB RAM, Ubuntu 26.04 LTS, Nginx, PHP-FPM 8.5, MySQL 26.7, Supervisor. No Redis.
 - Hosted on a **Bahrain-based provider** to avoid PDPL cross-border transfer questions — confirm (C3). **Not AWS me-south-1**, which has been unavailable since March 2026.
-- Servers are provisioned and deployed with **Laravel Forge on the Business plan** (needed for server monitoring), as custom VPS servers: SSL, deploy script, queue worker, scheduler, heartbeats. If Forge doesn't offer MySQL 26.7, the server is provisioned without a database and MySQL is installed from Oracle's APT repository by the provisioning script.
-- Forge zero-downtime deploys, with `storage` as a shared path so uploads survive release pruning.
+- Servers are provisioned and deployed with **Laravel Forge on the Business plan** (server monitoring and team roles are Business-only; Hobby allows only one custom VPS), as custom VPS servers: SSL, deploy script, queue worker, scheduler, heartbeats. Forge does not offer MySQL 26.x (verified 2026-09-28), so each server is provisioned without a database and MySQL 26.7 is installed from Oracle's APT repository by `deploy/provision-mysql.sh`, which also creates the two database users and sets `log_bin_trust_function_creators = 1` with `SET PERSIST`.
+- Forge zero-downtime deploys, with `storage` as a shared path so uploads survive release pruning. Forge deploys a branch head, not a tag, so production sites deploy the `release` branch, which is moved to each release tag.
+- Forge's deployment health checks run only after a deploy; continuous uptime checks of `/health` use a separate uptime service.
 
 ### 13.2 Install and release
-- **`php artisan rms:install`** creates the company settings and the first Admin user, the two database users' grants, the current and next year's number sequences, roles, permissions, the default contract template and the Vendor Support account (unique password and TOTP secret). With Forge, a new company can be live in about an hour.
+- **`php artisan rms:install`** creates the company settings and the first Admin user, the current and next year's number sequences, roles, permissions and the Vendor Support account (unique password and TOTP secret); from M2 it also creates the default contract template. The database users already exist (§13.1). With Forge, a new company can be live in about an hour.
 - **Environments:** local → **staging** (a demo install with fake data only; doubles as the sales demo) → one production server per company. **Staging never holds real company data.**
 - **Company go-live:** the dry-run import and UAT run on the company's own production server. After UAT sign-off, its database and private storage are dropped, `rms:install` re-runs, then the final import, then `go_live_at` is set.
 - **Releases:** tagged versions from `main`, deployed to staging first, then to each company. Each deploy runs migrations as `rms_migrate`, caches config/routes/views, restarts the queue workers, and writes `git describe --tags` to `APP_VERSION` (shown in the footer and on `/health`). Before any release that contains migrations, the migrations are run against a copy of the largest company's database (on the restore-check server, §13.3). MySQL Innovation upgrades (D16) ship through this same process.
 - **D13 applies to every release:** no company-specific code.
 
 ### 13.3 Backups
-- `spatie/laravel-backup` nightly: database dump plus `storage_path('app/private')` (listed explicitly), as an encrypted archive sent to object storage at a **different provider**, in a location C3 allows. Per-install archive passwords are kept in the vendor's password vault. Retention: `keep_daily` 30, `keep_monthly` 12, no size-based deletion.
+- `spatie/laravel-backup` nightly: database dump (through the `migrator` connection, so triggers are included; `mysql_gtid_purged = OFF`, because a GTID_PURGED line makes the dump unrestorable on another GTID server) plus `storage_path('app/private')` (listed explicitly, with the restore package's temp folder excluded), as an AES-256 archive sent to object storage at a **different provider**, in a location C3 allows. Per-install archive passwords are kept in the vendor's password vault. Retention: 30 days of dailies plus 12 month-end backups, no size-based deletion. Archive entry names are not encrypted, so stored file names never contain personal data (documents use random names, §8.6).
 - MySQL binary logs with `binlog_expire_logs_seconds = 604800` (7 days), kept on the server for point-in-time recovery from mistakes. *Limit:* the binlogs are local, so losing the server loses up to 24 hours (back to the last nightly backup).
 - **Restore test:** weekly, on a dedicated restore-check server in the same location (wiped after each run), `wnx/laravel-backup-restore` restores one company's latest backup (rotating), runs sanity counts, and checks the archive's file entries; alerts on failure. A manual full restore drill every quarter.
 
 ### 13.4 Monitoring and errors
-- Error tracking (Sentry or Flare), tagged by company, with PII, SQL bindings and request bodies turned off.
+- Error tracking with **Sentry** (`sentry/sentry-laravel`), one project for all installs, each event tagged with the company code. `send_default_pii = false`, SQL bindings off and `max_request_body_size = 'never'` are hard-coded in `config/sentry.php`, never read from env. Only stack traces and SQL text leave the server (C3).
 - An uptime check per install; alerts for failed jobs, missed heartbeats, low disk space and backup health.
 - Users see "Something went wrong. Please try again."; details go only to the logs and error tracking.
 
@@ -660,7 +663,7 @@ Customer-facing reminders (SMS/email) are v2/v3.
 
 ## 14. Testing
 
-- **Pest 5, on real MySQL 26.7 in CI — never SQLite.** Triggers, generated columns, CHECK constraints and row locks are MySQL behaviour. CI migrates as a non-root user with binary logs on and `log_bin_trust_function_creators=1`.
+- **Pest 5, on real MySQL 26.7 in CI — never SQLite.** Triggers, generated columns, CHECK constraints and row locks are MySQL behaviour. Tests run as `rms_app`, exactly like production; `migrate:fresh` runs through the `migrator` connection. CI migrates as a non-root user with binary logs on and `log_bin_trust_function_creators=1`. Tests that need real commits on two connections live in `tests/Concurrency` and use `DatabaseTruncation`.
 - **Feature tests (one per flow):**
   1. Multi-unit agreement → submit → approval by a different user → scheduled invoices with correct periods, end-of-month anchors and proration → unit statuses.
   2. Two overlapping submissions for the same unit → the second is rejected, including when run concurrently on two connections; a non-overlapping pre-lease is accepted; a blocked unit is rejected.
@@ -689,8 +692,8 @@ Implementation is planned **one milestone at a time**: one plan per milestone, w
 
 | # | Milestone | Weeks | Exit criteria |
 |---|---|---|---|
-| M0 | **Foundation:** starter kit + 2FA enforcement, roles and permissions, building assignment, audit log + triggers, two DB users, settings, number sequences, approvals, documents, `rms:install`, Forge staging, CI, backups + restore check, error tracking and alerts, mPDF spike | 3 | `rms:install` produces a working install on a fresh server; CI green; a restored backup contains the uploaded documents; mPDF spike passes (or the fallback is chosen) |
-| M1 | **Property and owners:** buildings, units, owners (bank-change controls), owner contracts + units + successors, expenses charged to company or owner, importer with dry run for buildings, units, owners and owner contracts | 2 | The client's real buildings, units, owners and contracts pass a dry-run import on the client's production server |
+| M0 | **Foundation:** starter kit + 2FA enforcement, roles and permissions, users and roles administration, building assignment, audit log + its triggers, two DB users, settings, number sequences, documents, `rms:install`, Forge staging, CI, backups + restore check, error tracking and alerts, mPDF spike. (The approvals engine is built in M1 with its first user, owner-contract activation; each later table ships with its own immutability triggers.) | 3 | `rms:install` produces a working install on a fresh server; CI green; a restored backup contains the uploaded documents; mPDF spike passes (or the fallback is chosen) |
+| M1 | **Property and owners:** approvals engine (§8.3), buildings, units, owners (bank-change controls), owner contracts + units + successors, expenses charged to company or owner, importer with dry run for buildings, units, owners and owner contracts | 2 | The client's real buildings, units, owners and contracts pass a dry-run import on the client's production server |
 | M2 | **Customers and agreements:** customers, multi-unit agreements, approval, EN/AR clause templates + frozen PDF, QR verification page, schedule generation + proration, issuing and tax (§6.3–6.4), deposit invoices, notice | 3.5 | 10 real agreements (at least one multi-unit across two buildings) entered and approved; the client signs off the EN/AR contract PDF |
 | M3 | **Tenant finance:** manual invoices, credit notes, payments + allocation, customer credit and credit refunds, cheques (both directions), payments out, payment and payment-out reversals, customer statements; tenant-charged expenses; the financial effects of amendments, terminations, renewals and move-outs; deposit settlements; integrity check | 4.5 | One full month's rent cycle reconciles to the fil against the client's existing records |
 | M4 | **Owner finance:** head-lease payables, owner ledger, owner charges, fees, statements + finalisation, remittances with limits, building profitability | 2 | One managed owner's statement and one head-lease schedule match the client's current figures |
@@ -715,7 +718,7 @@ Customer and owner portals; online payments; maintenance; vendors; leads, sales,
 |---|---|---|---|
 | C1 | Does the vendor host every install (D12)? If any company self-hosts, mPDF (GPL-2.0) is distributed to it: accept the GPL for that install or switch to the §9.2 fallback. | Product owner | Vendor hosts all |
 | C2 | VAT: is residential rent exempt and commercial rent standard-rated; what is the tax point for payments received in advance; do tax invoices need Arabic; can the owner statement serve as the tax invoice for the management fee; for managed units, is the company or the owner the supplier of the rent for VAT? | Tax accountant | Defaults in §3; English tax invoices; the company declares rent VAT and pays owners net of VAT |
-| C3 | PDPL: hosting and backup-storage location, a data processing agreement between the vendor and each company, retention of ID copies | Bahrain lawyer | Bahrain-based hosting; ID copies kept for the life of the customer record |
+| C3 | PDPL: hosting and backup-storage location, a data processing agreement between the vendor and each company, retention of ID copies, and error events (stack traces and SQL text, no personal data) sent to Sentry outside Bahrain | Bahrain lawyer | Bahrain-based hosting; ID copies kept for the life of the customer record |
 | C4 | Management fee base: rent only, or rent + service charges? | First client | Rent only |
 | C5 | Proration basis: actual/365 or 30-day month? | First client | `actual_365` (a setting) |
 | C6 | Default grace days and invoice lead days | First client | 5 and 7 (settings) |
