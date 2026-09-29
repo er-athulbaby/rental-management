@@ -17,6 +17,12 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
 
+                <flux:sidebar.group :heading="__('Property')" class="grid">
+                    @can('buildings.view')
+                        <flux:sidebar.item icon="building-office-2" :href="route('buildings.index')" :current="request()->routeIs('buildings.*')" wire:navigate>{{ __('Buildings') }}</flux:sidebar.item>
+                    @endcan
+                </flux:sidebar.group>
+
                 @canany(['users.manage', 'roles.manage', 'settings.manage', 'audit.view'])
                     <flux:sidebar.group :heading="__('Administration')" class="grid">
                         @can('users.manage')
