@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Units\SaveUnit;
 use App\Enums\RoleName;
 use App\Enums\TaxCategory;
 use App\Enums\UnitStatus;
@@ -10,6 +11,7 @@ use App\Models\CompanySetting;
 use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -97,4 +99,34 @@ test('units follow the building scope, for lists and for writes', function () {
         ->set('form.list_rent', '100')
         ->call('save')
         ->assertHasNoErrors(); // Property Mgr has buildings.view-all
+});
+
+test('unit writes are denied outside the actor building scope', function () {
+    $other = Building::factory()->create();
+    $theirs = Unit::factory()->for($other)->create(['code' => 'THEIRS-2']);
+    $scoped = User::factory()->create()->assignRole(RoleName::Leasing);
+    $scoped->givePermissionTo('buildings.manage');
+    $scoped->buildings()->attach($this->building->id);
+
+    $data = ['use' => 'residential', 'type' => 'flat', 'furnishing' => 'unfurnished', 'list_rent' => '100'];
+    $save = app(SaveUnit::class);
+
+    expect(fn () => $save->handle($scoped, null, [...$data, 'building_id' => $other->id, 'code' => 'N1']))
+        ->toThrow(AuthorizationException::class)
+        ->and(fn () => $save->handle($scoped, $theirs, [...$data, 'building_id' => $other->id, 'code' => 'THEIRS-2', 'list_rent' => '999']))
+        ->toThrow(AuthorizationException::class);
+
+    Livewire::actingAs($scoped)->test(Form::class)
+        ->set('form.building_id', $other->id)
+        ->set('form.code', 'N2')
+        ->set('form.use', 'residential')
+        ->set('form.type', 'flat')
+        ->set('form.furnishing', 'unfurnished')
+        ->set('form.list_rent', '100')
+        ->call('save')
+        ->assertForbidden();
+
+    expect(Unit::where('building_id', $other->id)->count())->toBe(1)
+        ->and($theirs->fresh()->list_rent)->toBe('400.000')
+        ->and($save->handle($scoped, null, [...$data, 'building_id' => $this->building->id, 'code' => 'OWN-1'])->exists)->toBeTrue();
 });
