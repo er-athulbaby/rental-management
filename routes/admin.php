@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Admin\AuditLog;
 use App\Livewire\Admin\CompanySettings;
 use App\Livewire\Admin\Roles;
 use App\Livewire\Admin\Users;
@@ -14,4 +15,6 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     Route::livewire('roles', Roles\Index::class)->middleware('can:roles.manage')->name('roles.index');
     Route::livewire('roles/{role}/edit', Roles\Edit::class)->middleware('can:roles.manage')->name('roles.edit');
+
+    Route::livewire('audit', AuditLog::class)->middleware('can:audit.view')->name('audit');
 });
