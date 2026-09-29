@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\PermissionName;
+use App\Enums\RoleName;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -31,7 +34,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /** @var array<string, mixed> */
     protected $attributes = ['active' => true];
@@ -45,6 +48,17 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
         ];
+    }
+
+    /** Spec §8.6: holders of a sensitive permission must use 2FA. Follows roles granted later. */
+    public function requiresTwoFactor(): bool
+    {
+        return $this->hasAnyPermission(PermissionName::twoFactorRequired());
+    }
+
+    public function isVendorSupport(): bool
+    {
+        return $this->hasRole(RoleName::VendorSupport);
     }
 
     /** Kill every session of this user (database driver) and invalidate any remember cookie (spec §8.6). */
