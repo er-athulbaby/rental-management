@@ -83,6 +83,33 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            // Backups dump as the migrator: only a user with TRIGGER gets the triggers into the dump (spec §8.5).
+            'dump' => [
+                // Windows: C:/Users/<you>/.mysql/mysql-26.7.0-winx64/bin   Ubuntu (Oracle APT): /usr/bin
+                'dump_binary_path' => env('DB_DUMP_BINARY_PATH', ''),
+                'use_single_transaction',
+                'skip_lock_tables',
+                'use_quick',
+                'include_routines',
+                'mysql_gtid_purged' => 'OFF', // a GTID_PURGED line makes the dump unrestorable on another GTID server
+                'add_extra_option' => '--no-tablespaces',
+                'timeout' => 60 * 30,
+            ],
+        ],
+
+        // Restore-check target only (spec §13.3). Never point it at the live database.
+        'restore' => [
+            'driver' => 'mysql',
+            'host' => env('RESTORE_DB_HOST', '127.0.0.1'),
+            'port' => env('RESTORE_DB_PORT', '3306'),
+            'database' => env('RESTORE_DB_DATABASE', 'rms_restore_check'),
+            'username' => env('RESTORE_DB_USERNAME', 'root'),
+            'password' => env('RESTORE_DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'dump' => ['dump_binary_path' => env('DB_DUMP_BINARY_PATH', '')], // the restore package reads this to find `mysql`
         ],
 
         'mariadb' => [

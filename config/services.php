@@ -38,6 +38,9 @@ return [
     // Forge heartbeat ping URLs, one per scheduled job (spec §12).
     'forge' => [
         'heartbeats' => [
+            'backup_clean' => env('HEARTBEAT_BACKUP_CLEAN'),
+            'backup_run' => env('HEARTBEAT_BACKUP_RUN'),
+            'backup_monitor' => env('HEARTBEAT_BACKUP_MONITOR'),
             'number_sequences' => env('HEARTBEAT_NUMBER_SEQUENCES'),
         ],
     ],

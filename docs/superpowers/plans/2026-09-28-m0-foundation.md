@@ -6368,6 +6368,9 @@ test('a successful run pings its heartbeat exactly once', function () {
     require base_path('routes/console.php'); // re-register now that the URL is configured
 
     $event = collect(app(Schedule::class)->events())->last(fn ($e) => str_contains((string) $e->command, 'rms:number-sequences'));
+    // Scheduled commands run in a child process, outside the test transaction: swap in a harmless
+    // command so nothing is committed, keeping the heartbeat callback routes/console.php attached.
+    $event->command = escapeshellarg(PHP_BINARY).' '.escapeshellarg(base_path('artisan')).' --version';
     $event->run(app());
 
     expect($event->exitCode)->toBe(0)

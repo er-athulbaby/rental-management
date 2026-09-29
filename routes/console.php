@@ -7,3 +7,12 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('rms:number-sequences')->yearlyOn(12, 1, '04:30')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.number_sequences')), (string) $url);
+
+Schedule::command('backup:clean')->dailyAt('03:15')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.backup_clean')), (string) $url);
+
+Schedule::command('backup:run')->dailyAt('03:30')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.backup_run')), (string) $url);
+
+Schedule::command('backup:monitor')->dailyAt('07:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.backup_monitor')), (string) $url);
