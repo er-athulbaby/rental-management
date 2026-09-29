@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // Release tag. The deploy script writes `git describe --tags` to VERSION in each release (spec §13.2).
+    'version' => env('APP_VERSION') ?: (is_file(base_path('VERSION')) ? trim((string) file_get_contents(base_path('VERSION'))) : 'dev'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
