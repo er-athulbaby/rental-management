@@ -48,7 +48,8 @@ final class SaveOwner
 
         $bankNew = Arr::only($validated, Owner::BANK_FIELDS) + array_fill_keys(Owner::BANK_FIELDS, null);
         $bankOld = $owner ? $owner->only(Owner::BANK_FIELDS) : array_fill_keys(Owner::BANK_FIELDS, null);
-        $bankChanged = $bankNew != $bankOld;
+        $pick = fn (array $src) => array_map(fn (string $f) => $src[$f] ?? null, Owner::BANK_FIELDS);
+        $bankChanged = $pick($bankNew) !== $pick($bankOld);
 
         // The go-live import (import.run, new owners only) brings existing bank details across (spec §11).
         $importing = $viaImport && $owner === null && $actor->can(PermissionName::ImportRun);
@@ -70,8 +71,8 @@ final class SaveOwner
             if ($bankChanged) {
                 $mask = fn (?string $iban) => $iban ? '••••'.substr($iban, -4) : null;
                 Audit::log('owner.bank.changed', $owner,
-                    ['iban' => $mask($bankOld['iban']), 'bank_name' => $bankOld['bank_name']],
-                    ['iban' => $mask($bankNew['iban']), 'bank_name' => $bankNew['bank_name']],
+                    ['iban' => $mask($bankOld['iban']), 'bank_name' => $bankOld['bank_name'], 'account_name' => $bankOld['account_name']],
+                    ['iban' => $mask($bankNew['iban']), 'bank_name' => $bankNew['bank_name'], 'account_name' => $bankNew['account_name']],
                     causer: $actor,
                 );
             }

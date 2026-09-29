@@ -59,7 +59,7 @@ class Form extends Component
     {
         return view('livewire.expenses.form', [
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('name')->get(['id', 'code', 'name']),
-            'units' => Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->orderBy('code')->get(['id', 'code']),
+            'units' => Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->whereHas('building', fn ($q) => $q->visibleTo($this->actor()))->orderBy('code')->get(['id', 'code']),
             'categories' => ExpenseCategory::cases(),
         ]);
     }

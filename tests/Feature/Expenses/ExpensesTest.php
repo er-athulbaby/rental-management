@@ -1,11 +1,14 @@
 <?php
 
+use App\Actions\Documents\DeleteDocument;
 use App\Actions\Expenses\RecordExpense;
 use App\Actions\Expenses\ReverseExpense;
 use App\Enums\DocumentCategory;
 use App\Enums\ExpenseStatus;
 use App\Enums\RoleName;
+use App\Livewire\Expenses\Form;
 use App\Models\Building;
+use App\Models\Document;
 use App\Models\Expense;
 use App\Models\Owner;
 use App\Models\OwnerContract;
@@ -19,6 +22,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -137,4 +141,28 @@ test('expense writes and lists follow the building scope', function () {
     Expense::factory()->create(['building_id' => $other->id]);
     expect(Expense::visibleTo($scoped)->count())->toBe(1)
         ->and(Expense::visibleTo($this->finance)->count())->toBe(2);
+});
+
+test('the owner approval document behind an owner expense cannot be deleted by anyone', function () {
+    Storage::fake('local');
+    $expense = app(RecordExpense::class)->handle($this->pm, [...$this->base, 'charge_to' => 'owner', 'net' => '250', 'tax_amount' => '0', 'owner_approval_note' => 'Owner OK'],
+        UploadedFile::fake()->create('owner-ok.pdf', 20, 'application/pdf'));
+    $document = Document::query()->where('documentable_type', $expense->getMorphClass())->where('documentable_id', $expense->id)->sole();
+
+    foreach ([$this->pm, $this->finance] as $user) {
+        expect($user->can('delete', $document))->toBeFalse();
+        expect(fn () => app(DeleteDocument::class)->handle($user, $document))->toThrow(AuthorizationException::class);
+    }
+    expect(DB::table('documents')->where('id', $document->id)->whereNull('deleted_at')->exists())->toBeTrue();
+});
+
+test('the expense form only offers units of buildings the user can see', function () {
+    $other = Building::factory()->create();
+    Unit::factory()->for($other)->create();
+    $scoped = User::factory()->create()->assignRole(RoleName::Leasing);
+    $scoped->givePermissionTo('expenses.manage');
+    $scoped->buildings()->attach($this->building->id);
+
+    $component = Livewire::actingAs($scoped)->test(Form::class)->set('form.building_id', $other->id);
+    expect($component->viewData('units'))->toHaveCount(0);
 });

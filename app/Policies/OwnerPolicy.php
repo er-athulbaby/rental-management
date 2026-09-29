@@ -28,10 +28,10 @@ class OwnerPolicy
         return $user->can(PermissionName::OwnersManage);
     }
 
-    /** Spec §8.1: Finance views, Admin edits. */
+    /** Spec §8.1: Finance views, Admin edits, Management none (disbursements.manage is Finance-only). */
     public function viewBank(User $user, Owner $owner): bool
     {
-        return $user->can(PermissionName::OwnersBankManage) || $user->can(PermissionName::FinanceView);
+        return $user->can(PermissionName::OwnersBankManage) || $user->can(PermissionName::DisbursementsManage);
     }
 
     public function updateBank(User $user, Owner $owner): bool

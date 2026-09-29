@@ -72,3 +72,39 @@ test('editing non-bank fields does not touch the bank stamp', function () {
     expect($owner->fresh()->bankChangedRecently())->toBeFalse()
         ->and($owner->fresh()->phone)->toBe('+97339999999');
 });
+
+test('only Admin and Finance see the IBAN on the owner form; others cannot view it and saving keeps it', function () {
+    $owner = app(SaveOwner::class)->handle($this->admin, null, ownerData());
+
+    foreach ([RoleName::Admin, RoleName::Finance] as $role) {
+        $user = User::factory()->withTwoFactor()->create()->assignRole($role);
+        Livewire::actingAs($user)->test(Form::class, ['owner' => $owner])
+            ->assertSet('form.iban', 'BH67BMAG00001299123456')->assertSee('Bank details');
+    }
+
+    foreach ([RoleName::Management, RoleName::PropertyManager, RoleName::VendorSupport] as $role) {
+        $user = User::factory()->withTwoFactor()->create()->assignRole($role);
+        expect($user->can('viewBank', $owner))->toBeFalse();
+        if (! $user->can('view', $owner)) {
+            continue;
+        }
+        $component = Livewire::actingAs($user)->test(Form::class, ['owner' => $owner])
+            ->assertSet('form.iban', null)->assertDontSee('Bank details');
+        if ($user->can('update', $owner)) {
+            $component->set('form.phone', '+97333111111')->call('save');
+            expect($owner->refresh()->iban)->toBe('BH67BMAG00001299123456')->and($owner->phone)->toBe('+97333111111');
+        }
+    }
+});
+
+test('a numeric-string change to the account name still needs owners.bank.manage and is audited', function () {
+    $owner = app(SaveOwner::class)->handle($this->admin, null, ownerData(['account_name' => '123']));
+
+    expect(fn () => app(SaveOwner::class)->handle($this->finance, $owner, ownerData(['account_name' => '0123'])))
+        ->toThrow(AuthorizationException::class);
+
+    app(SaveOwner::class)->handle($this->admin, $owner, ownerData(['account_name' => '0123']));
+    $row = Activity::query()->where('event', 'owner.bank.changed')->latest('id')->firstOrFail();
+    expect($row->attribute_changes['attributes']['account_name'])->toBe('0123')
+        ->and($row->attribute_changes['old']['account_name'])->toBe('123');
+});

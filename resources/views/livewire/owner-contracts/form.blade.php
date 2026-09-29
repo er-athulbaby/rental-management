@@ -13,8 +13,8 @@
         </flux:select>
 
         <flux:radio.group wire:model.live="form.type" :label="__('Arrangement')" variant="segmented">
-            <flux:radio value="managed" :label="__('Managed for the owner')" />
-            <flux:radio value="leased" :label="__('Leased from the owner')" />
+            <flux:radio value="managed" :label="__('Managed')" />
+            <flux:radio value="leased" :label="__('Leased')" />
         </flux:radio.group>
 
         <div class="grid gap-4 sm:grid-cols-2">

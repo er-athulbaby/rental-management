@@ -95,3 +95,15 @@ test('a building-scoped user only sees and reaches contracts in their own buildi
     $this->actingAs($scoped)->get(route('owner-contracts.show', $theirs))->assertForbidden();
     $this->actingAs($scoped)->get(route('owner-contracts.edit', $theirs))->assertForbidden();
 });
+
+test('select-all units ignores a building outside the user scope', function () {
+    $other = Building::factory()->create();
+    Unit::factory()->for($other)->count(2)->create();
+    $scoped = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Leasing);
+    $scoped->givePermissionTo(['owners.view', 'owners.manage']);
+    $scoped->buildings()->attach($this->building->id);
+
+    Livewire::actingAs($scoped)->test(Form::class)
+        ->set('form.building_id', $other->id)->call('selectAllUnits')
+        ->assertSet('form.unit_ids', []);
+});

@@ -78,7 +78,7 @@ class Form extends Component
 
     public function selectAllUnits(): void
     {
-        $this->form['unit_ids'] = Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $this->form['unit_ids'] = Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->whereHas('building', fn ($q) => $q->visibleTo($this->actor()))->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     public function save(SaveOwnerContract $save): void
@@ -102,7 +102,7 @@ class Form extends Component
         return view('livewire.owner-contracts.form', [
             'owners' => Owner::query()->orderBy('name_en')->get(['id', 'name_en']),
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('name')->get(['id', 'code', 'name']),
-            'units' => Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->orderBy('code')->get(['id', 'code', 'floor']),
+            'units' => Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->whereHas('building', fn ($q) => $q->visibleTo($this->actor()))->orderBy('code')->get(['id', 'code', 'floor']),
             'predecessors' => OwnerContract::query()->visibleTo($this->actor())->where('status', OwnerContractStatus::Active)->orderBy('number')->get(['id', 'number']),
             'frequencies' => PaymentFrequency::cases(),
             'feeTypes' => FeeType::cases(),

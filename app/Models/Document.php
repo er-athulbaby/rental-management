@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
+/** @property DocumentCategory $category */
 class Document extends Model
 {
     use LogsActivity, SoftDeletes;

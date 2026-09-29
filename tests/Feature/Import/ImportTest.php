@@ -157,3 +157,15 @@ test('the import screen runs a dry run on uploaded files', function () {
 
     expect(Owner::count())->toBe(0);
 });
+
+test('a bogus file key is rejected before anything is stored', function () {
+    Storage::fake('local');
+
+    Livewire::actingAs($this->vendor)->test(Index::class)
+        ->set('files.owners', UploadedFile::fake()->create('owners.xlsx', 5))
+        ->set('files.bogus', UploadedFile::fake()->create('x.xlsx', 5))
+        ->call('run', false)
+        ->assertHasErrors('files');
+
+    expect(Storage::disk('local')->files('imports'))->toBe([]);
+});

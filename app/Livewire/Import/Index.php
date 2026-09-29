@@ -37,14 +37,13 @@ class Index extends Component
     {
         $this->files = array_filter($this->files);
         $this->validate([
-            'files' => ['required', 'array'],
+            'files' => ['required', 'array:'.implode(',', array_map(fn (ImportKind $k) => $k->value, ImportKind::cases()))],
             // By extension: finfo often reports .xlsx as application/zip. A bad file is reported by RunImport.
             'files.*' => ['file', 'extensions:xlsx,csv', 'max:10240'],
         ]);
 
         $stored = [];
         foreach ($this->files as $kind => $file) {
-            abort_if(ImportKind::tryFrom((string) $kind) === null, 422);
             $extension = strtolower($file->getClientOriginalExtension()) === 'csv' ? 'csv' : 'xlsx';
             $stored[$kind] = $file->storeAs('imports', Str::uuid().'.'.$extension, 'local') ?: abort(500);
         }
