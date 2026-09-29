@@ -39,7 +39,7 @@ return [
             'compression_method' => ZipArchive::CM_DEFAULT,
             'compression_level' => 9,
             'filename_prefix' => '',
-            'disks' => explode(',', (string) env('BACKUP_DISKS', 'backups')), // production: backups-s3
+            'disks' => explode(',', (string) (env('BACKUP_DISKS') ?: 'backups')), // production: backups-s3
             'continue_on_failure' => false,
         ],
 
@@ -62,7 +62,8 @@ return [
         ],
         'notifiable' => Notifiable::class,
         'mail' => [
-            'to' => env('BACKUP_NOTIFY_EMAIL', 'ops@example.com'),
+            // `?:` not a default argument: a blank BACKUP_NOTIFY_EMAIL= in .env is "", which laravel-backup rejects at boot.
+            'to' => env('BACKUP_NOTIFY_EMAIL') ?: env('MAIL_FROM_ADDRESS', 'hello@example.com'),
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
                 'name' => env('MAIL_FROM_NAME', 'Rental Management'),
@@ -78,7 +79,7 @@ return [
     'monitor_backups' => [
         [
             'name' => env('APP_NAME', 'laravel-backup'),
-            'disks' => explode(',', (string) env('BACKUP_DISKS', 'backups')),
+            'disks' => explode(',', (string) (env('BACKUP_DISKS') ?: 'backups')),
             'health_checks' => [
                 MaximumAgeInDays::class => 1, // no size-based alarms
             ],
