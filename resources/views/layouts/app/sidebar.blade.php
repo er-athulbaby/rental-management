@@ -27,6 +27,9 @@
                     @can('owners.view')
                         <flux:sidebar.item icon="user-group" :href="route('owners.index')" :current="request()->routeIs('owners.*')" wire:navigate>{{ __('Owners') }}</flux:sidebar.item>
                     @endcan
+                    @can('owners.view')
+                        <flux:sidebar.item icon="document-text" :href="route('owner-contracts.index')" :current="request()->routeIs('owner-contracts.*')" wire:navigate>{{ __('Owner contracts') }}</flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 @canany(['users.manage', 'roles.manage', 'settings.manage', 'audit.view'])
