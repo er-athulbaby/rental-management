@@ -5649,7 +5649,7 @@ class InstallCommand extends Command
 
         Password::broker()->sendResetLink(['email' => $admin->email]);
 
-        $this->info("Installed {$data['company']}. A password link was emailed to {$admin->email}.");
+        $this->info("Installed: {$data['company']}. A password link was emailed to {$admin->email}.");
         $this->warn('Store these in the vendor vault now; they are not shown again.');
         $this->line("Vendor Support password: {$vendorPassword}");
         $this->line('Vendor Support TOTP: '.$vendor->twoFactorQrCodeUrl());
