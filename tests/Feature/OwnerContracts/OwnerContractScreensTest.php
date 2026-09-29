@@ -79,3 +79,19 @@ test('lists and pages follow owners.view and the building scope', function () {
     $leasing->buildings()->attach($this->building->id);
     $this->actingAs($leasing)->get(route('owner-contracts.index'))->assertForbidden();
 });
+
+test('a building-scoped user only sees and reaches contracts in their own buildings', function () {
+    $mine = OwnerContract::factory()->create(['owner_id' => $this->owner->id, 'building_id' => $this->building->id]);
+    $otherBuilding = Building::factory()->create(['name' => 'Juffair Point']);
+    $theirs = OwnerContract::factory()->create(['building_id' => $otherBuilding->id]);
+
+    $scoped = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Leasing);
+    $scoped->givePermissionTo(['owners.view', 'owners.manage']);
+    $scoped->buildings()->attach($this->building->id);
+
+    Livewire::actingAs($scoped)->test(Index::class)->assertSee('Seef Heights')->assertDontSee('Juffair Point');
+
+    $this->actingAs($scoped)->get(route('owner-contracts.show', $mine))->assertOk();
+    $this->actingAs($scoped)->get(route('owner-contracts.show', $theirs))->assertForbidden();
+    $this->actingAs($scoped)->get(route('owner-contracts.edit', $theirs))->assertForbidden();
+});
