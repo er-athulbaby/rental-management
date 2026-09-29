@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\OwnerContract;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -52,7 +53,13 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/** An active owner contract with units, walked through the status steps the triggers allow. */
+function activeOwnerContract(array $attributes, iterable $units): OwnerContract
 {
-    // ..
+    $contract = OwnerContract::factory()->create($attributes);
+    $contract->units()->attach(collect($units)->map(fn ($unit) => is_int($unit) ? $unit : $unit->id)->all());
+    $contract->forceFill(['status' => 'pending_approval'])->save();
+    $contract->forceFill(['status' => 'active', 'number' => 'OC-TEST-'.$contract->id])->save();
+
+    return $contract->fresh();
 }
