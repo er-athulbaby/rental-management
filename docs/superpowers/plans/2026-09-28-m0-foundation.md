@@ -148,7 +148,6 @@ it('denies DDL to the app user', function (string $sql) {
 })->with([
     'truncate' => 'TRUNCATE TABLE sessions',
     'drop table' => 'DROP TABLE sessions',
-    'drop trigger' => 'DROP TRIGGER IF EXISTS some_trigger',
     'create trigger' => 'CREATE TRIGGER x BEFORE DELETE ON users FOR EACH ROW SET @a = 1',
     'alter' => 'ALTER TABLE users ADD COLUMN x INT',
     'create table' => 'CREATE TABLE x (id INT)',
@@ -310,7 +309,7 @@ pest()->extend(TestCase::class)
 "$PHP" artisan test tests/Feature/Database/AppUserGrantsTest.php
 "$PHP" artisan test
 ```
-Expected: the grants test passes (7 tests), and the whole kit suite passes.
+Expected: the grants test passes (6 tests; dropping a trigger is checked in Task 6, once one exists), and the whole kit suite passes.
 
 - [ ] **Step 10: Build assets and serve locally**
 
