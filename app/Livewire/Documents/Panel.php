@@ -8,6 +8,7 @@ use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\Document;
+use App\Models\Expense;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Unit;
@@ -27,7 +28,7 @@ class Panel extends Component
     use WithActor, WithFileUploads;
 
     /** Record types that may carry documents; later milestones add theirs. */
-    public const array ALLOWED = [Building::class, Owner::class, OwnerContract::class, Unit::class];
+    public const array ALLOWED = [Building::class, Expense::class, Owner::class, OwnerContract::class, Unit::class];
 
     #[Locked]
     public string $type = '';

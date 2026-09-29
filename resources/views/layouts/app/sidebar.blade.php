@@ -34,6 +34,9 @@
                     @can('owners.view')
                         <flux:sidebar.item icon="document-text" :href="route('owner-contracts.index')" :current="request()->routeIs('owner-contracts.*')" wire:navigate>{{ __('Owner contracts') }}</flux:sidebar.item>
                     @endcan
+                    @can('viewAny', \App\Models\Expense::class)
+                        <flux:sidebar.item icon="receipt-percent" :href="route('expenses.index')" :current="request()->routeIs('expenses.*')" wire:navigate>{{ __('Expenses') }}</flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 @canany(['users.manage', 'roles.manage', 'settings.manage', 'audit.view'])

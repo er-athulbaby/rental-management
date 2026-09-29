@@ -2,9 +2,11 @@
 
 use App\Livewire\Approvals;
 use App\Livewire\Buildings;
+use App\Livewire\Expenses;
 use App\Livewire\OwnerContracts;
 use App\Livewire\Owners;
 use App\Livewire\Units;
+use App\Models\Expense;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -22,4 +24,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('owner-contracts/create', OwnerContracts\Form::class)->middleware('can:owners.manage')->name('owner-contracts.create');
     Route::livewire('owner-contracts/{contract}/edit', OwnerContracts\Form::class)->middleware('can:owners.manage')->name('owner-contracts.edit');
     Route::livewire('owner-contracts/{contract}', OwnerContracts\Show::class)->middleware('can:owners.view')->name('owner-contracts.show');
+    Route::livewire('expenses', Expenses\Index::class)->middleware('can:viewAny,'.Expense::class)->name('expenses.index');
+    Route::livewire('expenses/create', Expenses\Form::class)->middleware('can:expenses.manage')->name('expenses.create');
+    Route::livewire('expenses/{expense}', Expenses\Show::class)->middleware('can:viewAny,'.Expense::class)->name('expenses.show');
 });
