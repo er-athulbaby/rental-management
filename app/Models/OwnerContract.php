@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -103,6 +104,12 @@ class OwnerContract extends Model
     public function previous(): BelongsTo
     {
         return $this->belongsTo(self::class, 'previous_contract_id');
+    }
+
+    /** @return MorphMany<Approval, $this> */
+    public function approvals(): MorphMany
+    {
+        return $this->morphMany(Approval::class, 'approvable');
     }
 
     /** @return BelongsToMany<Unit, $this> */

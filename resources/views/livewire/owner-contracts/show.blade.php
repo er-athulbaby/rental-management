@@ -11,9 +11,21 @@
             @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Active)
                 <flux:button :href="route('owner-contracts.create', ['previous' => $contract->id])" wire:navigate>{{ __('New successor') }}</flux:button>
             @endif
-            {{-- Task 6 adds Submit; Task 7 adds Request early termination. --}}
+            @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Draft)
+                <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this contract for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
+            @endif
+            {{-- Task 7 adds Request early termination. --}}
         </div>
     </div>
+
+    <flux:error name="unit_ids" />
+    <flux:error name="status" />
+    <flux:error name="approval" />
+
+    @php($lastRejection = $contract->status === \App\Enums\OwnerContractStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null)
+    @if ($lastRejection)
+        <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
+    @endif
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         <div><dt class="text-sm text-zinc-500">{{ __('Owner') }}</dt><dd>{{ $contract->owner->name_en }}</dd></div>
@@ -43,5 +55,21 @@
         </p>
     </div>
 
-    <livewire:documents.panel :documentable="$contract" :key="'docs-oc-'.$contract->id" />
+    @if ($approvals->isNotEmpty())
+        <div class="space-y-2">
+            <flux:heading size="lg">{{ __('Approval history') }}</flux:heading>
+            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                @foreach ($approvals as $approval)
+                    <li class="py-2 text-sm">
+                        {{ $approval->action->label() }} · {{ str($approval->status->value)->headline() }} ·
+                        {{ __('requested by :name', ['name' => $approval->requester->name]) }}
+                        @if ($approval->decider) · {{ __('decided by :name', ['name' => $approval->decider->name]) }} @endif
+                        @if ($approval->comment) — {{ $approval->comment }} @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <livewire:documents.panel:documentable="$contract" :key="'docs-oc-'.$contract->id" />
 </section>

@@ -15,6 +15,10 @@
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
+                    @can('approvals.decide')
+                        <flux:sidebar.item icon="check-badge" :href="route('approvals.index')" :current="request()->routeIs('approvals.*')"
+                            :badge="\App\Models\Approval::pending()->count() ?: null" wire:navigate>{{ __('Approvals') }}</flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Property')" class="grid">
