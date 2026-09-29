@@ -14,6 +14,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Activitylog\Models\Concerns\HasActivity;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -34,7 +36,20 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasActivity, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+
+    /** Never written to the audit log (spec §8.4). #[Hidden] does NOT keep attributes out of it. */
+    public const array AUDIT_SECRETS = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(self::AUDIT_SECRETS)
+            ->dontLogIfAttributesChangedOnly([...self::AUDIT_SECRETS, 'updated_at'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
+    }
 
     /** @var array<string, mixed> */
     protected $attributes = ['active' => true];

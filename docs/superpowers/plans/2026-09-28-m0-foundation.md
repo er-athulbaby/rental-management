@@ -1839,7 +1839,8 @@ test('a model change over HTTP records ip, user agent and old/new values', funct
     $row = Activity::query()->where('event', 'updated')->latest('id')->firstOrFail();
     expect($row->ip)->toBe('10.1.2.3')
         ->and($row->user_agent)->toBe('PestUA/1.0')
-        ->and($row->attribute_changes->toArray())->toEqual(['old' => ['name' => 'Before'], 'attributes' => ['name' => 'After']]);
+        ->and($row->attribute_changes['old']['name'])->toBe('Before')
+        ->and($row->attribute_changes['attributes']['name'])->toBe('After'); // updated_at may also appear
 });
 
 test('secrets never reach the audit log', function () {
@@ -1907,7 +1908,10 @@ test('2FA enable, confirm, disable and a failed challenge are logged', function 
     app(DisableTwoFactorAuthentication::class)($user->fresh());
 
     auth()->logout();
-    $withTwoFactor = User::factory()->withTwoFactor()->create();
+    // The factory secret is not valid base32; a failed challenge needs a real one.
+    $withTwoFactor = User::factory()->withTwoFactor()->create([
+        'two_factor_secret' => encrypt(app(\Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider::class)->generateSecretKey()),
+    ]);
     $this->post(route('login.store'), ['email' => $withTwoFactor->email, 'password' => 'password']);
     $this->post(route('two-factor.login.store'), ['code' => '000000']);
 
@@ -1932,6 +1936,19 @@ test('the audit log cannot be updated or deleted', function () {
     expect(fn () => DB::table('activity_log')->where('id', $row->id)->delete())
         ->toThrow(fn (QueryException $e) => expect($e->errorInfo)->toBe(['45000', 1644, 'activity_log is append-only']));
 });
+
+test('the app user cannot drop the audit triggers', function () {
+    // Probe on a separate connection: a denied DDL statement commits the RefreshDatabase transaction.
+    config(['database.connections.grants_probe' => config('database.connections.mysql')]);
+
+    expect(fn () => DB::connection('grants_probe')->unprepared('DROP TRIGGER activity_log_no_update'))
+        ->toThrow(fn (QueryException $e) => expect($e->errorInfo[1])->toBe(1142));
+
+    DB::purge('grants_probe');
+})->skip(
+    fn () => config('database.connections.mysql.username') === config('database.connections.migrator.username'),
+    'app and migrator are the same user',
+);
 ```
 
 - [ ] **Step 3: Run it to verify it fails**

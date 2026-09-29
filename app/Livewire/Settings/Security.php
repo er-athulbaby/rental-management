@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Audit\Audit;
 use App\Concerns\PasswordValidationRules;
 use Exception;
 use Flux\Flux;
@@ -95,6 +96,7 @@ class Security extends Component
 
         // Spec §8.6: a password change kills the user's other sessions and rotates remember_token.
         Auth::user()->logoutEverywhere(exceptSessionId: session()->getId());
+        Audit::log('auth.password.changed', Auth::user(), causer: Auth::user());
 
         $this->reset('current_password', 'password', 'password_confirmation');
 

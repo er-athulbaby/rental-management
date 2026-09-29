@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Audit\AuthEventSubscriber;
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
@@ -29,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Livewire update requests re-run this against the component's original page route.
         Livewire::addPersistentMiddleware([EnsureTwoFactorIsConfirmed::class]);
+
+        Event::subscribe(AuthEventSubscriber::class);
     }
 
     /**
