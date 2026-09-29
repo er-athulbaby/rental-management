@@ -36,6 +36,16 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user is deactivated.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'active' => false,
+        ]);
+    }
+
+    /**
      * Indicate that the model has two-factor authentication configured.
      */
     public function withTwoFactor(): static

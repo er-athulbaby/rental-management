@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
@@ -17,6 +18,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $name
  * @property string $email
  * @property string $password
+ * @property bool $active
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -31,6 +33,9 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
+    /** @var array<string, mixed> */
+    protected $attributes = ['active' => true];
+
     /**
      * @return array<string, string>
      */
@@ -38,7 +43,27 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'active' => 'boolean',
         ];
+    }
+
+    /** Kill every session of this user (database driver) and invalidate any remember cookie (spec §8.6). */
+    public function logoutEverywhere(?string $exceptSessionId = null): void
+    {
+        DB::table(config('session.table'))
+            ->where('user_id', $this->getKey())
+            ->when($exceptSessionId, fn ($query) => $query->where('id', '!=', $exceptSessionId))
+            ->delete();
+
+        $this->forceFill(['remember_token' => Str::random(60)])->save();
+    }
+
+    /** Inactive users silently get no reset link (the response still says "link sent"). */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        if ($this->active) {
+            parent::sendPasswordResetNotification($token);
+        }
     }
 
     public function initials(): string

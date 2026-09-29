@@ -89,6 +89,9 @@ class Security extends Component
             'password' => $validated['password'],
         ]);
 
+        // Spec §8.6: a password change kills the user's other sessions and rotates remember_token.
+        Auth::user()->logoutEverywhere(exceptSessionId: session()->getId());
+
         $this->reset('current_password', 'password', 'password_confirmation');
 
         Flux::toast(variant: 'success', text: __('Password updated.'));
