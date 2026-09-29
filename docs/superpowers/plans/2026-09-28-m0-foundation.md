@@ -2423,7 +2423,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('company_settings', function (Blueprint $table) {
-            $table->id();
+            // Not auto-increment: MySQL forbids CHECK constraints on auto-increment columns (error 3818).
+            $table->unsignedTinyInteger('id')->default(1)->primary();
             $table->string('name_en', 150);
             $table->string('name_ar', 150)->nullable();
             $table->string('cr_number', 30)->nullable();
@@ -2514,6 +2515,9 @@ class CompanySetting extends Model
     ];
 
     protected $guarded = ['id'];
+
+    /** The single row always has id 1 (CHECK company_settings_single_row). */
+    public $incrementing = false;
 
     protected function casts(): array
     {
