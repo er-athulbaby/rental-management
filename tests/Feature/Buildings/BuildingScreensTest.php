@@ -92,3 +92,15 @@ test('the documents panel uploads, lists and deletes', function () {
 test('the documents panel refuses models outside its allow-list', function () {
     Livewire::actingAs($this->manager)->test(Panel::class, ['documentable' => $this->manager])->assertForbidden();
 });
+
+test('a rejected upload shows an error on the upload field and stores nothing', function () {
+    Storage::fake('local');
+    $building = Building::factory()->create();
+
+    Livewire::actingAs($this->manager)->test(Panel::class, ['documentable' => $building])
+        ->set('upload', UploadedFile::fake()->create('malware.exe', 5))
+        ->call('save')
+        ->assertHasErrors('upload');
+
+    expect($building->documents()->count())->toBe(0);
+});

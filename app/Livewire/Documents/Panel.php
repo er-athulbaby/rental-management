@@ -13,6 +13,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -67,6 +68,8 @@ class Panel extends Component
             $store->handle($this->actor(), $this->documentable(), $this->upload, DocumentCategory::from($this->category));
         } catch (AuthorizationException) {
             abort(403);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [$k === 'file' ? 'upload' : $k => $m])->all());
         }
 
         $this->reset('upload');
