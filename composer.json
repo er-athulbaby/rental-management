@@ -24,6 +24,7 @@
         "spatie/laravel-activitylog": "^5",
         "spatie/laravel-backup": "^10",
         "spatie/laravel-permission": "^8",
+        "spatie/simple-excel": "^3.10",
         "wnx/laravel-backup-restore": "^1.9"
     },
     "require-dev": {

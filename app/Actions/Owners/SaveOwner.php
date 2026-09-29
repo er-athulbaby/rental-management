@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
 final class SaveOwner
 {
     /** @param  array<string, mixed>  $data */
-    public function handle(User $actor, ?Owner $owner, array $data): Owner
+    public function handle(User $actor, ?Owner $owner, array $data, bool $viaImport = false): Owner
     {
         if (! ($owner ? $actor->can('update', $owner) : $actor->can('create', Owner::class))) {
             throw new AuthorizationException;
@@ -50,15 +50,18 @@ final class SaveOwner
         $bankOld = $owner ? $owner->only(Owner::BANK_FIELDS) : array_fill_keys(Owner::BANK_FIELDS, null);
         $bankChanged = $bankNew != $bankOld;
 
-        if ($bankChanged && ! $actor->can(PermissionName::OwnersBankManage)) {
+        // The go-live import (import.run, new owners only) brings existing bank details across (spec §11).
+        $importing = $viaImport && $owner === null && $actor->can(PermissionName::ImportRun);
+
+        if ($bankChanged && ! $importing && ! $actor->can(PermissionName::OwnersBankManage)) {
             throw new AuthorizationException(__('Only holders of owners.bank.manage can change bank details.'));
         }
 
-        return DB::transaction(function () use ($actor, $owner, $validated, $bankChanged, $bankOld, $bankNew) {
+        return DB::transaction(function () use ($actor, $owner, $validated, $bankChanged, $bankOld, $bankNew, $importing) {
             $owner ??= new Owner;
             $owner->fill($validated);
 
-            if ($bankChanged) {
+            if ($bankChanged && ! $importing) {
                 $owner->forceFill(['bank_changed_at' => now(), 'bank_changed_by' => $actor->id]);
             }
 

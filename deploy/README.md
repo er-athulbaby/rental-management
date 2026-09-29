@@ -49,7 +49,8 @@ Store the printed Vendor Support password and TOTP URL in the vault immediately.
 
 ## 5. A company's go-live (spec §13.2)
 1. Provision its server (section 2) and deploy the current release.
-2. `rms:install` with the company's details; run the dry-run import and UAT on this server.
+   - In M1 the client gets the four templates (Data import → Download template, as Vendor Support): buildings, units, owners, owner contracts. Ask them to format ID, phone, IBAN and money columns as Text before typing. Owner contract `units` is `ALL` or comma-separated unit codes; dates are `YYYY-MM-DD` or `DD/MM/YYYY`.
+2. `rms:install` with the company's details. Log in as Vendor Support, upload the client's files on Data import and press **Dry run** until it reports no problems (this is the M1 exit check: nothing is saved). Then UAT on this server.
 3. After UAT sign-off: drop the database and `storage/app/private`, recreate the database with `provision-mysql.sh`, deploy, `rms:install` again, run the final import, then `php artisan rms:setting go_live_at <YYYY-MM-DD>`.
 
 ## 6. Backups and the restore check
