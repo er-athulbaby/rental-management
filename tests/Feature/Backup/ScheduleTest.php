@@ -27,6 +27,7 @@ test('the backup and numbering jobs are scheduled in Bahrain time without overla
     ['backup:run', '30 3 * * *'],
     ['backup:monitor', '0 7 * * *'],
     ['rms:number-sequences', '30 4 1 12 *'],
+    ['rms:owner-contracts:close', '15 2 * * *'],
 ]);
 
 test('a successful run pings its heartbeat exactly once', function () {

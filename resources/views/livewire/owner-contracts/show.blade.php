@@ -14,7 +14,6 @@
             @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Draft)
                 <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this contract for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
             @endif
-            {{-- Task 7 adds Request early termination. --}}
         </div>
     </div>
 
@@ -54,6 +53,22 @@
             @foreach ($contract->units as $unit)<flux:badge size="sm">{{ $unit->code }}</flux:badge>@endforeach
         </p>
     </div>
+
+    @php($terminationPending = $approvals->contains(fn ($a) => $a->action === \App\Enums\ApprovalAction::OwnerContractTermination && $a->status === \App\Enums\ApprovalStatus::Pending))
+    @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Active && ! $contract->terminated_on)
+        <flux:fieldset>
+            <flux:legend>{{ __('Early termination') }}</flux:legend>
+            @if ($terminationPending)
+                <flux:text>{{ __('An early termination is waiting for Management approval.') }}</flux:text>
+            @else
+                <form wire:submit="requestTermination" class="mt-2 space-y-3">
+                    <flux:input wire:model="terminatedOn" type="date" :label="__('Last day of the contract')" />
+                    <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" />
+                    <flux:button type="submit">{{ __('Request early termination') }}</flux:button>
+                </form>
+            @endif
+        </flux:fieldset>
+    @endif
 
     @if ($approvals->isNotEmpty())
         <div class="space-y-2">

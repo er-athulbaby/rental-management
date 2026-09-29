@@ -16,3 +16,6 @@ Schedule::command('backup:run')->dailyAt('03:30')->withoutOverlapping(120)
 
 Schedule::command('backup:monitor')->dailyAt('07:00')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.backup_monitor')), (string) $url);
+
+Schedule::command('rms:owner-contracts:close')->dailyAt('02:15')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.owner_contracts')), (string) $url);

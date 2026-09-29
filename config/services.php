@@ -41,6 +41,7 @@ return [
             'backup_clean' => env('HEARTBEAT_BACKUP_CLEAN'),
             'backup_run' => env('HEARTBEAT_BACKUP_RUN'),
             'backup_monitor' => env('HEARTBEAT_BACKUP_MONITOR'),
+            'owner_contracts' => env('HEARTBEAT_OWNER_CONTRACTS'),
             'number_sequences' => env('HEARTBEAT_NUMBER_SEQUENCES'),
         ],
     ],
