@@ -8,6 +8,7 @@ use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\Document;
+use App\Models\Unit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +25,7 @@ class Panel extends Component
     use WithActor, WithFileUploads;
 
     /** Record types that may carry documents; later milestones add theirs. */
-    public const array ALLOWED = [Building::class];
+    public const array ALLOWED = [Building::class, Unit::class];
 
     #[Locked]
     public string $type = '';

@@ -21,6 +21,9 @@
                     @can('buildings.view')
                         <flux:sidebar.item icon="building-office-2" :href="route('buildings.index')" :current="request()->routeIs('buildings.*')" wire:navigate>{{ __('Buildings') }}</flux:sidebar.item>
                     @endcan
+                    @can('buildings.view')
+                        <flux:sidebar.item icon="home-modern" :href="route('units.index')" :current="request()->routeIs('units.*')" wire:navigate>{{ __('Units') }}</flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 @canany(['users.manage', 'roles.manage', 'settings.manage', 'audit.view'])
