@@ -51,6 +51,10 @@ class Security extends Component
     #[Validate('required|string|size:6', onUpdate: false)]
     public string $code = '';
 
+    /** The user holds a sensitive permission: 2FA is mandatory and cannot be disabled. */
+    #[Locked]
+    public bool $mustUseTwoFactor = false;
+
     /**
      * Mount the component.
      */
@@ -65,8 +69,8 @@ class Security extends Component
 
             $this->twoFactorEnabled = auth()->user()->hasEnabledTwoFactorAuthentication();
             $this->requiresConfirmation = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
+            $this->mustUseTwoFactor = auth()->user()->requiresTwoFactor();
         }
-
     }
 
     /**

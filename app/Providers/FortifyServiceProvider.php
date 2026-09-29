@@ -18,7 +18,11 @@ class FortifyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Used by the Security component AND Fortify's DELETE /user/two-factor-authentication route.
+        $this->app->bind(
+            \Laravel\Fortify\Actions\DisableTwoFactorAuthentication::class,
+            \App\Actions\Fortify\DisableTwoFactorAuthentication::class,
+        );
     }
 
     public function boot(): void

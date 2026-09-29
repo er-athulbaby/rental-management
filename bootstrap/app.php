@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Every web request, including Livewire's update endpoint and Fortify's routes.
         $middleware->web(append: [
             \App\Http\Middleware\EnsureUserIsActive::class,
+            \App\Http\Middleware\EnsureTwoFactorIsConfirmed::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

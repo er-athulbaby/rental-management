@@ -49,19 +49,22 @@
                                 {{ __('You will be prompted for a secure, random pin during login, which you can retrieve from the TOTP-supported application on your phone.') }}
                             </flux:text>
 
-                            <div class="flex justify-start">
-                                <flux:button
-                                    variant="danger"
-                                    wire:click="disable"
-                                >
-                                    {{ __('Disable 2FA') }}
-                                </flux:button>
-                            </div>
+                            @unless ($mustUseTwoFactor)
+                                <div class="flex justify-start">
+                                    <flux:button variant="danger" wire:click="disable">
+                                        {{ __('Disable 2FA') }}
+                                    </flux:button>
+                                </div>
+                            @endunless
 
                             <livewire:settings.two-factor.recovery-codes :$requiresConfirmation />
                         </div>
                     @else
                         <div class="space-y-4">
+                            @if ($mustUseTwoFactor)
+                                <flux:callout variant="warning" icon="shield-exclamation" :heading="__('Your role requires two-factor authentication. Enable it to continue using the application.')" />
+                            @endif
+
                             <flux:text variant="subtle">
                                 {{ __('When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.') }}
                             </flux:text>
