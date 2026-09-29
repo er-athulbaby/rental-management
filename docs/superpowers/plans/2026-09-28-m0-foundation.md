@@ -2920,10 +2920,6 @@ test('numbers are formatted and consecutive', function () {
     });
 });
 
-test('it refuses to run outside a transaction', function () {
-    expect(fn () => app(NextDocumentNumber::class)(NumberSequenceKey::Invoice))->toThrow(LogicException::class);
-});
-
 test('it refuses when the year row is missing', function () {
     $this->travelTo(now('Asia/Bahrain')->setDate(2027, 1, 1));
 
@@ -2992,6 +2988,11 @@ beforeEach(function () {
 });
 
 afterEach(fn () => DB::purge('mysql_b'));
+
+// Here, not in Feature: RefreshDatabase wraps every Feature test in a transaction.
+it('refuses to run outside a transaction', function () {
+    expect(fn () => app(NextDocumentNumber::class)(NumberSequenceKey::Invoice))->toThrow(LogicException::class);
+});
 
 it('blocks a second connection until the first commits', function () {
     $b = DB::connection('mysql_b');

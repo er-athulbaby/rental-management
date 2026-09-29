@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Forge heartbeat ping URLs, one per scheduled job (spec §12).
+    'forge' => [
+        'heartbeats' => [
+            'number_sequences' => env('HEARTBEAT_NUMBER_SEQUENCES'),
+        ],
+    ],
+
 ];

@@ -1,8 +1,9 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Every job: no overlap (lock expires after 120 min if a run crashes) and a Forge heartbeat on success (spec §12).
+// Heartbeat URLs are read with config(), never env(): env() is null after config:cache.
+
+Schedule::command('rms:number-sequences')->yearlyOn(12, 1, '04:30')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.number_sequences')), (string) $url);
