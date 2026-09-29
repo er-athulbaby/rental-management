@@ -10,16 +10,20 @@ use App\Actions\Users\SyncUserBuildings;
 use App\Actions\Users\SyncUserRoles;
 use App\Actions\Users\UpdateUserProfile;
 use App\Enums\RoleName;
+use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\User;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class Form extends Component
 {
+    use WithActor;
+
     #[Locked]
     public ?int $userId = null;
 
@@ -27,10 +31,10 @@ class Form extends Component
 
     public string $email = '';
 
-    /** @var list<string> */
+    /** @var array<int, string> */
     public array $roles = [];
 
-    /** @var list<int> */
+    /** @var array<int, int> */
     public array $buildingIds = [];
 
     public function mount(?User $user = null): void
@@ -39,9 +43,15 @@ class Form extends Component
             $this->userId = $user->id;
             $this->name = $user->name;
             $this->email = $user->email;
-            $this->roles = $user->getRoleNames()->all();
-            $this->buildingIds = $user->buildings()->pluck('buildings.id')->all();
+            $this->roles = $user->getRoleNames()->map(fn (mixed $name): string => (string) $name)->values()->all();
+            $this->buildingIds = $user->buildings()->pluck('buildings.id')->map(fn (mixed $id): int => (int) $id)->values()->all();
         }
+    }
+
+    /** The user being edited; only valid in edit mode. */
+    private function subject(): User
+    {
+        return User::findOrFail($this->userId);
     }
 
     public function user(): ?User
@@ -51,18 +61,18 @@ class Form extends Component
 
     public function save(CreateUser $create, UpdateUserProfile $profile, SyncUserRoles $roles, SyncUserBuildings $buildings): void
     {
-        $actor = auth()->user();
+        $actor = $this->actor();
 
         try {
             if (! $user = $this->user()) {
-                $create->handle($actor, $this->name, $this->email, $this->roles, $this->buildingIds);
+                $create->handle($actor, $this->name, $this->email, array_values($this->roles), array_values($this->buildingIds));
             } else {
                 DB::transaction(function () use ($actor, $user, $profile, $roles, $buildings) {
                     $profile->handle($actor, $user, $this->name, $this->email);
                     if ($user->getRoleNames()->sort()->values()->all() !== collect($this->roles)->sort()->values()->all()) {
-                        $roles->handle($actor, $user, $this->roles);
+                        $roles->handle($actor, $user, array_values($this->roles));
                     }
-                    $buildings->handle($actor, $user, $this->buildingIds);
+                    $buildings->handle($actor, $user, array_values($this->buildingIds));
                 });
             }
         } catch (AuthorizationException $e) {
@@ -77,17 +87,17 @@ class Form extends Component
 
     public function deactivate(DeactivateUser $action): void
     {
-        $this->run(fn () => $action->handle(auth()->user(), $this->user()), __('User deactivated.'));
+        $this->run(fn () => $action->handle($this->actor(), $this->subject()), __('User deactivated.'));
     }
 
     public function reactivate(ReactivateUser $action): void
     {
-        $this->run(fn () => $action->handle(auth()->user(), $this->user()), __('User reactivated.'));
+        $this->run(fn () => $action->handle($this->actor(), $this->subject()), __('User reactivated.'));
     }
 
     public function resetTwoFactor(ResetUserTwoFactor $action): void
     {
-        $this->run(fn () => $action->handle(auth()->user(), $this->user()), __('Two-factor authentication reset.'));
+        $this->run(fn () => $action->handle($this->actor(), $this->subject()), __('Two-factor authentication reset.'));
     }
 
     private function run(callable $action, string $message): void
@@ -100,7 +110,7 @@ class Form extends Component
         }
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.users.form', [
             'subject' => $this->user(),

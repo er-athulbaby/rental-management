@@ -12,6 +12,7 @@ use Laravel\Fortify\Events\RecoveryCodesGenerated;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
 use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationEvent;
 use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
 
 class AuthEventSubscriber
@@ -27,7 +28,7 @@ class AuthEventSubscriber
         RecoveryCodesGenerated::class => 'auth.2fa.recovery_codes_generated',
     ];
 
-    public function logUserEvent(object $event): void
+    public function logUserEvent(Login|Logout|PasswordReset|TwoFactorAuthenticationEvent|RecoveryCodesGenerated $event): void
     {
         $user = $event->user instanceof Model ? $event->user : null;
 

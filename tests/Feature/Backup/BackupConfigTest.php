@@ -1,5 +1,7 @@
 <?php
 
+use Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays;
+
 test('backups dump through the migrator connection so triggers are included', function () {
     expect(config('backup.backup.source.databases'))->toBe(['migrator'])
         ->and(config('database.connections.migrator.dump.mysql_gtid_purged'))->toBe('OFF')
@@ -25,5 +27,5 @@ test('retention keeps 30 days of dailies and 12 monthly, with no size-based dele
         ->and($strategy['keep_weekly_backups_for_weeks'])->toBe(0)
         ->and($strategy['keep_monthly_backups_for_months'])->toBe(12)
         ->and($strategy['delete_oldest_backups_when_using_more_megabytes_than'])->toBeNull()
-        ->and(array_keys(config('backup.monitor_backups.0.health_checks')))->toBe([\Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays::class]);
+        ->and(array_keys(config('backup.monitor_backups.0.health_checks')))->toBe([MaximumAgeInDays::class]);
 });

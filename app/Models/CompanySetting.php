@@ -8,6 +8,7 @@ use Database\Factories\CompanySettingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Once;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -70,7 +71,7 @@ class CompanySetting extends Model
 
     protected static function booted(): void
     {
-        static::saved(fn () => \Illuminate\Support\Once::flush());
+        static::saved(fn () => Once::flush());
     }
 
     public function getActivitylogOptions(): LogOptions

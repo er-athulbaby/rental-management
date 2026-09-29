@@ -23,12 +23,15 @@ final class Audit
     ): ?Activity {
         $changes = array_filter(['attributes' => $new, 'old' => $old]);
 
-        return activity('audit')
-            ->event($event)
-            ->when($subject, fn ($log) => $log->performedOn($subject))
-            ->when($causer, fn ($log) => $log->causedBy($causer))
-            ->withChanges($changes)
-            ->withProperties($properties)
-            ->log($event);
+        $log = activity('audit')->event($event)->withChanges($changes)->withProperties($properties);
+
+        if ($subject) {
+            $log->performedOn($subject);
+        }
+        if ($causer) {
+            $log->causedBy($causer);
+        }
+
+        return $log->log($event);
     }
 }

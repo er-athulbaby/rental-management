@@ -77,7 +77,11 @@ class User extends Authenticatable
         return $this->hasRole(RoleName::VendorSupport);
     }
 
-    /** Assigned buildings; only limits users without buildings.view-all (spec §8.2). @return BelongsToMany<Building, $this> */
+    /**
+     * Assigned buildings; only limits users without buildings.view-all (spec §8.2).
+     *
+     * @return BelongsToMany<Building, $this>
+     */
     public function buildings(): BelongsToMany
     {
         return $this->belongsToMany(Building::class);

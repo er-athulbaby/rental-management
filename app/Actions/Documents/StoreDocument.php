@@ -31,7 +31,7 @@ final class StoreDocument
         Validator::make(['file' => $file], ['file' => ['required', 'file', 'mimes:'.self::MIMES, 'max:'.self::MAX_KB]])->validate();
 
         // Random name, no personal data: archive entry names are not encrypted (spec §13.3).
-        $path = sprintf('documents/%s/%s.%s', now()->format('Y/m'), Str::uuid(), strtolower($file->extension()));
+        $path = sprintf('documents/%s/%s.%s', now()->format('Y/m'), Str::uuid(), strtolower($file->extension() ?? $file->getClientOriginalExtension()));
         Storage::disk('local')->putFileAs(dirname($path), $file, basename($path));
 
         return DB::transaction(function () use ($actor, $documentable, $file, $category, $expiresOn, $path) {

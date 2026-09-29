@@ -31,13 +31,21 @@ enum PermissionName: string
     case ApprovalsDecide = 'approvals.decide';
     case ImportRun = 'import.run';
 
-    /** "Finance *.manage" (spec §8.1). @return list<self> */
+    /**
+     * "Finance *.manage" (spec §8.1).
+     *
+     * @return list<self>
+     */
     public static function financeManage(): array
     {
         return [self::InvoicesManage, self::PaymentsManage, self::ChequesManage, self::DisbursementsManage, self::ExpensesManage];
     }
 
-    /** Holders must confirm 2FA and cannot disable it (spec §8.6). @return list<self> */
+    /**
+     * Holders must confirm 2FA and cannot disable it (spec §8.6).
+     *
+     * @return list<self>
+     */
     public static function twoFactorRequired(): array
     {
         return [
@@ -46,7 +54,11 @@ enum PermissionName: string
         ];
     }
 
-    /** Granting any of these notifies every other approver (spec §8.1). @return list<self> */
+    /**
+     * Granting any of these notifies every other approver (spec §8.1).
+     *
+     * @return list<self>
+     */
     public static function sensitiveGrants(): array
     {
         return [self::ApprovalsDecide, ...self::financeManage()];

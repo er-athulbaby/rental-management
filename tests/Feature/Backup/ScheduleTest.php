@@ -6,9 +6,10 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 
-function scheduledEvent(string $command): \Illuminate\Console\Scheduling\Event
+function scheduledEvent(string $command): Event
 {
     return collect(app(Schedule::class)->events())
         ->first(fn ($event) => str_contains((string) $event->command, $command))

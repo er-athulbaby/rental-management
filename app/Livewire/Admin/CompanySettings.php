@@ -5,8 +5,10 @@ namespace App\Livewire\Admin;
 use App\Actions\Settings\UpdateCompanySettings;
 use App\Enums\ProrationBasis;
 use App\Enums\TaxCategory;
+use App\Livewire\Concerns\WithActor;
 use App\Models\CompanySetting;
 use Flux\Flux;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +19,7 @@ use Livewire\WithFileUploads;
 #[Title('Company settings')]
 class CompanySettings extends Component
 {
-    use WithFileUploads;
+    use WithActor, WithFileUploads;
 
     /** @var array<string, mixed> */
     public array $form = [];
@@ -34,7 +36,7 @@ class CompanySettings extends Component
     public function save(UpdateCompanySettings $update): void
     {
         try {
-            $update->handle(auth()->user(), $this->form, $this->logo);
+            $update->handle($this->actor(), $this->form, $this->logo);
         } catch (ValidationException $e) {
             // Prefix field names so errors appear next to wire:model="form.x".
             throw ValidationException::withMessages(
@@ -46,7 +48,7 @@ class CompanySettings extends Component
         Flux::toast(variant: 'success', text: __('Settings saved.'));
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.company-settings', [
             'taxCategories' => TaxCategory::cases(),

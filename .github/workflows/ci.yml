@@ -1,0 +1,93 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:26.7.0
+        # Binary logging is on by default; a non-SUPER user can create triggers only with this (spec §8.5, §14).
+        command: --log-bin-trust-function-creators=1
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: rms_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: rms_test
+      # The app, and therefore every test, runs as the DML-only user, as in production.
+      DB_USERNAME: rms_app
+      DB_PASSWORD: app-secret
+      DB_MIGRATOR_USERNAME: rms_migrate
+      DB_MIGRATOR_PASSWORD: migrate-secret
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Create database users
+        run: |
+          docker exec -i ${{ job.services.mysql.id }} mysql -uroot -proot <<'SQL'
+          CREATE USER 'rms_migrate'@'%' IDENTIFIED BY 'migrate-secret';
+          CREATE USER 'rms_app'@'%' IDENTIFIED BY 'app-secret';
+          GRANT ALL PRIVILEGES ON rms_test.* TO 'rms_migrate'@'%';
+          GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON rms_test.* TO 'rms_app'@'%';
+          SQL
+
+      - name: Assert binary log and trigger settings
+        run: |
+          docker exec ${{ job.services.mysql.id }} mysql -uroot -proot -N -e \
+            "SELECT @@version, @@log_bin, @@log_bin_trust_function_creators" | tee /dev/stderr \
+            | grep -qE $'\t1\t1$'
+
+      - name: Migrate as migrator (the deploy command)
+        run: php artisan migrate --database=migrator --force
+
+      - name: Tests
+        run: php artisan test
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: Larastan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Composer audit
+        run: composer audit --locked

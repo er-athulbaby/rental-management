@@ -2,24 +2,25 @@
 
 use App\Pdf\PdfRenderer;
 use Illuminate\Support\Facades\Storage;
+use Mpdf\MpdfException;
 
 function spikeData(): array
 {
     $clauses = [
         [['This Agreement is made on 28/09/2026 between Example Properties W.L.L. (the Landlord) and the Tenant named in Schedule 1.'],
-         ['حُرِّر هذا العقد بتاريخ 28/09/2026 بين شركة مثال للعقارات ذ.م.م (المؤجر) والمستأجر المذكور في الجدول رقم 1.']],
+            ['حُرِّر هذا العقد بتاريخ 28/09/2026 بين شركة مثال للعقارات ذ.م.م (المؤجر) والمستأجر المذكور في الجدول رقم 1.']],
         [['The lease term starts on 01/10/2026 and ends on 30/09/2027 (12 months).'],
-         ['تبدأ مدة الإيجار في 01/10/2026 وتنتهي في 30/09/2027 (12 شهراً).']],
+            ['تبدأ مدة الإيجار في 01/10/2026 وتنتهي في 30/09/2027 (12 شهراً).']],
         [['The monthly rent is BHD 350.500, payable in advance on the 1st day of each month.'],
-         ['الإيجار الشهري 350.500 د.ب (BHD 350.500)، يُدفع مقدماً في اليوم الأول من كل شهر.']],
+            ['الإيجار الشهري 350.500 د.ب (BHD 350.500)، يُدفع مقدماً في اليوم الأول من كل شهر.']],
         [['The Tenant shall pay a security deposit of BHD 701.000 on signing, refundable within 30 days after move-out.'],
-         ['يدفع المستأجر تأميناً قدره 701.000 دينار بحريني عند التوقيع، ويُرد خلال 30 يوماً من تاريخ الإخلاء.']],
+            ['يدفع المستأجر تأميناً قدره 701.000 دينار بحريني عند التوقيع، ويُرد خلال 30 يوماً من تاريخ الإخلاء.']],
         [['Units: Flat 12A (Building 7, Road 2803, Block 428, Seef) and Parking P-15, as listed on invoice INV-2026-000042.'],
-         ['الوحدات: الشقة 12A (المبنى 7، الطريق 2803، المجمع 428، السيف) وموقف السيارة P-15، كما في الفاتورة رقم INV-2026-000042.']],
+            ['الوحدات: الشقة 12A (المبنى 7، الطريق 2803، المجمع 428، السيف) وموقف السيارة P-15، كما في الفاتورة رقم INV-2026-000042.']],
         [['Either party may terminate by giving 60 days\' written notice, effective no earlier than 2027-03-31.'],
-         ['يجوز لأي من الطرفين إنهاء العقد بإخطار كتابي مدته 60 يوماً، على ألا يسري الإنهاء قبل 2027-03-31.']],
+            ['يجوز لأي من الطرفين إنهاء العقد بإخطار كتابي مدته 60 يوماً، على ألا يسري الإنهاء قبل 2027-03-31.']],
         [['VAT at 10% is charged where applicable; the rent of 350.500 excludes VAT.'],
-         ['تُفرض ضريبة القيمة المضافة بنسبة 10% حيثما ينطبق ذلك، والإيجار البالغ 350.500 لا يشمل الضريبة.']],
+            ['تُفرض ضريبة القيمة المضافة بنسبة 10% حيثما ينطبق ذلك، والإيجار البالغ 350.500 لا يشمل الضريبة.']],
     ];
 
     // A multi-paragraph clause (one row per paragraph) that pushes the document onto page 2.
@@ -76,5 +77,5 @@ it('refuses remote images referenced from HTML', function () {
     $mpdf->debug = true; // surface the refusal instead of silently drawing a broken image
 
     expect(fn () => $mpdf->WriteHTML('<img src="https://example.com/logo.png">'))
-        ->toThrow(Mpdf\MpdfException::class, 'invalid stream');
+        ->toThrow(MpdfException::class, 'invalid stream');
 });

@@ -13,8 +13,8 @@ class LogActivityAction extends BaseLogActivityAction
 
         // Only real HTTP requests carry a route; queue, scheduler and artisan get a fake 127.0.0.1/"Symfony" request.
         if ($request->route() !== null) {
-            $activity->ip ??= $request->ip();
-            $activity->user_agent ??= $request->userAgent();
+            $activity->setAttribute('ip', $activity->getAttribute('ip') ?? $request->ip());
+            $activity->setAttribute('user_agent', $activity->getAttribute('user_agent') ?? $request->userAgent());
         }
 
         parent::beforeActivityLogged($activity);

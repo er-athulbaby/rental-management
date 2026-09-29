@@ -3,6 +3,7 @@
 use App\Actions\EnsureNumberSequences;
 use App\Actions\NextDocumentNumber;
 use App\Enums\NumberSequenceKey;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -41,7 +42,7 @@ test('a rolled-back transaction gives its number back', function () {
 
 test('the year is the Bahrain year', function () {
     app(EnsureNumberSequences::class)(2027);
-    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-12-31 21:30:00', 'UTC')); // 00:30 on 1 Jan 2027 in Bahrain
+    $this->travelTo(CarbonImmutable::parse('2026-12-31 21:30:00', 'UTC')); // 00:30 on 1 Jan 2027 in Bahrain
 
     expect(DB::transaction(fn () => app(NextDocumentNumber::class)(NumberSequenceKey::Invoice)))->toBe('INV-2027-000001');
 });

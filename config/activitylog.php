@@ -1,7 +1,7 @@
 <?php
 
-use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use App\Audit\LogActivityAction; // fills ip + user_agent (spec §8.4)
+use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Spatie\Activitylog\Models\Activity;
 
 return [

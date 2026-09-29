@@ -27,6 +27,7 @@ class Document extends Model
         return LogOptions::defaults()->logOnly(['category', 'expires_on'])->logOnlyDirty()->dontLogEmptyChanges();
     }
 
+    /** @return MorphTo<Model, $this> */
     public function documentable(): MorphTo
     {
         return $this->morphTo();

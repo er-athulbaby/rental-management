@@ -12,6 +12,7 @@ use Mpdf\Output\Destination;
 class PdfRenderer
 {
     /**
+     * @param  view-string  $view
      * @param  array<string, mixed>  $data
      * @param  array{header?: string, footer?: string, watermark?: string|null}  $chrome
      */

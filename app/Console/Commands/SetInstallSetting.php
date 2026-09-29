@@ -22,7 +22,7 @@ class SetInstallSetting extends Command
         [$valid, $value, $shown] = match (true) {
             $key === 'require_different_approver' && in_array($raw, ['true', 'false'], true) => [true, $raw === 'true', $raw === 'true'],
             $key === 'go_live_at' && $raw === 'null' => [true, null, null],
-            $key === 'go_live_at' && CarbonImmutable::canBeCreatedFromFormat($raw, 'Y-m-d') => [true, CarbonImmutable::createFromFormat('Y-m-d', $raw)->startOfDay(), $raw],
+            $key === 'go_live_at' && CarbonImmutable::canBeCreatedFromFormat($raw, 'Y-m-d') => [true, CarbonImmutable::createFromFormat('Y-m-d', $raw)?->startOfDay(), $raw],
             default => [false, null, null],
         };
 

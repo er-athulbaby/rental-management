@@ -9,7 +9,11 @@ use Illuminate\Support\Collection;
 
 final class Approvers
 {
-    /** Active approvals.decide holders, never Vendor Support (spec §8.1: no business emails), minus $except. @return Collection<int, User> */
+    /**
+     * Active approvals.decide holders, never Vendor Support (spec §8.1: no business emails), minus $except.
+     *
+     * @return Collection<int, User>
+     */
     public static function notifiable(User ...$except): Collection
     {
         $excluded = array_map(fn (User $user) => $user->getKey(), $except);

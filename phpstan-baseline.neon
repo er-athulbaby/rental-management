@@ -1,0 +1,85 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Cannot access property \$email on App\\Models\\User\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Livewire/Settings/Profile.php
+
+		-
+			message: '#^Cannot access property \$id on App\\Models\\User\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Livewire/Settings/Profile.php
+
+		-
+			message: '#^Cannot access property \$name on App\\Models\\User\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Livewire/Settings/Profile.php
+
+		-
+			message: '#^Cannot call method fill\(\) on App\\Models\\User\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Livewire/Settings/Profile.php
+
+		-
+			message: '#^Cannot access property \$two_factor_confirmed_at on App\\Models\\User\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Cannot access property \$two_factor_secret on App\\Models\\User\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Cannot call method hasEnabledTwoFactorAuthentication\(\) on App\\Models\\User\|null\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Cannot call method logoutEverywhere\(\) on App\\Models\\User\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Cannot call method requiresTwoFactor\(\) on App\\Models\\User\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Cannot call method update\(\) on App\\Models\\User\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Parameter \#1 \$value of function decrypt expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Property App\\Livewire\\Settings\\Security\:\:\$qrCodeSvg \(string\) does not accept string\|null\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Livewire/Settings/Security.php
+
+		-
+			message: '#^Cannot access property \$two_factor_recovery_codes on App\\Models\\User\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: app/Livewire/Settings/TwoFactor/RecoveryCodes.php
+
+		-
+			message: '#^Cannot call method hasEnabledTwoFactorAuthentication\(\) on App\\Models\\User\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Livewire/Settings/TwoFactor/RecoveryCodes.php

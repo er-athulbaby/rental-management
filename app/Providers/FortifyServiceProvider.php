@@ -12,6 +12,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Support\Timebox;
 use Illuminate\Validation\ValidationException;
+use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -20,7 +21,7 @@ class FortifyServiceProvider extends ServiceProvider
     {
         // Used by the Security component AND Fortify's DELETE /user/two-factor-authentication route.
         $this->app->bind(
-            \Laravel\Fortify\Actions\DisableTwoFactorAuthentication::class,
+            DisableTwoFactorAuthentication::class,
             \App\Actions\Fortify\DisableTwoFactorAuthentication::class,
         );
     }

@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Livewire\Livewire;
+use PragmaRX\Google2FA\Google2FA;
 use Spatie\Activitylog\Models\Activity;
 
 function events(): array
@@ -93,14 +95,14 @@ test('2FA enable, confirm, disable and a failed challenge are logged', function 
     $this->actingAs($user);
 
     app(EnableTwoFactorAuthentication::class)($user);
-    $code = app(\PragmaRX\Google2FA\Google2FA::class)->getCurrentOtp(decrypt($user->fresh()->two_factor_secret));
+    $code = app(Google2FA::class)->getCurrentOtp(decrypt($user->fresh()->two_factor_secret));
     app(ConfirmTwoFactorAuthentication::class)($user->fresh(), $code);
     app(DisableTwoFactorAuthentication::class)($user->fresh());
 
     auth()->logout();
     // The factory secret is not valid base32; a failed challenge needs a real one.
     $withTwoFactor = User::factory()->withTwoFactor()->create([
-        'two_factor_secret' => encrypt(app(\Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider::class)->generateSecretKey()),
+        'two_factor_secret' => encrypt(app(TwoFactorAuthenticationProvider::class)->generateSecretKey()),
     ]);
     $this->post(route('login.store'), ['email' => $withTwoFactor->email, 'password' => 'password']);
     $this->post(route('two-factor.login.store'), ['code' => '000000']);

@@ -51,6 +51,7 @@ class Building extends Model
      * Spec §8.2 — the one place building scope is decided. Child models reuse it through
      * whereHas('building', fn ($q) => $q->visibleTo($user)).
      */
+    /** @param  Builder<Building>  $query */
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {

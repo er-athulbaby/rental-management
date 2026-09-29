@@ -4,6 +4,7 @@ use App\Enums\RoleName;
 use App\Models\CompanySetting;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Http\Middleware\TrustHosts;
 use Illuminate\Support\Facades\Route;
 
 beforeEach(function () {
@@ -68,7 +69,7 @@ test('only the APP_URL host is trusted', function () {
     // TrustHosts itself is skipped while running unit tests (shouldSpecifyTrustedHosts), so check its host list.
     config(['app.url' => 'https://rms.test']);
 
-    $hosts = app(\Illuminate\Http\Middleware\TrustHosts::class)->hosts();
+    $hosts = app(TrustHosts::class)->hosts();
 
     expect($hosts)->toBe(['rms.test']);
 });

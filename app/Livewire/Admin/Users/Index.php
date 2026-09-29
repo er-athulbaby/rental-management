@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Users;
 
 use App\Models\User;
+use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -24,7 +25,7 @@ class Index extends Component
         $this->resetPage();
     }
 
-    public function render()
+    public function render(): View
     {
         $users = User::query()
             ->with('roles')
