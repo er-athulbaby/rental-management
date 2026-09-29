@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -74,6 +75,12 @@ class User extends Authenticatable
     public function isVendorSupport(): bool
     {
         return $this->hasRole(RoleName::VendorSupport);
+    }
+
+    /** Assigned buildings; only limits users without buildings.view-all (spec §8.2). @return BelongsToMany<Building, $this> */
+    public function buildings(): BelongsToMany
+    {
+        return $this->belongsToMany(Building::class);
     }
 
     /** Kill every session of this user (database driver) and invalidate any remember cookie (spec §8.6). */
