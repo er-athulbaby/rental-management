@@ -71,5 +71,5 @@
         </div>
     @endif
 
-    <livewire:documents.panel:documentable="$contract" :key="'docs-oc-'.$contract->id" />
+    <livewire:documents.panel :documentable="$contract" :key="'docs-oc-'.$contract->id" />
 </section>

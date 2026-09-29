@@ -9,6 +9,7 @@ use App\Models\CompanySetting;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -49,6 +50,11 @@ class Index extends Component
             $decide->handle($this->actor(), Approval::findOrFail($approvalId), $approve, $comment);
         } catch (AuthorizationException) {
             abort(403);
+        } catch (ValidationException $e) {
+            // Re-check failures (unit_ids, previous_contract_id...) have no field here: show them as one approval error.
+            throw ValidationException::withMessages(collect($e->errors())
+                ->mapToGroups(fn ($messages, $key) => [$key === 'comment' ? 'comment' : 'approval' => $messages])
+                ->map(fn ($groups) => $groups->flatten()->all())->all());
         }
 
         Flux::toast(variant: 'success', text: $approve ? __('Approved.') : __('Rejected.'));
