@@ -101,3 +101,29 @@ test('the list follows the scope and filters agreements expiring soon', function
     $this->actingAs($this->leasing)->get(route('agreements.show', $hidden))->assertForbidden();
     $this->actingAs($this->leasing)->get(route('agreements.show', $soon))->assertOk();
 });
+
+test('saving with no unit shows the units error', function () {
+    Livewire::actingAs($this->leasing)->test(Form::class)
+        ->call('selectCustomer', $this->customer->id)
+        ->set('form.start_date', '2026-11-01')
+        ->set('form.end_date', '2027-10-31')
+        ->call('save')
+        ->assertHasErrors('units')
+        ->assertSee('units field is required');
+});
+
+test('unit line and charge errors are displayed', function () {
+    Livewire::actingAs($this->leasing)->test(Form::class)
+        ->call('selectCustomer', $this->customer->id)
+        ->set('form.start_date', '2026-11-01')
+        ->set('form.end_date', '2027-10-31')
+        ->set('pickBuilding', $this->building->id)
+        ->set('pickUnit', $this->flat->id)
+        ->call('addUnit')
+        ->set('units.0.deposit_amount', 'abc')
+        ->set('units.0.charges.0.monthly_amount', 'abc')
+        ->call('save')
+        ->assertHasErrors(['units.0.deposit_amount', 'units.0.charges.0.monthly_amount'])
+        ->assertSee('units.0.deposit_amount field format is invalid')
+        ->assertSee('units.0.charges.0.monthly_amount field format is invalid');
+});

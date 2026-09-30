@@ -2,6 +2,7 @@
     <flux:heading size="xl" level="1">{{ $agreementId ? __('Edit draft agreement') : __('New agreement') }}</flux:heading>
 
     <form wire:submit="save" class="space-y-6">
+        <flux:error name="form.status" />
         <flux:fieldset>
             <flux:legend>{{ __('Customer') }}</flux:legend>
             @if ($customerLabel)
@@ -46,7 +47,7 @@
                 </flux:select>
                 <flux:button wire:click="addUnit" icon="plus">{{ __('Add unit') }}</flux:button>
             </div>
-            <flux:error name="form.units" />
+            <flux:error name="units" />
 
             @foreach ($units as $i => $line)
                 <flux:card class="mt-4 space-y-3" wire:key="unit-{{ $line['unit_id'] }}">
@@ -59,7 +60,9 @@
                         <flux:input wire:model="units.{{ $i }}.start_date" type="date" :label="__('From (blank = agreement)')" />
                         <flux:input wire:model="units.{{ $i }}.end_date" type="date" :label="__('To (blank = agreement)')" />
                     </div>
+                    <flux:error name="units.{{ $i }}.deposit_amount" />
                     <flux:error name="units.{{ $i }}.start_date" />
+                    <flux:error name="units.{{ $i }}.end_date" />
                     @foreach ($line['charges'] as $j => $charge)
                         <div class="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" wire:key="charge-{{ $line['unit_id'] }}-{{ $j }}">
                             <flux:select wire:model="units.{{ $i }}.charges.{{ $j }}.type">
@@ -71,6 +74,9 @@
                             </flux:select>
                             <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="removeCharge({{ $i }}, {{ $j }})" />
                         </div>
+                        <flux:error name="units.{{ $i }}.charges.{{ $j }}.type" />
+                        <flux:error name="units.{{ $i }}.charges.{{ $j }}.monthly_amount" />
+                        <flux:error name="units.{{ $i }}.charges.{{ $j }}.tax_category" />
                     @endforeach
                     <flux:error name="units.{{ $i }}.charges" />
                     <flux:button size="sm" wire:click="addCharge({{ $i }})" icon="plus">{{ __('Add charge') }}</flux:button>
