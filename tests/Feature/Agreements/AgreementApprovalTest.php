@@ -117,3 +117,8 @@ test('Leasing submits from the agreement page and sees the approval history', fu
 
     expect($this->draft->fresh()->status)->toBe(AgreementStatus::PendingApproval);
 });
+
+test('the agreement page renders the documents panel', function () {
+    Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $this->draft])
+        ->assertSeeLivewire('documents.panel');
+});

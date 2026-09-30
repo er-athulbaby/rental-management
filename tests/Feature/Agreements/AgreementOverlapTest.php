@@ -71,3 +71,19 @@ test('a move-out after the end date extends occupancy to the move-out', function
         ->toThrow(ValidationException::class);
     app(SubmitAgreement::class)->handle($this->pm, draftFor($this->unit, '2027-01-16', '2027-12-31', $this->pm));
 });
+
+test('submit refuses when the unit lines changed after the overlap check locked them', function () {
+    $draft = draftFor($this->unit, '2026-11-01', '2027-10-31', $this->pm);
+    $other = Unit::factory()->create();
+    $done = false;
+    // Simulates a save landing between the unit locks and the agreement lock: a new line appears when the agreement row is locked.
+    DB::listen(function ($query) use (&$done, $draft, $other) {
+        if (! $done && str_contains($query->sql, 'from `agreements`') && str_contains($query->sql, 'for update')) {
+            $done = true;
+            $draft->agreementUnits()->create(['unit_id' => $other->id, 'list_rent' => '1.000', 'deposit_amount' => 0, 'start_date' => $draft->start_date, 'end_date' => $draft->end_date]);
+        }
+    });
+    expect(fn () => app(SubmitAgreement::class)->handle($this->pm, $draft))
+        ->toThrow(ValidationException::class, 'changed while submitting');
+    expect($draft->fresh()->status->value)->toBe('draft');
+});

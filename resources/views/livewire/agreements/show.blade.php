@@ -92,5 +92,5 @@
         </div>
     @endif
 
-    <livewire:documents.panel:documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
+    <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
 </section>

@@ -30,9 +30,17 @@ final class SubmitAgreement
         }
 
         return DB::transaction(function () use ($actor, $agreement) {
-            $this->overlap->handle($agreement); // the unit locks come first (spec §5.5)
+            $locked = $this->overlap->handle($agreement); // the unit locks come first (spec §5.5)
 
-            $agreement = Agreement::query()->lockForUpdate()->with(['agreementUnits.charges', 'customer', 'contractTemplate.clauses'])->findOrFail($agreement->id);
+            $agreement = Agreement::query()->lockForUpdate()->findOrFail($agreement->id);
+
+            // The lines could have been saved between the unit locks and the agreement lock: what was checked must be what is submitted.
+            $current = array_values(DB::table('agreement_units')->where('agreement_id', $agreement->id)->orderBy('unit_id')->lockForUpdate()->pluck('unit_id')->map(fn ($id) => (int) $id)->all());
+            if ($current !== $locked) {
+                throw ValidationException::withMessages(['units' => __('The agreement changed while submitting; try again.')]);
+            }
+
+            $agreement->load(['agreementUnits.charges', 'customer', 'contractTemplate.clauses']); // plain reads only after every lock
 
             if ($agreement->status !== AgreementStatus::Draft) {
                 throw ValidationException::withMessages(['status' => __('Only a draft can be submitted.')]);

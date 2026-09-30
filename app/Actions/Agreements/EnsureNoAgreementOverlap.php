@@ -11,18 +11,21 @@ use LogicException;
 /** Spec §5.5, on submit and again on approval. Run inside the caller's transaction, before anything else. */
 final class EnsureNoAgreementOverlap
 {
-    public function handle(Agreement $agreement): void
+    /** @return list<int> the unit ids that were locked, so a caller can detect the lines changing afterwards */
+    public function handle(Agreement $agreement): array
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('EnsureNoAgreementOverlap must run inside the caller\'s transaction.');
         }
 
+        // Locking reads only, unit rows first in ascending id order (concurrent submissions queue instead of
+        // deadlocking). A plain read before these locks would fix the InnoDB snapshot and hide later commits.
+        $units = DB::table('units')
+            ->whereIn('id', fn ($q) => $q->select('unit_id')->from('agreement_units')->where('agreement_id', $agreement->id))
+            ->orderBy('id')->lockForUpdate()->get(['id', 'code', 'blocked']);
+
         $lines = DB::table('agreement_units')->where('agreement_id', $agreement->id)->orderBy('unit_id')
-            ->get(['unit_id', 'start_date', 'end_date']);
-
-        // Ascending id order, so concurrent submissions for the same units queue instead of deadlocking.
-        $units = DB::table('units')->whereIn('id', $lines->pluck('unit_id'))->orderBy('id')->lockForUpdate()->get(['id', 'code', 'blocked']);
-
+            ->lockForUpdate()->get(['unit_id', 'start_date', 'end_date']);
         $blocked = $units->filter(fn ($u) => (bool) $u->blocked)->pluck('code')->all();
         if ($blocked !== []) {
             throw ValidationException::withMessages(['units' => __('These units are blocked: :list.', ['list' => implode(', ', $blocked)])]);
@@ -52,5 +55,7 @@ final class EnsureNoAgreementOverlap
         if ($clashes !== []) {
             throw ValidationException::withMessages(['units' => __('Already let on these dates: :list.', ['list' => implode(', ', $clashes)])]);
         }
+
+        return array_values($units->pluck('id')->map(fn ($id) => (int) $id)->all());
     }
 }
