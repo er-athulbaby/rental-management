@@ -5,6 +5,7 @@ namespace App\Actions\ContractTemplates;
 use App\Audit\Audit;
 use App\Enums\PermissionName;
 use App\Models\ContractTemplate;
+use App\Models\ContractTemplateClause;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,7 @@ final class SaveContractTemplate
 
         return DB::transaction(function () use ($actor, $template, $validated) {
             $template ??= new ContractTemplate;
-            $old = $template->exists ? $template->clauses->map(fn ($c) => $c->heading_en)->all() : [];
+            $old = $template->exists ? $template->clauses->map(fn ($c) => self::text($c))->all() : [];
 
             if (($validated['is_default'] ?? false) === true) {
                 ContractTemplate::query()->where('is_default', true)->whereKeyNot($template->id ?? 0)->get()
@@ -62,7 +63,7 @@ final class SaveContractTemplate
             $template->load('clauses');
             Audit::log('contract_template.clauses_saved', $template,
                 ['clauses' => $old],
-                ['clauses' => $template->clauses->map(fn ($c) => $c->heading_en)->all()],
+                ['clauses' => $template->clauses->map(fn ($c) => self::text($c))->all()],
                 causer: $actor,
             );
 
@@ -70,11 +71,21 @@ final class SaveContractTemplate
         });
     }
 
+    /** @return array{heading_en: string, heading_ar: string, body_en: string, body_ar: string} */
+    private static function text(ContractTemplateClause $c): array
+    {
+        return ['heading_en' => $c->heading_en, 'heading_ar' => $c->heading_ar, 'body_en' => $c->body_en, 'body_ar' => $c->body_ar];
+    }
+
     /** @param  array<string, mixed>  $data */
     private function checkClauses(ValidatorInstance $validator, array $data): void
     {
         if ($validator->errors()->isNotEmpty()) {
             return;
+        }
+
+        if ((bool) ($data['is_default'] ?? false) && ! (bool) ($data['active'] ?? true)) {
+            $validator->errors()->add('is_default', __('The default template must be active.'));
         }
 
         foreach (array_values((array) $data['clauses']) as $i => $clause) {

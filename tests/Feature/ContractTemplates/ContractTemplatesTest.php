@@ -91,3 +91,23 @@ test('the editor adds, reorders and removes clauses', function () {
     expect($headings)->toHaveCount($count)
         ->and($headings[$count - 2])->toBe('Parking');
 });
+
+test('a default template must be active', function () {
+    expect(fn () => app(SaveContractTemplate::class)->handle($this->admin, null, ['name' => 'Off', 'active' => false, 'is_default' => true, 'clauses' => [$this->clause]]))
+        ->toThrow(ValidationException::class);
+
+    $default = app(EnsureDefaultContractTemplate::class)();
+    expect(fn () => app(SaveContractTemplate::class)->handle($this->admin, $default, [
+        'name' => $default->name, 'active' => false, 'is_default' => true,
+        'clauses' => $default->clauses->map(fn ($c) => $c->only(['heading_en', 'heading_ar', 'body_en', 'body_ar']))->all(),
+    ]))->toThrow(ValidationException::class);
+});
+
+test('the audit entry records clause text, so a body-only edit shows old and new', function () {
+    $template = app(SaveContractTemplate::class)->handle($this->admin, null, ['name' => 'T', 'active' => true, 'is_default' => false, 'clauses' => [$this->clause]]);
+    app(SaveContractTemplate::class)->handle($this->admin, $template, ['name' => 'T', 'active' => true, 'is_default' => false, 'clauses' => [[...$this->clause, 'body_en' => 'Rent is now BHD {total_monthly_rent}.']]]);
+
+    $changes = Activity::query()->where('event', 'contract_template.clauses_saved')->latest('id')->first()->attribute_changes;
+    expect($changes['old']['clauses'][0]['body_en'])->toBe('Rent is BHD {total_monthly_rent}.')
+        ->and($changes['attributes']['clauses'][0]['body_en'])->toBe('Rent is now BHD {total_monthly_rent}.');
+});
