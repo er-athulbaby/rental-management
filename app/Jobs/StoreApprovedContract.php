@@ -15,6 +15,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /** Spec §5.6: the approved contract is generated once, stored privately, and never regenerated. */
 class StoreApprovedContract implements ShouldQueue
@@ -27,30 +28,36 @@ class StoreApprovedContract implements ShouldQueue
 
     public function handle(ContractPdf $pdf): void
     {
-        $agreement = Agreement::query()->findOrFail($this->agreementId);
+        // The agreement row lock serialises the queued job and the controller's fallback; the check after it decides.
+        DB::transaction(function () use ($pdf) {
+            $agreement = Agreement::query()->lockForUpdate()->findOrFail($this->agreementId);
 
-        if (self::stored($agreement)) {
-            return;
-        }
+            if (self::stored($agreement)) {
+                return;
+            }
 
-        $bytes = $pdf->render($agreement);
-        $path = sprintf('documents/%s/%s.pdf', now()->format('Y/m'), Str::uuid()); // random name (spec §13.3)
-        Storage::disk('local')->put($path, $bytes);
+            $bytes = $pdf->render($agreement);
+            $path = sprintf('documents/%s/%s.pdf', now()->format('Y/m'), Str::uuid()); // random name (spec §13.3)
+            Storage::disk('local')->put($path, $bytes);
 
-        DB::transaction(function () use ($agreement, $path, $bytes) {
-            $document = new Document([
-                'category' => DocumentCategory::GeneratedPdf,
-                'disk' => 'local',
-                'path' => $path,
-                'original_name' => $agreement->number.'.pdf',
-                'mime' => 'application/pdf',
-                'size' => strlen($bytes),
-                'uploaded_by' => $this->approverId,
-            ]);
-            $document->documentable()->associate($agreement);
-            $document->save();
+            try {
+                $document = new Document([
+                    'category' => DocumentCategory::GeneratedPdf,
+                    'disk' => 'local',
+                    'path' => $path,
+                    'original_name' => $agreement->number.'.pdf',
+                    'mime' => 'application/pdf',
+                    'size' => strlen($bytes),
+                    'uploaded_by' => $this->approverId,
+                ]);
+                $document->documentable()->associate($agreement);
+                $document->save();
 
-            Audit::log('document.generated', $document, properties: ['agreement' => $agreement->number]);
+                Audit::log('document.generated', $document, properties: ['agreement' => $agreement->number]);
+            } catch (Throwable $e) {
+                Storage::disk('local')->delete($path);
+                throw $e;
+            }
         });
     }
 

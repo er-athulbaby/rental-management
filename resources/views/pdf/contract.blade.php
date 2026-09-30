@@ -7,6 +7,7 @@
     table.clauses { width: 100%; border-collapse: collapse; }
     table.clauses td { width: 50%; vertical-align: top; padding: 1.2mm 2mm; }
     tr.heading td { font-weight: bold; padding-top: 3mm; border-bottom: 0.2mm solid #999; }
+    div.hd { font-weight: bold; padding: 2mm 0mm 1mm 0mm; margin-bottom: 1mm; border-bottom: 0.2mm solid #999; }
     table.units { width: 100%; border-collapse: collapse; margin: 1mm 0; }
     table.units th, table.units td { border: 0.2mm solid #666; padding: 1mm 1.5mm; font-size: 8.5pt; }
     table.units th .ar { font-size: 9pt; }
@@ -23,17 +24,23 @@
 </table>
 
 <h1>Lease Agreement {{ $number }} &nbsp;|&nbsp; <span class="ar">عقد إيجار رقم {{ $number }}</span></h1>
-
-{{-- One row per paragraph (spec §9.2): mPDF never splits a row, and a tall row shrinks the whole table. --}}
+{{-- One row per paragraph (spec §9.2): mPDF never splits a row, and a tall row shrinks the whole table.
+     The heading sits inside the first paragraph's row so it can never be stranded at a page bottom. --}}
 <table class="clauses">
     @foreach ($clauses as $clause)
-        <tr class="heading">
-            <td>{{ $clause['position'] }}. {{ $clause['heading_en'] }}</td>
-            <td class="ar" dir="rtl" lang="ar">{{ $clause['position'] }}. {{ $clause['heading_ar'] }}</td>
-        </tr>
+        @php
+            $headEn = $clause['position'].'. '.$clause['heading_en'];
+            $headAr = $clause['position'].'. '.$clause['heading_ar'];
+        @endphp
         @if ($clause['units'])
             <tr>
                 <td colspan="2">
+                    <table style="width:100%; border-collapse:collapse">
+                        <tr class="heading">
+                            <td>{{ $headEn }}</td>
+                            <td class="ar" dir="rtl" lang="ar">{{ $headAr }}</td>
+                        </tr>
+                    </table>
                     <table class="units">
                         <tr>
                             <th>Building <span class="ar">المبنى</span></th><th>Unit <span class="ar">الوحدة</span></th>
@@ -50,11 +57,16 @@
                     </table>
                 </td>
             </tr>
+        @elseif (count($clause['paragraphs']) === 0)
+            <tr class="heading">
+                <td>{{ $headEn }}</td>
+                <td class="ar" dir="rtl" lang="ar">{{ $headAr }}</td>
+            </tr>
         @else
             @foreach ($clause['paragraphs'] as [$en, $ar])
                 <tr>
-                    <td>{{ $en }}</td>
-                    <td class="ar" dir="rtl" lang="ar">{{ $ar }}</td>
+                    <td>@if ($loop->first)<div class="hd">{{ $headEn }}</div>@endif{{ $en }}</td>
+                    <td class="ar" dir="rtl" lang="ar">@if ($loop->first)<div class="hd">{{ $headAr }}</div>@endif{{ $ar }}</td>
                 </tr>
             @endforeach
         @endif

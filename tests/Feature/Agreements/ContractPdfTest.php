@@ -85,3 +85,26 @@ test('the PDF route streams a watermarked draft and serves the stored copy once 
     $outsider = User::factory()->create()->assignRole(RoleName::Leasing);
     $this->actingAs($outsider)->get(route('agreements.pdf', $this->draft))->assertForbidden();
 });
+
+test('the contract is stored exactly once however often the job runs, and a repeat run writes no file', function () {
+    $approval = app(SubmitAgreement::class)->handle($this->pm, $this->draft);
+    app(DecideApproval::class)->handle($this->management, $approval, true);
+    $agreement = $this->draft->fresh();
+    $files = count(Storage::disk('local')->allFiles());
+
+    (new StoreApprovedContract($agreement->id, $this->management->id))->handle(app(ContractPdf::class));
+    (new StoreApprovedContract($agreement->id, $this->management->id))->handle(app(ContractPdf::class));
+
+    expect(Document::query()->where('documentable_id', $agreement->id)->where('category', DocumentCategory::GeneratedPdf)->count())->toBe(1)
+        ->and(count(Storage::disk('local')->allFiles()))->toBe($files);
+});
+
+test('a failed insert leaves no orphan file behind', function () {
+    $approval = app(SubmitAgreement::class)->handle($this->pm, $this->draft);
+    app(DecideApproval::class)->handle($this->management, $approval, true); // the job stores it
+    Document::query()->delete();
+    $before = Storage::disk('local')->allFiles();
+    Document::creating(fn () => throw new RuntimeException('boom'));
+    expect(fn () => (new StoreApprovedContract($this->draft->id, $this->management->id))->handle(app(ContractPdf::class)))->toThrow(RuntimeException::class, 'boom');
+    expect(Storage::disk('local')->allFiles())->toBe($before);
+});
