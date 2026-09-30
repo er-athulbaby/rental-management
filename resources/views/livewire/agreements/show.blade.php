@@ -21,7 +21,6 @@
             <flux:button :href="route('agreements.pdf', $agreement)" target="_blank" icon="document-arrow-down">
                 {{ in_array($agreement->status, [AgreementStatus::Draft, AgreementStatus::PendingApproval], true) ? __('Draft contract PDF') : __('Contract PDF') }}
             </flux:button>
-            {{-- Task 10: invoices. --}}
         </div>
     </div>
 
@@ -93,6 +92,27 @@
                 <flux:button type="submit" class="sm:col-span-3 sm:justify-self-start">{{ __('Record notice') }}</flux:button>
             </form>
         </flux:fieldset>
+    @endif
+
+    @if ($invoices->isNotEmpty())
+        <div class="space-y-2">
+            <flux:heading size="lg">{{ __('Invoices') }}</flux:heading>
+            <div class="overflow-x-auto">
+                <flux:table>
+                    <flux:table.rows>
+                        @foreach ($invoices as $invoice)
+                            <flux:table.row :key="'inv-'.$invoice->id">
+                                <flux:table.cell><flux:link :href="route('invoices.show', $invoice)" wire:navigate>{{ $invoice->label() }}</flux:link></flux:table.cell>
+                                <flux:table.cell>{{ $invoice->type->label() }}</flux:table.cell>
+                                <flux:table.cell class="whitespace-nowrap">{{ __('due :d', ['d' => $invoice->due_date->format('d/m/Y')]) }}</flux:table.cell>
+                                <flux:table.cell class="text-end tabular-nums">{{ $invoice->total }}</flux:table.cell>
+                                <flux:table.cell><flux:badge size="sm">{{ $invoice->displayLabel() }}</flux:badge></flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            </div>
+        </div>
     @endif
 
     @if ($approvals->isNotEmpty())

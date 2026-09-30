@@ -30,6 +30,12 @@
                     @endcan
                 </flux:sidebar.group>
 
+                @can('finance.view')
+                    <flux:sidebar.group :heading="__('Finance')" class="grid">
+                        <flux:sidebar.item icon="banknotes" :href="route('invoices.index')" :current="request()->routeIs('invoices.*')" wire:navigate>{{ __('Invoices') }}</flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endcan
+
                 <flux:sidebar.group :heading="__('Property')" class="grid">
                     @can('buildings.view')
                         <flux:sidebar.item icon="building-office-2" :href="route('buildings.index')" :current="request()->routeIs('buildings.*')" wire:navigate>{{ __('Buildings') }}</flux:sidebar.item>

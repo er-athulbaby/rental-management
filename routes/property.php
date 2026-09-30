@@ -8,6 +8,7 @@ use App\Livewire\Buildings;
 use App\Livewire\Customers;
 use App\Livewire\Expenses;
 use App\Livewire\Import;
+use App\Livewire\Invoices;
 use App\Livewire\OwnerContracts;
 use App\Livewire\Owners;
 use App\Livewire\Units;
@@ -40,6 +41,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('expenses', Expenses\Index::class)->middleware('can:viewAny,'.Expense::class)->name('expenses.index');
     Route::livewire('expenses/create', Expenses\Form::class)->middleware('can:expenses.manage')->name('expenses.create');
     Route::livewire('expenses/{expense}', Expenses\Show::class)->middleware('can:viewAny,'.Expense::class)->name('expenses.show');
+    Route::livewire('invoices', Invoices\Index::class)->middleware('can:finance.view')->name('invoices.index');
+    Route::livewire('invoices/{invoice}', Invoices\Show::class)->middleware('can:finance.view')->name('invoices.show');
     Route::livewire('import', Import\Index::class)->middleware('can:import.run')->name('import.index');
     Route::get('import/templates/{kind}', ImportTemplateController::class)->middleware('can:import.run')->name('import.template');
 });

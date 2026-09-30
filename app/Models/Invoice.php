@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Enums\PermissionName;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -101,6 +102,24 @@ class Invoice extends Model
         }
 
         $query->whereHas('agreement', fn (Builder $a) => $a->visibleTo($user));
+    }
+
+    /** Spec §6.1/§6.6: payment labels are derived from balance and grace_until, never stored. */
+    public function displayLabel(): string
+    {
+        if ($this->status !== InvoiceStatus::Issued) {
+            return $this->status->label();
+        }
+
+        $balance = Fils::fromDecimal($this->balance);
+        $total = Fils::fromDecimal($this->total);
+
+        return match (true) {
+            $balance <= 0 => __('Paid'),
+            $this->grace_until !== null && now('Asia/Bahrain')->toDateString() > $this->grace_until->toDateString() => __('Overdue'),
+            $balance < $total => __('Partially paid'),
+            default => __('Unpaid'),
+        };
     }
 
     public function label(): string

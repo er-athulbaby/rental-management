@@ -19,3 +19,9 @@ Schedule::command('backup:monitor')->dailyAt('07:00')->withoutOverlapping(120)
 
 Schedule::command('rms:owner-contracts:close')->dailyAt('02:15')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.owner_contracts')), (string) $url);
+
+Schedule::command('rms:invoices:issue')->dailyAt('01:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.invoices_issue')), (string) $url);
+
+Schedule::command('rms:agreements:expire')->dailyAt('02:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.agreements_expire')), (string) $url);
