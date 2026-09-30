@@ -63,6 +63,17 @@ test('clauses are validated: known merge fields, matching paragraphs, paragraph 
     'units table mixed' => [['heading_en' => 'A', 'heading_ar' => 'أ', 'body_en' => 'See {units_table} below', 'body_ar' => '{units_table}']],
 ]);
 
+test('{units_table} is the whole body of both texts or of neither', function () {
+    $clause = ['heading_en' => 'Units', 'heading_ar' => 'الوحدات', 'body_en' => '{units_table}', 'body_ar' => 'جدول الوحدات.'];
+
+    try {
+        app(SaveContractTemplate::class)->handle($this->admin, null, ['name' => 'Bad', 'active' => true, 'is_default' => false, 'clauses' => [$clause]]);
+        $this->fail('Expected a validation error.');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('clauses.0.body_ar');
+    }
+});
+
 test('only templates.manage holders edit templates', function () {
     $pm = User::factory()->withTwoFactor()->create()->assignRole(RoleName::PropertyManager);
 

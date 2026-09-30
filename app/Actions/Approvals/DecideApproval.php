@@ -57,6 +57,6 @@ final class DecideApproval
             );
 
             return $approval;
-        });
+        }, attempts: 3);
     }
 }

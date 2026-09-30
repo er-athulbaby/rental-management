@@ -37,7 +37,8 @@ test('Finance issues a scheduled invoice now, for a customer paying ahead', func
         ->assertHasNoErrors()
         ->assertSee('INV-2026-000001');
 
-    expect($december->fresh()->status)->toBe(InvoiceStatus::Issued);
+    expect($december->fresh()->status)->toBe(InvoiceStatus::Issued)
+        ->and($december->fresh()->issue_date->toDateString())->toBe('2026-10-05'); // the tax point moves to today (spec §6.4)
 });
 
 test('a held-back invoice explains why', function () {

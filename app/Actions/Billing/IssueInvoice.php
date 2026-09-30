@@ -73,6 +73,7 @@ final class IssueInvoice
                 'tax_total' => Fils::toDecimal($taxTotal),
                 'total' => Fils::toDecimal($subtotal + $taxTotal),
                 'number' => ($this->next)(NumberSequenceKey::Invoice),
+                'issue_date' => now('Asia/Bahrain')->toDateString(), // the tax point (spec §6.4): issuing early moves it
                 'grace_until' => $invoice->due_date->addDays($graceDays)->toDateString(),
                 'issued_at' => now(),
                 'issued_by' => $issuer?->id,
@@ -80,7 +81,7 @@ final class IssueInvoice
             ])->save();
 
             return true;
-        });
+        }, attempts: 3);
     }
 
     /** Spec §4.6: the line's period start; for deposits the agreement unit's start; otherwise the due date. */

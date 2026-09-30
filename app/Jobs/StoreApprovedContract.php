@@ -63,10 +63,12 @@ class StoreApprovedContract implements ShouldQueue
 
     public static function stored(Agreement $agreement): ?Document
     {
-        return Document::query()
+        // withTrashed: a deleted row still counts, so the contract is never regenerated.
+        return Document::withTrashed()
             ->where('documentable_type', $agreement->getMorphClass())
             ->where('documentable_id', $agreement->id)
             ->where('category', DocumentCategory::GeneratedPdf)
+            ->orderBy('id')
             ->first();
     }
 }

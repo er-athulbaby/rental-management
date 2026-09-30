@@ -67,6 +67,6 @@ final class SubmitAgreement
             $agreement->forceFill(['status' => AgreementStatus::PendingApproval])->save();
 
             return $this->request->handle($actor, $agreement, ApprovalAction::AgreementActivation);
-        });
+        }, attempts: 3);
     }
 }

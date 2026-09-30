@@ -58,11 +58,14 @@ final class SaveCustomer
             }
         })->validate();
 
-        return DB::transaction(function () use ($customer, $validated) {
-            $customer ??= new Customer;
+        $id = $customer?->id;
+
+        // Retry-safe: each attempt re-reads the row; the caller's model loses its dirty state on the first save.
+        return DB::transaction(function () use ($id, $validated) {
+            $customer = $id !== null ? Customer::query()->lockForUpdate()->findOrFail($id) : new Customer;
             $customer->fill($validated)->save();
 
             return $customer;
-        });
+        }, attempts: 3);
     }
 }

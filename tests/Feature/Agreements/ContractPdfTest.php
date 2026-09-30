@@ -4,12 +4,16 @@ use App\Actions\Agreements\SaveAgreement;
 use App\Actions\Agreements\SubmitAgreement;
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\ContractTemplates\EnsureDefaultContractTemplate;
+use App\Actions\Documents\DeleteDocument;
+use App\Actions\Documents\StoreDocument;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
 use App\Jobs\StoreApprovedContract;
+use App\Livewire\Documents\Panel;
 use App\Models\Building;
 use App\Models\CompanySetting;
+use App\Models\ContractTemplate;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Unit;
@@ -17,7 +21,11 @@ use App\Models\User;
 use App\Pdf\ContractPdf;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
@@ -102,7 +110,7 @@ test('the contract is stored exactly once however often the job runs, and a repe
 test('a failed insert leaves no orphan file behind', function () {
     $approval = app(SubmitAgreement::class)->handle($this->pm, $this->draft);
     app(DecideApproval::class)->handle($this->management, $approval, true); // the job stores it
-    Document::query()->delete();
+    Document::query()->forceDelete(); // a soft-deleted row would still count as stored
     $before = Storage::disk('local')->allFiles();
     Document::creating(fn () => throw new RuntimeException('boom'));
     expect(fn () => (new StoreApprovedContract($this->draft->id, $this->management->id))->handle(app(ContractPdf::class)))->toThrow(RuntimeException::class, 'boom');
@@ -115,4 +123,35 @@ test('the Arabic cell of a clause keeps its own rtl block so digits stay in orde
 
     // Heading and first paragraph are each an rtl block (a bare text node after the heading block reversed digits in mPDF).
     expect($html)->toContain('<div class="hd" dir="rtl">1. ')->toContain('</div><div dir="rtl">');
+});
+
+test('a draft whose template was deactivated renders from the default template, as submit would', function () {
+    $other = ContractTemplate::create(['name' => 'Retired', 'is_default' => false, 'active' => true]);
+    $other->clauses()->create(['position' => 1, 'heading_en' => 'Old terms', 'heading_ar' => 'شروط قديمة', 'body_en' => 'Retired text.', 'body_ar' => 'نص قديم.']);
+    $this->draft->forceFill(['contract_template_id' => $other->id])->save();
+    $other->update(['active' => false]);
+
+    $built = app(ContractPdf::class)->build($this->draft->fresh());
+
+    expect($built['data']['clauses'])->toHaveCount(ContractTemplate::defaultTemplate()->clauses()->count())
+        ->and($built['data']['clauses'][0]['heading_en'])->not->toBe('Old terms');
+});
+
+test('the frozen contract can be neither uploaded nor deleted by a user who manages agreements', function () {
+    $approval = app(SubmitAgreement::class)->handle($this->pm, $this->draft);
+    app(DecideApproval::class)->handle($this->management, $approval, true);
+    $agreement = $this->draft->fresh();
+    $document = Document::query()->where('category', DocumentCategory::GeneratedPdf)->sole();
+
+    expect(fn () => app(StoreDocument::class)->handle($this->pm, $agreement, UploadedFile::fake()->create('fake.pdf', 10, 'application/pdf'), DocumentCategory::GeneratedPdf))
+        ->toThrow(ValidationException::class, 'Generated contracts cannot be uploaded.');
+    expect(fn () => app(DeleteDocument::class)->handle($this->pm, $document))->toThrow(AuthorizationException::class);
+    expect($document->fresh()->trashed())->toBeFalse();
+
+    Livewire::actingAs($this->pm)->test(Panel::class, ['documentable' => $agreement])
+        ->assertViewHas('categories', fn (array $c) => ! in_array(DocumentCategory::GeneratedPdf, $c, true))
+        ->set('upload', UploadedFile::fake()->create('fake.pdf', 10, 'application/pdf'))
+        ->set('category', 'generated_pdf')
+        ->call('save')
+        ->assertHasErrors('category');
 });

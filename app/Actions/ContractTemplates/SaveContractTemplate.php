@@ -34,8 +34,11 @@ final class SaveContractTemplate
             'clauses.*.body_ar' => ['required', 'string'],
         ])->after(fn (ValidatorInstance $v) => $this->checkClauses($v, $data))->validate();
 
-        return DB::transaction(function () use ($actor, $template, $validated) {
-            $template ??= new ContractTemplate;
+        $id = $template?->id;
+
+        // Retry-safe: each attempt re-reads the row; the caller's model loses its dirty state on the first save.
+        return DB::transaction(function () use ($actor, $id, $validated) {
+            $template = $id !== null ? ContractTemplate::query()->lockForUpdate()->findOrFail($id) : new ContractTemplate;
             $old = $template->exists ? $template->clauses->map(fn ($c) => self::text($c))->all() : [];
 
             if (($validated['is_default'] ?? false) === true) {
@@ -68,7 +71,7 @@ final class SaveContractTemplate
             );
 
             return $template;
-        });
+        }, attempts: 3);
     }
 
     /** @return array{heading_en: string, heading_ar: string, body_en: string, body_ar: string} */
@@ -103,6 +106,11 @@ final class SaveContractTemplate
                         $validator->errors()->add("clauses.$i.$body", __('Each paragraph can have at most :n characters; split it with a blank line.', ['n' => ContractTemplate::MAX_PARAGRAPH]));
                     }
                 }
+            }
+
+            // The PDF decides the units table from body_en alone, so both bodies must agree.
+            if ((trim((string) $clause['body_en']) === '{units_table}') !== (trim((string) $clause['body_ar']) === '{units_table}')) {
+                $validator->errors()->add("clauses.$i.body_ar", __('{units_table} must be the whole body of both the English and the Arabic text, or of neither.'));
             }
 
             // EN and AR sit side by side, one row per paragraph pair (spec §9.2).

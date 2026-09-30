@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 final class StoreDocument
 {
@@ -26,6 +27,11 @@ final class StoreDocument
     {
         if (! $actor->can('update', $documentable)) {
             throw new AuthorizationException;
+        }
+
+        // Spec §5.6: the generated contract is written only by StoreApprovedContract.
+        if ($category === DocumentCategory::GeneratedPdf) {
+            throw ValidationException::withMessages(['category' => 'Generated contracts cannot be uploaded.']);
         }
 
         Validator::make(['file' => $file], ['file' => ['required', 'file', 'mimes:'.self::MIMES, 'max:'.self::MAX_KB]])->validate();

@@ -82,7 +82,17 @@ test('approval activates: AGR number, verify token, schedule, deposit invoice, a
     expect($rent)->toHaveCount(12)
         ->and($rent[0]->status)->toBe(InvoiceStatus::Issued)            // due 10 Oct, issue date 5 Oct (today) → issued at activation
         ->and($rent[0]->number)->toBe('INV-2026-000002')
+        ->and($rent[0]->issued_by)->toBe($this->management->id)         // issued at activation by the approver
         ->and($rent[1]->status)->toBe(InvoiceStatus::Scheduled);
+});
+
+test('saving through a stale draft model is refused once the agreement was submitted', function () {
+    app(SubmitAgreement::class)->handle($this->leasing, $this->draft); // $this->draft still says draft in memory
+
+    expect(fn () => app(SaveAgreement::class)->handle($this->leasing, $this->draft, [
+        'customer_id' => $this->customer->id, 'start_date' => '2026-10-10', 'end_date' => '2027-10-09', 'frequency' => 'monthly',
+        'units' => [['unit_id' => $this->unit->id, 'deposit_amount' => '450', 'charges' => [['type' => 'rent', 'monthly_amount' => '400', 'tax_category' => 'exempt']]]],
+    ]))->toThrow(ValidationException::class, 'Only draft agreements can be edited.');
 });
 
 test('rejection returns the draft, clears the frozen clauses, and the requester cannot approve', function () {

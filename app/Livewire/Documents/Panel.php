@@ -112,7 +112,8 @@ class Panel extends Component
                 ->latest()
                 ->get(),
             'canUpload' => $this->actor()->can('update', $record),
-            'categories' => DocumentCategory::cases(),
+            // The generated contract is written only by StoreApprovedContract (spec §5.6).
+            'categories' => array_filter(DocumentCategory::cases(), fn ($c) => $c !== DocumentCategory::GeneratedPdf),
         ]);
     }
 }

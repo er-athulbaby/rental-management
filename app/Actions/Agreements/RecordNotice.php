@@ -41,12 +41,13 @@ final class RecordNotice
             }
 
             if ($unit) {
-                $unit->forceFill(['planned_exit_date' => $dates['planned_exit_date']])->save();
+                // Re-read: a retried attempt must not trust the caller's model, whose dirty state the first attempt consumed.
+                AgreementUnit::query()->lockForUpdate()->findOrFail($unit->id)->forceFill(['planned_exit_date' => $dates['planned_exit_date']])->save();
             } else {
                 $agreement->forceFill($dates)->save();
             }
 
             Audit::log('agreement.notice_recorded', $agreement, properties: [...$dates, 'agreement_unit_id' => $unit?->id], causer: $actor);
-        });
+        }, attempts: 3);
     }
 }

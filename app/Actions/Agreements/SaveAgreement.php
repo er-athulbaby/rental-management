@@ -64,10 +64,21 @@ final class SaveAgreement
             throw new AuthorizationException;
         }
 
-        return DB::transaction(function () use ($actor, $agreement, $validated) {
+        $id = $agreement?->id;
+
+        // Retry-safe: every attempt re-reads and re-locks its rows instead of reusing the caller's model.
+        return DB::transaction(function () use ($actor, $id, $validated) {
             $settings = CompanySetting::current();
 
-            $agreement ??= (new Agreement)->forceFill(['created_by' => $actor->id]);
+            if ($id !== null) {
+                $agreement = Agreement::query()->lockForUpdate()->findOrFail($id);
+                if ($agreement->status !== AgreementStatus::Draft) {
+                    throw ValidationException::withMessages(['status' => __('Only draft agreements can be edited.')]);
+                }
+            } else {
+                $agreement = (new Agreement)->forceFill(['created_by' => $actor->id]);
+            }
+
             $agreement->fill([
                 'customer_id' => $validated['customer_id'],
                 'start_date' => $validated['start_date'],
@@ -112,7 +123,7 @@ final class SaveAgreement
             }
 
             return $agreement->load('agreementUnits.charges');
-        });
+        }, attempts: 3);
     }
 
     /** @param  array<string, mixed>  $data */

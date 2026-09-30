@@ -21,6 +21,11 @@ class DocumentPolicy
             return false;
         }
 
+        // Spec §5.6: the frozen approved contract is never removed.
+        if ($document->category === DocumentCategory::GeneratedPdf) {
+            return false;
+        }
+
         return $document->documentable !== null && $user->can('update', $document->documentable);
     }
 }

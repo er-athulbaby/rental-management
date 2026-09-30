@@ -26,6 +26,6 @@ final class DeleteDraftAgreement
             }
 
             $agreement->delete();
-        });
+        }, attempts: 3);
     }
 }

@@ -27,7 +27,7 @@ final class ContractPdf
 
         // Drafts render live from the template; from submit on, only the frozen clauses are used.
         $clauses = $agreement->status === AgreementStatus::Draft
-            ? $this->merge->clauses($agreement, $agreement->contractTemplate ?? ContractTemplate::defaultTemplate()?->load('clauses') ?? throw new RuntimeException('No contract template.'))
+            ? $this->merge->clauses($agreement, ($agreement->contractTemplate?->active ? $agreement->contractTemplate : ContractTemplate::defaultTemplate()?->load('clauses')) ?? throw new RuntimeException('No contract template.'))
             : $agreement->clauses->map(fn (AgreementClause $c) => $c->only(['position', 'heading_en', 'heading_ar', 'body_en', 'body_ar']))->all();
 
         $rows = array_map(function (array $c) use ($number) {

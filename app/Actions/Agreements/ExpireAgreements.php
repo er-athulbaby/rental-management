@@ -22,6 +22,6 @@ final class ExpireAgreements
             ->lockForUpdate()
             ->get()
             ->each(fn (Agreement $agreement) => $agreement->forceFill(['status' => AgreementStatus::Expired])->save())
-            ->count());
+            ->count(), attempts: 3);
     }
 }

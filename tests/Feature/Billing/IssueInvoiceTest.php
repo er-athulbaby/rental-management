@@ -14,6 +14,7 @@ use App\Models\Unit;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
@@ -113,4 +114,16 @@ test('the due-invoice run skips an invoice that was issued meanwhile and keeps g
 
     expect(app(IssueDueInvoices::class)())->toBe(1)
         ->and(Invoice::where('status', 'issued')->count())->toBe(2);
+});
+
+test('the due-invoice run reports an invoice that fails and still issues the rest', function () {
+    Exceptions::fake();
+    $this->travelTo(CarbonImmutable::parse('2026-11-25 01:00', 'Asia/Bahrain'));   // November and December are both due
+    $november = $this->invoices[0];
+    Invoice::updating(fn (Invoice $i) => $i->id === $november->id ? throw new RuntimeException('boom') : null);
+
+    expect(app(IssueDueInvoices::class)())->toBe(1)
+        ->and($november->fresh()->status)->toBe(InvoiceStatus::Scheduled)
+        ->and($this->invoices[1]->fresh()->status)->toBe(InvoiceStatus::Issued);
+    Exceptions::assertReported(RuntimeException::class);
 });

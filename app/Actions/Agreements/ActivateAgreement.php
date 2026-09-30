@@ -46,7 +46,7 @@ final class ActivateAgreement
 
         $this->schedule->handle($agreement, $approver);
         $this->deposit->handle($agreement, $approver);
-        ($this->issueDue)($agreement); // activation itself issues what is already due (spec §6.3)
+        ($this->issueDue)($agreement, $approver); // activation itself issues what is already due (spec §6.3)
 
         return $agreement;
     }
