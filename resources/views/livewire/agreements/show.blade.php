@@ -21,7 +21,7 @@
             <flux:button :href="route('agreements.pdf', $agreement)" target="_blank" icon="document-arrow-down">
                 {{ in_array($agreement->status, [AgreementStatus::Draft, AgreementStatus::PendingApproval], true) ? __('Draft contract PDF') : __('Contract PDF') }}
             </flux:button>
-            {{-- Task 9: notice. Task 10: invoices. --}}
+            {{-- Task 10: invoices. --}}
         </div>
     </div>
 
@@ -79,6 +79,21 @@
             </flux:table.rows>
         </flux:table>
     </div>
+
+    @if (auth()->user()->can('agreements.manage') && in_array($agreement->status, [AgreementStatus::Active, AgreementStatus::Expired], true))
+        <flux:fieldset>
+            <flux:legend>{{ __('Record notice') }}</flux:legend>
+            <form wire:submit="recordNotice" class="mt-2 grid gap-3 sm:grid-cols-3 sm:items-end">
+                <flux:select wire:model="noticeTarget" :label="__('For')">
+                    <option value="">{{ __('The whole agreement') }}</option>
+                    @foreach ($agreement->agreementUnits as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
+                </flux:select>
+                <flux:input wire:model="noticeDate" type="date" :label="__('Notice given on')" />
+                <flux:input wire:model="plannedExit" type="date" :label="__('Planned exit')" />
+                <flux:button type="submit" class="sm:col-span-3 sm:justify-self-start">{{ __('Record notice') }}</flux:button>
+            </form>
+        </flux:fieldset>
+    @endif
 
     @if ($approvals->isNotEmpty())
         <div class="space-y-2">

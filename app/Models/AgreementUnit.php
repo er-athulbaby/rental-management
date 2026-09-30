@@ -21,6 +21,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property CarbonImmutable|null $planned_exit_date
  * @property CarbonImmutable|null $move_out_date
  * @property-read Unit $unit
+ * @property-read Agreement $agreement
  * @property-read Collection<int, AgreementUnitCharge> $charges
  */
 class AgreementUnit extends Model

@@ -31,6 +31,7 @@ class Index extends Component
     {
         $units = Unit::query()
             ->visibleTo($this->actor())
+            ->withOccupancy()
             ->with('building:id,code,name')
             ->when($this->buildingId, fn ($q) => $q->where('building_id', $this->buildingId))
             ->when($this->search !== '', fn ($q) => $q->where('code', 'like', '%'.$this->search.'%'))

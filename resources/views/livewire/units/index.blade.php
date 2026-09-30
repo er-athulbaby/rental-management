@@ -32,7 +32,12 @@
                         <flux:table.cell><flux:link :href="route('units.edit', $unit)" wire:navigate>{{ $unit->code }}</flux:link></flux:table.cell>
                         <flux:table.cell>{{ str($unit->type->value)->headline() }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $unit->list_rent }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $unit->status()->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm">{{ $unit->status()->label() }}</flux:badge>
+                            @if ($next = $unit->nextTenantFrom())
+                                <span class="text-xs text-zinc-500">{{ __('next tenant from :date', ['date' => $next->format('d/m/Y')]) }}</span>
+                            @endif
+                        </flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

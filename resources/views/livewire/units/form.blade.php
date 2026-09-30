@@ -2,6 +2,9 @@
     <flux:heading size="xl" level="1">{{ $unit ? __('Unit :code', ['code' => $unit->code]) : __('New unit') }}</flux:heading>
     @if ($unit)
         <flux:badge>{{ $unit->status()->label() }}</flux:badge>
+        @if ($next = $unit->nextTenantFrom())
+            <span class="text-xs text-zinc-500">{{ __('next tenant from :date', ['date' => $next->format('d/m/Y')]) }}</span>
+        @endif
     @endif
 
     <form wire:submit="save" class="space-y-4">

@@ -3,12 +3,15 @@
 namespace App\Livewire\Agreements;
 
 use App\Actions\Agreements\DeleteDraftAgreement;
+use App\Actions\Agreements\RecordNotice;
 use App\Actions\Agreements\SubmitAgreement;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
+use App\Models\AgreementUnit;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -18,6 +21,12 @@ class Show extends Component
 
     #[Locked]
     public int $agreementId;
+
+    public string $noticeTarget = '';
+
+    public string $noticeDate = '';
+
+    public string $plannedExit = '';
 
     public function mount(Agreement $agreement): void
     {
@@ -50,6 +59,26 @@ class Show extends Component
         }
 
         Flux::toast(variant: 'success', text: __('Submitted for approval.'));
+    }
+
+    public function recordNotice(RecordNotice $notice): void
+    {
+        $agreement = $this->agreement();
+        $unit = $this->noticeTarget !== '' ? AgreementUnit::query()->where('agreement_id', $agreement->id)->findOrFail((int) $this->noticeTarget) : null;
+
+        try {
+            $notice->handle($this->actor(), $agreement, $unit, $this->noticeDate, $this->plannedExit);
+        } catch (AuthorizationException) {
+            abort(403);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(array_filter([
+                'noticeDate' => $e->errors()['notice_date'] ?? [],
+                'plannedExit' => $e->errors()['planned_exit_date'] ?? [],
+            ]));
+        }
+
+        $this->reset('noticeTarget', 'noticeDate', 'plannedExit');
+        Flux::toast(variant: 'success', text: __('Notice recorded.'));
     }
 
     public function render(): View
