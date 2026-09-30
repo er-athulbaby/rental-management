@@ -15,9 +15,22 @@
                 <flux:button :href="route('agreements.edit', $agreement)" wire:navigate>{{ __('Edit') }}</flux:button>
                 <flux:button variant="ghost" wire:click="deleteDraft" wire:confirm="{{ __('Delete this draft?') }}">{{ __('Delete draft') }}</flux:button>
             @endif
-            {{-- Task 7: submit + approvals. Task 8: contract PDF. Task 9: notice. Task 10: invoices. --}}
+            @if ($canManage && $agreement->status === AgreementStatus::Draft)
+                <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this agreement for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
+            @endif
+            {{-- Task 8: contract PDF. Task 9: notice. Task 10: invoices. --}}
         </div>
     </div>
+
+    <flux:error name="units" />
+    <flux:error name="status" />
+    <flux:error name="approval" />
+    <flux:error name="contract_template_id" />
+
+    @php($lastRejection = $agreement->status === AgreementStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null)
+    @if ($lastRejection)
+        <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
+    @endif
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         <div><dt class="text-sm text-zinc-500">{{ __('Customer') }}</dt><dd><flux:link :href="route('customers.edit', $agreement->customer)" wire:navigate>{{ $agreement->customer->name_en }}</flux:link></dd></div>
@@ -64,5 +77,20 @@
         </flux:table>
     </div>
 
-    <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
+    @if ($approvals->isNotEmpty())
+        <div class="space-y-2">
+            <flux:heading size="lg">{{ __('Approval history') }}</flux:heading>
+            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                @foreach ($approvals as $approval)
+                    <li class="py-2 text-sm">
+                        {{ $approval->action->label() }} · {{ str($approval->status->value)->headline() }} · {{ __('requested by :name', ['name' => $approval->requester->name]) }}
+                        @if ($approval->decider) · {{ __('decided by :name', ['name' => $approval->decider->name]) }} @endif
+                        @if ($approval->comment) — {{ $approval->comment }} @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <livewire:documents.panel:documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
 </section>

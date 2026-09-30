@@ -67,6 +67,9 @@ class AgreementUnit extends Model
     /**
      * Spec §5.5 effective_end, as SQL so the overlap check (a locking read) and unit status share one definition.
      * One binding: today as Y-m-d. An overstay (past end_date, no move-out, not carried into a renewal) is open-ended.
+     *
+     * @param  literal-string  $alias  a table alias written in code, never user input
+     * @return literal-string
      */
     public static function effectiveEndSql(string $alias = 'agreement_units'): string
     {

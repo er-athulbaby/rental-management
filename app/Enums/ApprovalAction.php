@@ -2,6 +2,7 @@
 
 namespace App\Enums;
 
+use App\Approvals\AgreementActivation;
 use App\Approvals\ApprovalHandler;
 use App\Approvals\OwnerContractActivation;
 use App\Approvals\OwnerContractTermination;
@@ -11,12 +12,14 @@ enum ApprovalAction: string
 {
     case OwnerContractActivation = 'owner_contract.activate';
     case OwnerContractTermination = 'owner_contract.terminate';
+    case AgreementActivation = 'agreement.activate';
 
     public function label(): string
     {
         return match ($this) {
             self::OwnerContractActivation => __('Owner contract activation'),
             self::OwnerContractTermination => __('Owner contract early termination'),
+            self::AgreementActivation => __('Agreement activation'),
         };
     }
 
@@ -26,6 +29,7 @@ enum ApprovalAction: string
         return match ($this) {
             self::OwnerContractActivation => OwnerContractActivation::class,
             self::OwnerContractTermination => OwnerContractTermination::class,
+            self::AgreementActivation => AgreementActivation::class,
         };
     }
 }

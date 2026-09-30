@@ -3,8 +3,10 @@
 namespace App\Livewire\Agreements;
 
 use App\Actions\Agreements\DeleteDraftAgreement;
+use App\Actions\Agreements\SubmitAgreement;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
+use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
@@ -39,6 +41,17 @@ class Show extends Component
         $this->redirectRoute('agreements.index', navigate: true);
     }
 
+    public function submit(SubmitAgreement $submit): void
+    {
+        try {
+            $submit->handle($this->actor(), $this->agreement());
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        Flux::toast(variant: 'success', text: __('Submitted for approval.'));
+    }
+
     public function render(): View
     {
         $agreement = $this->agreement();
@@ -46,6 +59,7 @@ class Show extends Component
         return view('livewire.agreements.show', [
             'agreement' => $agreement,
             'canManage' => $this->actor()->can('update', $agreement),
+            'approvals' => $agreement->approvals()->with(['requester:id,name', 'decider:id,name'])->latest('id')->get(),
         ])->title($agreement->label());
     }
 }
