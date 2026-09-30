@@ -84,6 +84,12 @@ class Agreement extends Model
         return $this->hasMany(AgreementUnit::class);
     }
 
+    /** @return HasMany<Invoice, $this> */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     /** @return HasMany<AgreementClause, $this> */
     public function clauses(): HasMany
     {
