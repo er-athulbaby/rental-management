@@ -66,7 +66,7 @@
             @foreach ($clause['paragraphs'] as [$en, $ar])
                 <tr>
                     <td>@if ($loop->first)<div class="hd">{{ $headEn }}</div>@endif{{ $en }}</td>
-                    <td class="ar" dir="rtl" lang="ar">@if ($loop->first)<div class="hd">{{ $headAr }}</div>@endif{{ $ar }}</td>
+                    <td class="ar" dir="rtl" lang="ar">@if ($loop->first)<div class="hd" dir="rtl">{{ $headAr }}</div><div dir="rtl">{{ $ar }}</div>@else{{ $ar }}@endif</td>
                 </tr>
             @endforeach
         @endif

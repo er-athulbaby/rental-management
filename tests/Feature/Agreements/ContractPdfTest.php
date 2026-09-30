@@ -108,3 +108,11 @@ test('a failed insert leaves no orphan file behind', function () {
     expect(fn () => (new StoreApprovedContract($this->draft->id, $this->management->id))->handle(app(ContractPdf::class)))->toThrow(RuntimeException::class, 'boom');
     expect(Storage::disk('local')->allFiles())->toBe($before);
 });
+
+test('the Arabic cell of a clause keeps its own rtl block so digits stay in order', function () {
+    $built = app(ContractPdf::class)->build($this->draft);
+    $html = view($built['view'], $built['data'])->render();
+
+    // Heading and first paragraph are each an rtl block (a bare text node after the heading block reversed digits in mPDF).
+    expect($html)->toContain('<div class="hd" dir="rtl">1. ')->toContain('</div><div dir="rtl">');
+});
