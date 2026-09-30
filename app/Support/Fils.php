@@ -37,4 +37,12 @@ final class Fils
     {
         return 'regex:/^\d{1,9}(\.\d{1,3})?$/';
     }
+
+    /** $numerator / $denominator rounded half away from zero, in integers (spec §2: half-up to the fil). */
+    public static function divRound(int $numerator, int $denominator): int
+    {
+        $sign = ($numerator < 0) !== ($denominator < 0) ? -1 : 1;
+
+        return $sign * intdiv(2 * abs($numerator) + abs($denominator), 2 * abs($denominator));
+    }
 }

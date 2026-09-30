@@ -16,3 +16,11 @@ test('decimals convert to integer fils and back without floats', function () {
 test('more than three decimals or junk is rejected', function (string $bad) {
     expect(fn () => Fils::fromDecimal($bad))->toThrow(InvalidArgumentException::class);
 })->with(['1.2345', 'abc', '', '1,000', '1e3']);
+
+test('divRound rounds half away from zero', function () {
+    expect(Fils::divRound(5, 2))->toBe(3)
+        ->and(Fils::divRound(4, 2))->toBe(2)
+        ->and(Fils::divRound(7, 3))->toBe(2)
+        ->and(Fils::divRound(-5, 2))->toBe(-3)
+        ->and(Fils::divRound(0, 7))->toBe(0);
+});
