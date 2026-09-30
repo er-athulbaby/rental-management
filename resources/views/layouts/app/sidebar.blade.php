@@ -45,7 +45,7 @@
                     @endcan
                 </flux:sidebar.group>
 
-                @canany(['users.manage', 'roles.manage', 'settings.manage', 'audit.view', 'import.run'])
+                @canany(['users.manage', 'roles.manage', 'settings.manage', 'templates.manage', 'audit.view', 'import.run'])
                     <flux:sidebar.group :heading="__('Administration')" class="grid">
                         @can('users.manage')
                             <flux:sidebar.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" wire:navigate>{{ __('Users') }}</flux:sidebar.item>
@@ -55,6 +55,9 @@
                         @endcan
                         @can('settings.manage')
                             <flux:sidebar.item icon="building-office" :href="route('admin.settings')" :current="request()->routeIs('admin.settings')" wire:navigate>{{ __('Company settings') }}</flux:sidebar.item>
+                        @endcan
+                        @can('templates.manage')
+                            <flux:sidebar.item icon="document-duplicate" :href="route('admin.templates.index')" :current="request()->routeIs('admin.templates.*')" wire:navigate>{{ __('Contract templates') }}</flux:sidebar.item>
                         @endcan
                         @can('audit.view')
                             <flux:sidebar.item icon="clipboard-document-list" :href="route('admin.audit')" :current="request()->routeIs('admin.audit')" wire:navigate>{{ __('Audit log') }}</flux:sidebar.item>

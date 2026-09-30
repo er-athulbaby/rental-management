@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\ContractTemplates\EnsureDefaultContractTemplate;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\RoleName;
 use App\Models\CompanySetting;
@@ -66,6 +67,7 @@ class InstallCommand extends Command
             $year = now('Asia/Bahrain')->year;
             $sequences($year);
             $sequences($year + 1);
+            app(EnsureDefaultContractTemplate::class)();
 
             $admin = User::create(['name' => $data['admin_name'], 'email' => Str::lower($data['admin_email']), 'password' => Str::password(40)]);
             $admin->assignRole(RoleName::Admin);

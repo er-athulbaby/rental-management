@@ -2,6 +2,7 @@
 
 use App\Enums\RoleName;
 use App\Models\CompanySetting;
+use App\Models\ContractTemplate;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,8 @@ test('it installs everything a new company needs', function () use ($options) {
     $admin = User::where('email', 'admin@demo.test')->firstOrFail();
     expect($admin->hasRole(RoleName::Admin))->toBeTrue();
     Notification::assertSentTo($admin, ResetPassword::class);
+
+    expect(ContractTemplate::defaultTemplate())->not->toBeNull();
 
     $vendor = User::where('email', 'support@vendor.test')->firstOrFail();
     expect($vendor->isVendorSupport())->toBeTrue()

@@ -2,6 +2,7 @@
 
 use App\Livewire\Admin\AuditLog;
 use App\Livewire\Admin\CompanySettings;
+use App\Livewire\Admin\ContractTemplates;
 use App\Livewire\Admin\Roles;
 use App\Livewire\Admin\Users;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     Route::livewire('roles', Roles\Index::class)->middleware('can:roles.manage')->name('roles.index');
     Route::livewire('roles/{role}/edit', Roles\Edit::class)->middleware('can:roles.manage')->name('roles.edit');
+
+    Route::livewire('templates', ContractTemplates\Index::class)->middleware('can:templates.manage')->name('templates.index');
+    Route::livewire('templates/create', ContractTemplates\Edit::class)->middleware('can:templates.manage')->name('templates.create');
+    Route::livewire('templates/{template}/edit', ContractTemplates\Edit::class)->middleware('can:templates.manage')->name('templates.edit');
 
     Route::livewire('audit', AuditLog::class)->middleware('can:audit.view')->name('audit');
 });
