@@ -25,6 +25,9 @@
                     @can('customers.view')
                         <flux:sidebar.item icon="identification" :href="route('customers.index')" :current="request()->routeIs('customers.*')" wire:navigate>{{ __('Customers') }}</flux:sidebar.item>
                     @endcan
+                    @can('agreements.view')
+                        <flux:sidebar.item icon="document-text" :href="route('agreements.index')" :current="request()->routeIs('agreements.*')" wire:navigate>{{ __('Agreements') }}</flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Property')" class="grid">

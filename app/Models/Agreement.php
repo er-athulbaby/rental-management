@@ -37,6 +37,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $contract_template_id
  * @property string|null $verify_token
  * @property int $created_by
+ * @property-read Customer $customer
  */
 class Agreement extends Model
 {

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property CarbonImmutable $end_date
  * @property CarbonImmutable|null $planned_exit_date
  * @property CarbonImmutable|null $move_out_date
+ * @property-read Unit $unit
+ * @property-read Collection<int, AgreementUnitCharge> $charges
  */
 class AgreementUnit extends Model
 {

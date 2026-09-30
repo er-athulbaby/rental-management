@@ -6,6 +6,7 @@ use App\Actions\Documents\DeleteDocument;
 use App\Actions\Documents\StoreDocument;
 use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
+use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\Customer;
 use App\Models\Document;
@@ -30,7 +31,7 @@ class Panel extends Component
     use WithActor, WithFileUploads;
 
     /** Record types that may carry documents; later milestones add theirs. */
-    public const array ALLOWED = [Building::class, Customer::class, Expense::class, Owner::class, OwnerContract::class, Unit::class];
+    public const array ALLOWED = [Agreement::class, Building::class, Customer::class, Expense::class, Owner::class, OwnerContract::class, Unit::class];
 
     #[Locked]
     public string $type = '';

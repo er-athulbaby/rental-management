@@ -29,6 +29,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $list_rent
  * @property string $list_deposit
  * @property string $list_service_charge
+ * @property-read Building $building
  */
 class Unit extends Model
 {
