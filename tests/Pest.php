@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\Agreement;
 use App\Models\OwnerContract;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /*
@@ -62,4 +64,23 @@ function activeOwnerContract(array $attributes, iterable $units): OwnerContract
     $contract->forceFill(['status' => 'active', 'number' => 'OC-TEST-'.$contract->id])->save();
 
     return $contract->fresh();
+}
+
+/** An active agreement with one rent charge per unit, walked through the status steps the triggers allow. No invoices. */
+function activeAgreement(array $attributes, iterable $units, string $rent = '400.000'): Agreement
+{
+    $agreement = Agreement::factory()->create($attributes);
+
+    foreach ($units as $unit) {
+        $au = $agreement->agreementUnits()->create([
+            'unit_id' => $unit->id, 'list_rent' => $unit->list_rent, 'deposit_amount' => $rent,
+            'start_date' => $agreement->start_date, 'end_date' => $agreement->end_date,
+        ]);
+        $au->charges()->create(['type' => 'rent', 'monthly_amount' => $rent, 'tax_category' => 'exempt']);
+    }
+
+    $agreement->forceFill(['status' => 'pending_approval'])->save();
+    $agreement->forceFill(['status' => 'active', 'number' => 'AGR-T-'.$agreement->id, 'verify_token' => Str::random(32)])->save();
+
+    return $agreement->fresh();
 }

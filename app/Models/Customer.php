@@ -4,11 +4,13 @@ namespace App\Models;
 
 use App\Enums\CustomerType;
 use App\Enums\IdType;
+use App\Enums\PermissionName;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -49,14 +51,28 @@ class Customer extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
+    /** @return HasMany<Agreement, $this> */
+    public function agreements(): HasMany
+    {
+        return $this->hasMany(Agreement::class);
+    }
+
     /**
-     * Spec §8.2. ponytail: every customer is visible until agreements exist; Task 3 narrows this to
-     * "has an agreement with a unit in an assigned building, or no agreement yet".
+     * Spec §8.2: in scope if it has any agreement with a unit in an assigned building, or no agreement yet.
      *
      * @param  Builder<Customer>  $query
      */
     #[Scope]
-    protected function visibleTo(Builder $query, User $user): void {}
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        if ($user->can(PermissionName::BuildingsViewAll)) {
+            return;
+        }
+
+        $query->where(fn (Builder $q) => $q
+            ->whereDoesntHave('agreements')
+            ->orWhereHas('agreements', fn (Builder $a) => $a->visibleTo($user)));
+    }
 
     public function maskedId(): string
     {

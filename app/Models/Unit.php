@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -57,6 +58,12 @@ class Unit extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logAll()->logOnlyDirty()->dontLogEmptyChanges();
+    }
+
+    /** @return HasMany<AgreementUnit, $this> */
+    public function agreementUnits(): HasMany
+    {
+        return $this->hasMany(AgreementUnit::class);
     }
 
     /** @return BelongsTo<Building, $this> */
