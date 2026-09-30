@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgreementPdfController;
 use App\Http\Controllers\ImportTemplateController;
 use App\Livewire\Agreements;
 use App\Livewire\Approvals;
@@ -18,6 +19,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('agreements/create', Agreements\Form::class)->middleware('can:agreements.manage')->name('agreements.create');
     Route::livewire('agreements/{agreement}/edit', Agreements\Form::class)->middleware('can:agreements.manage')->name('agreements.edit');
     Route::livewire('agreements/{agreement}', Agreements\Show::class)->middleware('can:agreements.view')->name('agreements.show');
+    Route::get('agreements/{agreement}/contract.pdf', AgreementPdfController::class)->middleware('can:agreements.view')->name('agreements.pdf');
     Route::livewire('approvals', Approvals\Index::class)->middleware('can:approvals.decide')->name('approvals.index');
     Route::livewire('buildings', Buildings\Index::class)->middleware('can:buildings.view')->name('buildings.index');
     Route::livewire('buildings/create', Buildings\Form::class)->middleware('can:buildings.manage')->name('buildings.create');

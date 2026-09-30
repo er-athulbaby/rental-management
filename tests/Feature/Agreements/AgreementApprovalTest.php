@@ -19,10 +19,12 @@ use App\Notifications\ApprovalRequested;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function () {
+    Storage::fake('local');
     $this->seed(RolesAndPermissionsSeeder::class);
     CompanySetting::factory()->create(['name_en' => 'Demo Properties', 'name_ar' => 'ديمو للعقارات', 'invoice_lead_days' => 7]);
     app(EnsureDefaultContractTemplate::class)();

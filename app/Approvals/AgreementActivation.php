@@ -4,10 +4,12 @@ namespace App\Approvals;
 
 use App\Actions\Agreements\ActivateAgreement;
 use App\Enums\AgreementStatus;
+use App\Jobs\StoreApprovedContract;
 use App\Models\Agreement;
 use App\Models\Approval;
 use App\Models\User;
 use App\Support\Fils;
+use Illuminate\Support\Facades\DB;
 
 /** Spec §8.3 item 1. */
 final class AgreementActivation implements ApprovalHandler
@@ -26,7 +28,10 @@ final class AgreementActivation implements ApprovalHandler
 
     public function approve(Approval $approval, User $approver): void
     {
-        $this->activate->handle($this->agreement($approval), $approver);
+        $agreement = $this->activate->handle($this->agreement($approval), $approver);
+
+        // After commit: a rolled-back approval must not leave a contract behind.
+        DB::afterCommit(fn () => StoreApprovedContract::dispatch($agreement->id, $approver->id));
     }
 
     /** Back to draft, then the frozen clauses go (they accept writes only while draft); the comment stays on the approval. */

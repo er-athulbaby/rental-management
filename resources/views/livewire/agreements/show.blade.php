@@ -18,7 +18,10 @@
             @if ($canManage && $agreement->status === AgreementStatus::Draft)
                 <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this agreement for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
             @endif
-            {{-- Task 8: contract PDF. Task 9: notice. Task 10: invoices. --}}
+            <flux:button :href="route('agreements.pdf', $agreement)" target="_blank" icon="document-arrow-down">
+                {{ in_array($agreement->status, [AgreementStatus::Draft, AgreementStatus::PendingApproval], true) ? __('Draft contract PDF') : __('Contract PDF') }}
+            </flux:button>
+            {{-- Task 9: notice. Task 10: invoices. --}}
         </div>
     </div>
 
