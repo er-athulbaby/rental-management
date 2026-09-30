@@ -21,6 +21,12 @@
                     @endcan
                 </flux:sidebar.group>
 
+                <flux:sidebar.group :heading="__('Leasing')" class="grid">
+                    @can('customers.view')
+                        <flux:sidebar.item icon="identification" :href="route('customers.index')" :current="request()->routeIs('customers.*')" wire:navigate>{{ __('Customers') }}</flux:sidebar.item>
+                    @endcan
+                </flux:sidebar.group>
+
                 <flux:sidebar.group :heading="__('Property')" class="grid">
                     @can('buildings.view')
                         <flux:sidebar.item icon="building-office-2" :href="route('buildings.index')" :current="request()->routeIs('buildings.*')" wire:navigate>{{ __('Buildings') }}</flux:sidebar.item>

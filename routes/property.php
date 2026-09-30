@@ -3,6 +3,7 @@
 use App\Http\Controllers\ImportTemplateController;
 use App\Livewire\Approvals;
 use App\Livewire\Buildings;
+use App\Livewire\Customers;
 use App\Livewire\Expenses;
 use App\Livewire\Import;
 use App\Livewire\OwnerContracts;
@@ -16,6 +17,9 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('buildings', Buildings\Index::class)->middleware('can:buildings.view')->name('buildings.index');
     Route::livewire('buildings/create', Buildings\Form::class)->middleware('can:buildings.manage')->name('buildings.create');
     Route::livewire('buildings/{building}/edit', Buildings\Form::class)->middleware('can:buildings.view')->name('buildings.edit');
+    Route::livewire('customers', Customers\Index::class)->middleware('can:customers.view')->name('customers.index');
+    Route::livewire('customers/create', Customers\Form::class)->middleware('can:customers.manage')->name('customers.create');
+    Route::livewire('customers/{customer}/edit', Customers\Form::class)->middleware('can:customers.view')->name('customers.edit');
     Route::livewire('units', Units\Index::class)->middleware('can:buildings.view')->name('units.index');
     Route::livewire('units/create', Units\Form::class)->middleware('can:buildings.manage')->name('units.create');
     Route::livewire('units/{unit}/edit', Units\Form::class)->middleware('can:buildings.view')->name('units.edit');

@@ -7,6 +7,9 @@
                 <flux:link :href="route('documents.download', $document)">{{ $document->original_name }}</flux:link>
                 <div class="flex items-center gap-2">
                     <flux:badge size="sm">{{ str($document->category->value)->headline() }}</flux:badge>
+                    @if ($document->expires_on)
+                        <flux:badge size="sm" :color="$document->expires_on->isPast() ? 'red' : 'zinc'">{{ __('Expires :date', ['date' => $document->expires_on->format('d/m/Y')]) }}</flux:badge>
+                    @endif
                     @can('delete', $document)
                         <flux:button size="sm" variant="ghost" wire:click="delete({{ $document->id }})" wire:confirm="{{ __('Delete this document?') }}">{{ __('Delete') }}</flux:button>
                     @endcan
@@ -24,11 +27,14 @@
                 <input type="file" wire:model="upload" class="block w-full text-sm" />
                 <flux:error name="upload" />
             </flux:field>
-            <flux:select wire:model="category" :label="__('Category')" class="sm:max-w-48">
-                @foreach ($categories as $category)
-                    <option value="{{ $category->value }}">{{ str($category->value)->headline() }}</option>
+            <flux:select wire:model.live="category" :label="__('Category')" class="sm:max-w-48">
+                @foreach ($categories as $cat)
+                    <option value="{{ $cat->value }}">{{ str($cat->value)->headline() }}</option>
                 @endforeach
             </flux:select>
+            @if (in_array($category, ['id_copy', 'cr_copy'], true))
+                <flux:input wire:model="expiresOn" type="date" :label="__('Expires on')" class="sm:max-w-44" />
+            @endif
             <flux:button type="submit" variant="primary">{{ __('Upload') }}</flux:button>
         </form>
     @endif

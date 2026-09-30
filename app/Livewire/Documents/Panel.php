@@ -7,11 +7,13 @@ use App\Actions\Documents\StoreDocument;
 use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
+use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Expense;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Unit;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -28,7 +30,7 @@ class Panel extends Component
     use WithActor, WithFileUploads;
 
     /** Record types that may carry documents; later milestones add theirs. */
-    public const array ALLOWED = [Building::class, Expense::class, Owner::class, OwnerContract::class, Unit::class];
+    public const array ALLOWED = [Building::class, Customer::class, Expense::class, Owner::class, OwnerContract::class, Unit::class];
 
     #[Locked]
     public string $type = '';
@@ -40,6 +42,8 @@ class Panel extends Component
     public $upload = null;
 
     public string $category = 'other';
+
+    public ?string $expiresOn = null;
 
     public function mount(Model $documentable): void
     {
@@ -64,19 +68,21 @@ class Panel extends Component
         $this->validate([
             'upload' => ['required', 'file'],
             'category' => ['required', Rule::enum(DocumentCategory::class)],
+            'expiresOn' => ['nullable', 'date_format:Y-m-d'],
         ]);
 
         abort_unless($this->upload instanceof UploadedFile, 422);
 
         try {
-            $store->handle($this->actor(), $this->documentable(), $this->upload, DocumentCategory::from($this->category));
+            $store->handle($this->actor(), $this->documentable(), $this->upload, DocumentCategory::from($this->category),
+                $this->expiresOn ? CarbonImmutable::parse($this->expiresOn) : null);
         } catch (AuthorizationException) {
             abort(403);
         } catch (ValidationException $e) {
             throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [$k === 'file' ? 'upload' : $k => $m])->all());
         }
 
-        $this->reset('upload');
+        $this->reset('upload', 'expiresOn');
     }
 
     public function delete(int $documentId, DeleteDocument $delete): void
