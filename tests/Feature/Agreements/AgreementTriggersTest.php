@@ -88,3 +88,15 @@ test('a number and verify token exist exactly when the agreement is past approva
     expect(fn () => agRow($this->draft)->update(['status' => 'active']))
         ->toThrow(fn (QueryException $e) => expect($e->errorInfo[1])->toBe(3819));
 });
+
+test('rows cannot be re-parented into a submitted agreement', function () {
+    $active = activeAgreement([], [Unit::factory()->create()]);
+    $activeAu = DB::table('agreement_units')->where('agreement_id', $active->id)->first();
+
+    expect(fn () => DB::table('agreement_units')->where('id', $this->au->id)->update(['agreement_id' => $active->id]))
+        ->toThrow(QueryException::class, 'cannot move');
+    expect(fn () => DB::table('agreement_unit_charges')->where('id', $this->charge->id)->update(['agreement_unit_id' => $activeAu->id]))
+        ->toThrow(QueryException::class, 'cannot move');
+    expect(fn () => DB::table('agreement_clauses')->where('agreement_id', $this->draft->id)->update(['agreement_id' => $active->id]))
+        ->toThrow(QueryException::class, 'cannot move');
+});

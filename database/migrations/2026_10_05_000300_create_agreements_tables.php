@@ -157,6 +157,10 @@ return new class extends Migration
                     AND NEW.move_out_notes <=> OLD.move_out_notes AND NEW.move_out_recorded_by <=> OLD.move_out_recorded_by) THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_units: locked while pending approval';
                 END IF;
+
+                IF NOT (NEW.agreement_id <=> OLD.agreement_id) THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_units: rows cannot move to another agreement';
+                END IF;
             END
             SQL);
 
@@ -170,6 +174,8 @@ return new class extends Migration
             SQL);
 
         foreach (['INSERT' => 'NEW', 'UPDATE' => 'OLD', 'DELETE' => 'OLD'] as $event => $row) {
+            $moveCharge = $event === 'UPDATE' ? "IF NOT (NEW.agreement_unit_id <=> OLD.agreement_unit_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_unit_charges: rows cannot move to another agreement'; END IF;" : '';
+            $moveClause = $event === 'UPDATE' ? "IF NOT (NEW.agreement_id <=> OLD.agreement_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_clauses: rows cannot move to another agreement'; END IF;" : '';
             $name = 'agreement_unit_charges_'.strtolower($event);
             DB::unprepared(<<<SQL
                 CREATE TRIGGER {$name} BEFORE {$event} ON agreement_unit_charges FOR EACH ROW
@@ -177,6 +183,7 @@ return new class extends Migration
                     IF (SELECT a.status FROM agreement_units au JOIN agreements a ON a.id = au.agreement_id WHERE au.id = {$row}.agreement_unit_id) <> 'draft' THEN
                         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_unit_charges are frozen once the agreement is submitted';
                     END IF;
+                    {$moveCharge}
                 END
                 SQL);
 
@@ -187,6 +194,7 @@ return new class extends Migration
                     IF (SELECT status FROM agreements WHERE id = {$row}.agreement_id) <> 'draft' THEN
                         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_clauses are frozen once the agreement is submitted';
                     END IF;
+                    {$moveClause}
                 END
                 SQL);
         }
