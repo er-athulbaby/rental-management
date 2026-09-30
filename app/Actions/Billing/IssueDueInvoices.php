@@ -5,6 +5,7 @@ namespace App\Actions\Billing;
 use App\Enums\InvoiceStatus;
 use App\Models\Agreement;
 use App\Models\Invoice;
+use Illuminate\Validation\ValidationException;
 
 /** The 01:00 job and activation (spec §6.3, §12). Idempotent; each invoice is its own transaction. Held-back invoices wait. */
 final class IssueDueInvoices
@@ -22,8 +23,12 @@ final class IssueDueInvoices
             ->orderBy('issue_date')->orderBy('id')
             ->pluck('id')
             ->each(function (int $id) use (&$issued) {
-                if ($this->issue->handle(Invoice::findOrFail($id))) {
-                    $issued++;
+                try {
+                    if ($this->issue->handle(Invoice::findOrFail($id))) {
+                        $issued++;
+                    }
+                } catch (ValidationException) {
+                    // Issued or cancelled since the list was read: skip it, keep the run going.
                 }
             });
 

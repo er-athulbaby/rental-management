@@ -97,3 +97,20 @@ test('a company that is not VAT registered issues plain invoices with no tax', f
 
     expect($this->invoices->first()->fresh()->tax_total)->toBe('0.000');
 });
+
+test('the due-invoice run skips an invoice that was issued meanwhile and keeps going', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-11-25 01:00', 'Asia/Bahrain'));   // November and December are both due
+    $second = $this->invoices[1];
+
+    // The run reads its id list, then issues November; that read is when we issue December behind its back.
+    Invoice::retrieved(function (Invoice $i) use ($second) {
+        static $done = false;
+        if (! $done && $i->id !== $second->id) {
+            $done = true;
+            app(IssueInvoice::class)->handle($second);
+        }
+    });
+
+    expect(app(IssueDueInvoices::class)())->toBe(1)
+        ->and(Invoice::where('status', 'issued')->count())->toBe(2);
+});

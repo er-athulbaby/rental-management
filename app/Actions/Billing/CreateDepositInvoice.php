@@ -63,6 +63,8 @@ final class CreateDepositInvoice
         $invoice->save();
         $invoice->lines()->createMany($lines);
 
+        // Scheduled before issuing so a hold-back (§4.6) is retried by IssueDueInvoices (issue_date is today).
+        $invoice->forceFill(['status' => InvoiceStatus::Scheduled])->save();
         $this->issue->handle($invoice, $actor);
 
         return $invoice->refresh();

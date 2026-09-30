@@ -2,6 +2,7 @@
 
 use App\Actions\Billing\CreateDepositInvoice;
 use App\Actions\Billing\GenerateRentSchedule;
+use App\Actions\Billing\IssueDueInvoices;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
@@ -9,6 +10,7 @@ use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Invoice;
+use App\Models\OwnerContract;
 use App\Models\Unit;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -89,4 +91,21 @@ test('the deposit invoice is issued at activation, out of scope, due on the star
         ->and($deposit->total)->toBe('450.000')
         ->and($deposit->due_date->toDateString())->toBe('2026-11-01')
         ->and($deposit->grace_until->toDateString())->toBe('2026-11-06');
+});
+
+test('a deposit held back by a pending owner contract stays scheduled and is issued once it is active', function () {
+    $agreement = scheduledAgreement($this);
+    $pending = OwnerContract::factory()->create(['building_id' => $this->flat->building_id, 'start_date' => '2026-01-01', 'end_date' => '2027-12-31']);
+    $pending->units()->attach($this->flat->id);
+    $pending->forceFill(['status' => 'pending_approval'])->save();
+
+    $deposit = DB::transaction(fn () => app(CreateDepositInvoice::class)->handle($agreement, $this->actor));
+
+    expect($deposit->status)->toBe(InvoiceStatus::Scheduled)
+        ->and($deposit->number)->toBeNull();
+
+    $pending->forceFill(['status' => 'active', 'number' => 'OC-TEST-1'])->save();
+
+    expect(app(IssueDueInvoices::class)())->toBe(1)
+        ->and($deposit->fresh()->status)->toBe(InvoiceStatus::Issued);
 });
