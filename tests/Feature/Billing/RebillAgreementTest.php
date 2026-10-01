@@ -155,3 +155,34 @@ test('an issued rent invoice with lines without a charge cannot be re-billed', f
 
     expect(fn () => ($this->rebill)('2026-11-15'))->toThrow(LogicException::class, 'Issued rent invoice '.$invoice->fresh()->number.' has lines without a charge; cannot re-bill');
 });
+
+test('a 1-fil VAT drift on a partly credited line does not bill a 0.001 manual invoice on the next rebill', function () {
+    CompanySetting::current()->forceFill(['vat_registered' => true, 'vat_rate' => '10.00'])->save();
+    $agreement = Agreement::factory()->create(['customer_id' => $this->customer->id, 'start_date' => '2026-10-01', 'end_date' => '2027-09-30']);
+    foreach (Unit::factory()->count(2)->create() as $unit) {
+        $agreement->agreementUnits()->create(['unit_id' => $unit->id, 'list_rent' => '400.000', 'deposit_amount' => '400.000',
+            'start_date' => '2026-10-01', 'end_date' => '2027-09-30'])
+            ->charges()->create(['type' => 'rent', 'monthly_amount' => '400.000', 'tax_category' => 'standard']);
+    }
+    $agreement->forceFill(['status' => 'pending_approval'])->save();
+    $agreement->forceFill(['status' => 'active', 'number' => 'AGR-T-'.$agreement->id, 'verify_token' => Str::random(32)])->save();
+    DB::transaction(fn () => app(GenerateRentSchedule::class)->handle($agreement->fresh(), $this->finance));
+    $october = Invoice::where('agreement_id', $agreement->id)->where('period_start', '2026-10-01')->sole();
+    app(IssueInvoice::class)->handle($october, $this->finance);
+    [$au1, $au2] = $agreement->agreementUnits()->orderBy('id')->get()->all();
+    $release = fn ($au, string $end) => DB::transaction(function () use ($agreement, $au, $end) {
+        Customer::query()->lockForUpdate()->findOrFail($this->customer->id);
+        $au->forceFill(['end_date' => $end])->save();
+
+        return app(RebillAgreement::class)->handle($agreement->fresh(), CarbonImmutable::parse($end), $this->finance, 'Unit released');
+    });
+
+    $release($au1, '2026-10-16');                                             // October keeps 210.411 net for u1
+    $u1Line = $october->lines()->where('agreement_unit_id', $au1->id)->sole();
+    $result = $release($au2, '2026-10-20');
+
+    expect($result->manualInvoiceId)->toBeNull()
+        ->and(Invoice::where('type', 'manual')->exists())->toBeFalse()
+        ->and($u1Line->fresh()->credited)->toBe($u1Line->credited)
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});

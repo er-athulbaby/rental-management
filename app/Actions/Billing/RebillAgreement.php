@@ -109,7 +109,12 @@ final class RebillAgreement
                 $lines = $billed->get($chargeId) ?? collect();
                 $gap = $lines->sum(fn (InvoiceLine $l) => self::netLeft($l)) - $correct;
 
-                if ($gap < 0 && $row !== null) { // a unit added inside an already-issued period (add_unit)
+                // A shortfall is decided in gross: after a partial VAT credit a line's tax can stay one fil over Tax(kept
+                // net), so its net left reads one fil short while its gross is exactly right.
+                $rate = (string) ($lines->first()->tax_rate ?? '0.00');
+                $correctGross = $row === null ? 0 : $correct + Tax::amount($correct, TaxCategory::from($row['tax_category']), (float) $rate > 0, $rate);
+                $billedGross = $lines->sum(fn (InvoiceLine $l) => Fils::fromDecimal($l->total) - Fils::fromDecimal((string) $l->credited));
+                if ($gap < 0 && $row !== null && $billedGross < $correctGross) { // a unit added inside an already-issued period (add_unit)
                     $extra[] = [...$row, 'net' => Fils::toDecimal(-$gap), 'total' => Fils::toDecimal(-$gap)];
 
                     continue;
