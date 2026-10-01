@@ -9,6 +9,7 @@ use App\Billing\Tax;
 use App\Enums\ChequeStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
+use App\Enums\TaxCategory;
 use App\Models\Agreement;
 use App\Models\Cheque;
 use App\Models\Invoice;
@@ -21,8 +22,9 @@ use LogicException;
 
 /**
  * Spec §5.7 billing effect and §6.3 cancel-and-replace. Internal: the caller holds the customer and agreement locks and
- * has already applied the new unit dates. Locks: cheques → scheduled invoices (ascending) → per credit note (one per
- * affected invoice, ascending): its issued lines → that issued invoice → the credit note. A later credit note's lines are
+ * has already applied the new unit dates. Locks: cheques → scheduled invoices (ascending) → held-back re-billing drafts
+ * (ascending) → per credit note (one per affected invoice, ascending): its issued lines → that issued invoice → the
+ * credit note. A later credit note's lines are
  * locked after an earlier invoice; that is safe because the caller holds the customer lock, which serialises every
  * writer of this customer's invoices (spec §7.2).
  */
@@ -70,6 +72,14 @@ final class RebillAgreement
                     $toReturn[] = $cheque->id;
                 }
             }
+        }
+
+        // A re-billing manual invoice held back as draft (§4.6) bills nothing yet (no money is allocated to a draft):
+        // cancel it, and its shortfall is billed whole on this run's manual invoice.
+        $heldBack = Invoice::query()->where('agreement_id', $agreement->id)->where('type', InvoiceType::Manual)->where('status', InvoiceStatus::Draft)
+            ->whereHas('lines', fn ($q) => $q->whereNotNull('agreement_unit_charge_id'))->orderBy('id')->lockForUpdate()->get();
+        foreach ($heldBack as $draft) {
+            $draft->forceFill(['status' => InvoiceStatus::Cancelled])->save();
         }
 
         // 2. Issued rent periods ending on or after the effective date: per charge, compare what is still billed for the period

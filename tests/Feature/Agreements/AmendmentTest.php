@@ -14,6 +14,7 @@ use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\OwnerContract;
 use App\Models\Unit;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -192,4 +193,22 @@ test('a cheque left without an invoice by a termination is listed under "Cheques
     Livewire::actingAs($finance)->test(Show::class, ['agreement' => $this->agreement])
         ->assertSeeInOrder([__('Cheques to return'), '777123'])
         ->assertSeeHtml(route('cheques.show', $cheque));
+});
+
+test('a re-billing manual invoice held back as draft is replaced, not duplicated, by a later amendment', function () {
+    $pending = OwnerContract::factory()->create(['building_id' => $this->building->id, 'start_date' => '2026-10-01', 'end_date' => '2027-09-30']);
+    $pending->units()->attach($this->spare->id);
+    $pending->forceFill(['status' => 'pending_approval'])->save();
+    ($this->approveAmendment)(['type' => 'add_unit', 'unit_id' => $this->spare->id, 'effective_date' => '2026-11-15', 'reason' => 'Expansion',
+        'deposit_amount' => '300.000', 'charges' => [['type' => 'rent', 'monthly_amount' => '300.000', 'tax_category' => 'exempt']]]);
+    $held = Invoice::where('type', 'manual')->sole();
+    expect($held->status->value)->toBe('draft');
+
+    ($this->approveAmendment)(['type' => 'terminate', 'effective_date' => '2026-11-20', 'reason' => 'Company relocating']);
+
+    $live = Invoice::where('type', 'manual')->where('status', '!=', 'cancelled')->sole();
+    expect($held->fresh()->status->value)->toBe('cancelled')
+        ->and($live->id)->not->toBe($held->id)
+        ->and($live->total)->toBe('59.178')                                    // 15–20 Nov at 300 × 12 / 365
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
 });
