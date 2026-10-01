@@ -212,3 +212,21 @@ test('a re-billing manual invoice held back as draft is replaced, not duplicated
         ->and($live->total)->toBe('59.178')                                    // 15–20 Nov at 300 × 12 / 365
         ->and(app(IntegrityCheck::class)->run())->toBe([]);
 });
+
+test('a held-back draft for an earlier period is re-billed, not lost, when a later amendment cancels it', function () {
+    $pending = OwnerContract::factory()->create(['building_id' => $this->building->id, 'start_date' => '2026-10-01', 'end_date' => '2027-09-30']);
+    $pending->units()->attach($this->spare->id);
+    $pending->forceFill(['status' => 'pending_approval'])->save();
+    ($this->approveAmendment)(['type' => 'add_unit', 'unit_id' => $this->spare->id, 'effective_date' => '2026-10-15', 'reason' => 'Expansion',
+        'deposit_amount' => '300.000', 'charges' => [['type' => 'rent', 'monthly_amount' => '300.000', 'tax_category' => 'exempt']]]);
+    $held = Invoice::where('type', 'manual')->sole();
+    expect($held->status->value)->toBe('draft')->and($held->total)->toBe('467.671'); // 15–31 Oct (167.671) + November (300)
+
+    ($this->approveAmendment)(['type' => 'terminate', 'effective_date' => '2026-11-30', 'reason' => 'Company relocating']);
+
+    $live = Invoice::where('type', 'manual')->where('status', '!=', 'cancelled')->sole();
+    expect($held->fresh()->status->value)->toBe('cancelled')
+        ->and($live->total)->toBe('467.671')                                   // October still billed, nothing twice
+        ->and($live->lines->pluck('period_start')->map->toDateString()->sort()->values()->all())->toBe(['2026-10-15', '2026-11-01'])
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});

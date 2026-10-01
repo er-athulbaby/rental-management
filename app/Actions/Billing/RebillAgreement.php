@@ -24,9 +24,8 @@ use LogicException;
  * Spec §5.7 billing effect and §6.3 cancel-and-replace. Internal: the caller holds the customer and agreement locks and
  * has already applied the new unit dates. Locks: cheques → scheduled invoices (ascending) → held-back re-billing drafts
  * (ascending) → per credit note (one per affected invoice, ascending): its issued lines → that issued invoice → the
- * credit note. A later credit note's lines are
- * locked after an earlier invoice; that is safe because the caller holds the customer lock, which serialises every
- * writer of this customer's invoices (spec §7.2).
+ * credit note. A later credit note's lines are locked after an earlier invoice; that is safe because the caller holds
+ * the customer lock, which serialises every writer of this customer's invoices (spec §7.2).
  */
 final class RebillAgreement
 {
@@ -75,18 +74,21 @@ final class RebillAgreement
         }
 
         // A re-billing manual invoice held back as draft (§4.6) bills nothing yet (no money is allocated to a draft):
-        // cancel it, and its shortfall is billed whole on this run's manual invoice.
+        // cancel it, and its shortfall is billed whole on this run's manual invoice. Step 2 then re-examines every period
+        // its lines cover, even one ending before the effective date.
         $heldBack = Invoice::query()->where('agreement_id', $agreement->id)->where('type', InvoiceType::Manual)->where('status', InvoiceStatus::Draft)
             ->whereHas('lines', fn ($q) => $q->whereNotNull('agreement_unit_charge_id'))->orderBy('id')->lockForUpdate()->get();
         foreach ($heldBack as $draft) {
             $draft->forceFill(['status' => InvoiceStatus::Cancelled])->save();
         }
+        $heldFrom = InvoiceLine::query()->whereIn('invoice_id', $heldBack->modelKeys())->min('period_start');
+        $scanFrom = $heldFrom !== null && $heldFrom < $from ? (string) $heldFrom : $from;
 
-        // 2. Issued rent periods ending on or after the effective date: per charge, compare what is still billed for the period
+        // 2. Issued rent periods ending on or after the scan start (the effective date, or earlier): per charge, compare what is still billed for the period
         //    (the rent invoice and earlier re-billing manual invoices, less their credit notes) with what is correct now;
         //    credit an excess against the lines holding it, bill a shortfall on one manual invoice.
         $issued = Invoice::query()->where('agreement_id', $agreement->id)->where('type', InvoiceType::Rent)
-            ->where('status', InvoiceStatus::Issued)->where('period_end', '>=', $from)->orderBy('id')->get();
+            ->where('status', InvoiceStatus::Issued)->where('period_end', '>=', $scanFrom)->orderBy('id')->get();
         foreach ($issued as $invoice) {
             if (InvoiceLine::query()->where('invoice_id', $invoice->id)->whereNull('agreement_unit_charge_id')->exists()) {
                 throw new LogicException("Issued rent invoice {$invoice->number} has lines without a charge; cannot re-bill");
