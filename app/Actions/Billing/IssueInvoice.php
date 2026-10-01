@@ -3,9 +3,11 @@
 namespace App\Actions\Billing;
 
 use App\Actions\NextDocumentNumber;
+use App\Actions\Payments\AllocateCustomerCredit;
 use App\Billing\Tax;
 use App\Enums\InvoiceChargeType;
 use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
 use App\Enums\NumberSequenceKey;
 use App\Enums\OwnerContractStatus;
 use App\Enums\TaxCategory;
@@ -25,9 +27,9 @@ final class IssueInvoice
     public function __construct(private NextDocumentNumber $next) {}
 
     /** @return bool false when held back by a pending owner contract (spec §4.6) */
-    public function handle(Invoice $invoice, ?User $issuer = null): bool
+    public function handle(Invoice $invoice, ?User $issuer = null, bool $autoAllocate = true): bool
     {
-        return DB::transaction(function () use ($invoice, $issuer) {
+        return DB::transaction(function () use ($invoice, $issuer, $autoAllocate) {
             $invoice = Invoice::query()->lockForUpdate()->with(['lines.agreementUnit', 'agreement'])->findOrFail($invoice->id);
 
             if (! in_array($invoice->status, [InvoiceStatus::Draft, InvoiceStatus::Scheduled], true)) {
@@ -79,6 +81,13 @@ final class IssueInvoice
                 'issued_by' => $issuer?->id,
                 'status' => InvoiceStatus::Issued,
             ])->save();
+
+            // Spec §7.2: customer credit pays the new invoice — after commit, in its own transaction,
+            // so a customer row is never locked after invoice lines.
+            if ($autoAllocate && $invoice->type !== InvoiceType::CreditNote) {
+                $customerId = $invoice->customer_id;
+                DB::afterCommit(fn () => app(AllocateCustomerCredit::class)->handle($customerId, $issuer));
+            }
 
             return true;
         }, attempts: 3);

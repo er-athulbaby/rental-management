@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Enums\InvoiceChargeType;
 use App\Enums\TaxCategory;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -66,5 +68,17 @@ class InvoiceLine extends Model
     public function ownerContract(): BelongsTo
     {
         return $this->belongsTo(OwnerContract::class);
+    }
+
+    /** @return HasMany<PaymentAllocation, $this> */
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(PaymentAllocation::class);
+    }
+
+    /** total − allocated − credited, in fils. */
+    public function balanceFils(): int
+    {
+        return Fils::fromDecimal($this->total) - Fils::fromDecimal((string) $this->allocated) - Fils::fromDecimal((string) $this->credited);
     }
 }

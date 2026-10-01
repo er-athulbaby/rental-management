@@ -41,7 +41,6 @@ final class IssueDueInvoices
                 }
             });
 
-        // ponytail: M3 auto-allocates customer credit here after issuing (spec §12, 01:00).
         return $issued;
     }
 }

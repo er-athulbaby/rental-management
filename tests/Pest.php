@@ -1,7 +1,11 @@
 <?php
 
+use App\Actions\Billing\IssueInvoice;
 use App\Models\Agreement;
+use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\OwnerContract;
+use App\Support\Fils;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -83,4 +87,33 @@ function activeAgreement(array $attributes, iterable $units, string $rent = '400
     $agreement->forceFill(['status' => 'active', 'number' => 'AGR-T-'.$agreement->id, 'verify_token' => Str::random(32)])->save();
 
     return $agreement->fresh();
+}
+
+/**
+ * An issued invoice built directly (no schedule). $lines: list of ['net' => '100.000', 'tax' => 'exempt'|'standard'|…,
+ * 'type' => 'rent'|'deposit'|…, 'au' => ?AgreementUnit]. Tax is written by IssueInvoice.
+ */
+function issuedInvoice(Customer $customer, array $lines, string $due = '2026-10-01', ?Agreement $agreement = null): Invoice
+{
+    $invoice = (new Invoice)->forceFill([
+        'type' => $agreement ? 'rent' : 'manual', 'customer_id' => $customer->id, 'agreement_id' => $agreement?->id,
+        'issue_date' => $due, 'due_date' => $due, 'status' => 'draft', 'subtotal' => '0.000', 'tax_total' => '0.000', 'total' => '0.000',
+    ]);
+    $invoice->save();
+
+    $sum = 0;
+    foreach ($lines as $line) {
+        $au = $line['au'] ?? null;
+        $invoice->lines()->create([
+            'agreement_unit_id' => $au?->id, 'unit_id' => $au?->unit_id, 'charge_type' => $line['type'] ?? 'rent',
+            'description' => $line['description'] ?? 'Line', 'net' => $line['net'], 'tax_category' => $line['tax'] ?? 'exempt',
+            'tax_rate' => '0.00', 'tax_amount' => '0.000', 'total' => $line['net'],
+        ]);
+        $sum += Fils::fromDecimal($line['net']);
+    }
+    $invoice->forceFill(['subtotal' => Fils::toDecimal($sum), 'total' => Fils::toDecimal($sum)])->save();
+
+    app(IssueInvoice::class)->handle($invoice);
+
+    return $invoice->fresh(['lines']);
 }
