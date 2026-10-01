@@ -84,6 +84,9 @@ final class MarkDisbursementPaid
                     $left -= $take;
                 }
             }
+            if ($left > 0) {
+                throw new LogicException("Payment out {$locked->id} refunds more than its settlement's units have left to refund.");
+            }
             if ($settlement->refundedFils() >= $settlement->refundFils()) {
                 $settlement->forceFill(['status' => DepositSettlementStatus::Completed])->save();
             }
