@@ -27,6 +27,11 @@ class Create extends Component
         abort_unless($this->actor()->can('create', Disbursement::class), 403);
     }
 
+    public function updatedFormPayeeType(): void
+    {
+        unset($this->form['payee_id']);
+    }
+
     public function save(RecordDisbursement $record): void
     {
         try {

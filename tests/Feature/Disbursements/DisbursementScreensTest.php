@@ -76,3 +76,14 @@ test('finance.view holders see payments out; only disbursements.manage creates t
         ->set('refund.amount', '1')->set('refund.method', 'cash')->set('refund.paid_on', '2026-10-05')
         ->call('refundCredit')->assertForbidden();
 });
+
+test('switching the payee type clears the chosen payee', function () {
+    $owner = Owner::factory()->create();
+    Livewire::actingAs($this->finance)->test(Create::class)
+        ->set('form.payee_type', 'owner')->set('form.payee_id', $owner->id)
+        ->set('form.payee_type', 'customer')
+        ->set('form.amount', '5')->set('form.method', 'cash')->set('form.reason', 'x')
+        ->call('save')->assertHasErrors('form.payee_id');
+
+    expect(Disbursement::count())->toBe(0);
+});
