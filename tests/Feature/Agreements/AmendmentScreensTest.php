@@ -40,7 +40,7 @@ test('Leasing sends a release for approval from the form and sees it on the agre
     expect(AgreementAmendment::sole()->status->value)->toBe('pending_approval')->and(Approval::sole()->action->value)->toBe('agreement.amend');
 
     Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $this->agreement])
-        ->assertSee('Release a unit')->assertSee('Pending Approval');
+        ->assertSee('Customer downsizing')->assertSee('Pending Approval');
 });
 
 test('adding a unit takes its charges on the form', function () {
@@ -63,4 +63,44 @@ test('errors show on the form; users outside the buildings are refused', functio
 
     $outsider = User::factory()->create()->assignRole(RoleName::Leasing);
     $this->actingAs($outsider)->get(route('agreements.amend', ['agreement' => $this->agreement, 'type' => 'terminate']))->assertForbidden();
+});
+
+test('a draft amendment can be reopened, edited and deleted; others cannot touch it', function () {
+    $au = $this->agreement->agreementUnits()->first();
+
+    Livewire::withQueryParams(['type' => 'release_unit'])->actingAs($this->leasing)->test(AmendmentForm::class, ['agreement' => $this->agreement])
+        ->set('form.agreement_unit_id', $au->id)->set('form.effective_date', '2026-12-31')->set('form.reason', 'First reason')
+        ->call('saveDraft')->assertHasNoErrors();
+    $draft = AgreementAmendment::sole();
+    expect($draft->status->value)->toBe('draft');
+
+    Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $this->agreement])
+        ->assertSee('First reason')->assertSee('Release a unit');
+
+    Livewire::actingAs($this->leasing)->test(AmendmentForm::class, ['amendment' => $draft])
+        ->assertSet('form.effective_date', '2026-12-31')->assertSet('form.reason', 'First reason')
+        ->set('form.reason', 'Second reason')->call('saveDraft')->assertHasNoErrors();
+    expect(AgreementAmendment::count())->toBe(1)->and($draft->refresh()->reason)->toBe('Second reason');
+
+    $outsider = User::factory()->create()->assignRole(RoleName::Leasing);
+    Livewire::actingAs($outsider)->test(AmendmentForm::class, ['amendment' => $draft])->assertForbidden();
+    Livewire::actingAs($outsider)->test(Show::class, ['agreement' => $this->agreement])->assertForbidden();
+
+    Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $this->agreement])
+        ->call('deleteAmendmentDraft', $draft->id);
+    expect(AgreementAmendment::count())->toBe(0);
+});
+
+test('a submitted amendment cannot be edited or deleted', function () {
+    $au = $this->agreement->agreementUnits()->first();
+
+    Livewire::withQueryParams(['type' => 'release_unit'])->actingAs($this->leasing)->test(AmendmentForm::class, ['agreement' => $this->agreement])
+        ->set('form.agreement_unit_id', $au->id)->set('form.effective_date', '2026-12-31')->set('form.reason', 'Sent reason')
+        ->call('submit')->assertHasNoErrors();
+    $sent = AgreementAmendment::sole();
+
+    $this->actingAs($this->leasing)->get(route('agreements.amend.edit', $sent))->assertNotFound();
+    Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $this->agreement])
+        ->assertSee('Sent reason')->call('deleteAmendmentDraft', $sent->id)->assertForbidden();
+    expect(AgreementAmendment::count())->toBe(1);
 });
