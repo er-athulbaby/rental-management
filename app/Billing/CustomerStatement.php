@@ -36,7 +36,7 @@ final class CustomerStatement
         return ['opening' => $opening, 'rows' => $rows, 'closing' => $balance];
     }
 
-    /** @return Collection<int, array{date: string, order: int, id: int, kind: string, reference: string, url: string|null, debit: int, credit: int}> */
+    /** @return Collection<int, array{date: string, order: int, id: int, kind: string, reference: string, url: string, debit: int, credit: int}> */
     private static function entries(Customer $customer): Collection
     {
         $invoices = Invoice::query()->where('customer_id', $customer->id)->where('status', InvoiceStatus::Issued)->get()
@@ -52,8 +52,8 @@ final class CustomerStatement
         $refunds = Disbursement::query()
             ->where('purpose', DisbursementPurpose::CreditRefund)->where('payee_type', 'customer')->where('payee_id', $customer->id)
             ->whereIn('status', [DisbursementStatus::Paid, DisbursementStatus::Reversed])->get();
-        $refunded = $refunds->map(fn (Disbursement $d) => ['date' => $d->paid_on?->toDateString() ?? '', 'order' => 5, 'id' => $d->id, 'kind' => 'Credit refund', 'reference' => (string) $d->number, 'url' => null, 'debit' => Fils::fromDecimal($d->amount), 'credit' => 0]);
-        $refundReversed = $refunds->flatMap(fn (Disbursement $d) => $d->reversed_at === null ? [] : [['date' => $d->reversed_at->timezone('Asia/Bahrain')->toDateString(), 'order' => 6, 'id' => $d->id, 'kind' => 'Credit refund reversal', 'reference' => (string) $d->number, 'url' => null, 'debit' => 0, 'credit' => Fils::fromDecimal($d->amount)]]);
+        $refunded = $refunds->map(fn (Disbursement $d) => ['date' => $d->paid_on?->toDateString() ?? '', 'order' => 5, 'id' => $d->id, 'kind' => 'Credit refund', 'reference' => (string) $d->number, 'url' => route('disbursements.show', $d), 'debit' => Fils::fromDecimal($d->amount), 'credit' => 0]);
+        $refundReversed = $refunds->flatMap(fn (Disbursement $d) => $d->reversed_at === null ? [] : [['date' => $d->reversed_at->timezone('Asia/Bahrain')->toDateString(), 'order' => 6, 'id' => $d->id, 'kind' => 'Credit refund reversal', 'reference' => (string) $d->number, 'url' => route('disbursements.show', $d), 'debit' => 0, 'credit' => Fils::fromDecimal($d->amount)]]);
 
         return $invoices->concat($paid)->concat($reversed)->concat($refunded)->concat($refundReversed);
     }

@@ -10,6 +10,7 @@ use App\Livewire\Approvals;
 use App\Livewire\Buildings;
 use App\Livewire\Cheques;
 use App\Livewire\Customers;
+use App\Livewire\Disbursements;
 use App\Livewire\Expenses;
 use App\Livewire\Import;
 use App\Livewire\Invoices;
@@ -59,6 +60,9 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('cheques', Cheques\Index::class)->middleware('can:finance.view')->name('cheques.index');
     Route::livewire('cheques/entry', Cheques\Entry::class)->middleware('can:cheques.manage')->name('cheques.entry');
     Route::livewire('cheques/{cheque}', Cheques\Show::class)->middleware('can:finance.view')->name('cheques.show');
+    Route::livewire('disbursements', Disbursements\Index::class)->middleware('can:finance.view')->name('disbursements.index');
+    Route::livewire('disbursements/create', Disbursements\Create::class)->middleware('can:disbursements.manage')->name('disbursements.create');
+    Route::livewire('disbursements/{disbursement}', Disbursements\Show::class)->middleware('can:finance.view')->name('disbursements.show');
     Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');
     Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');

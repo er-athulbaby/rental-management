@@ -62,6 +62,6 @@ final class PaymentOutReversal implements ApprovalHandler
 
     public function url(Approval $approval): string
     {
-        return route('approvals.index'); // Task 4 points this at the payment out
+        return route('disbursements.show', $approval->approvable_id);
     }
 }
