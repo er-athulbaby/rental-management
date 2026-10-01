@@ -37,6 +37,8 @@ final class RecordDisbursement
         }
 
         $today = now('Asia/Bahrain')->toDateString();
+        // A source-less payment out (purpose other) gets its cheque details when Finance pays it, not now.
+        $chequeNow = ($data['method'] ?? null) === DisbursementMethod::Cheque->value && ($data['purpose'] ?? null) === DisbursementPurpose::CreditRefund->value;
         $v = Validator::make($data, [
             'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::Other->value])], // Task 6 adds deposit_refund
             'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
@@ -47,6 +49,9 @@ final class RecordDisbursement
             'payment_id' => ['required_if:purpose,credit_refund', 'nullable', 'integer', Rule::exists('payments', 'id')],
             'payee_type' => ['required_if:purpose,other', 'nullable', Rule::enum(PayeeType::class)],
             'payee_id' => ['required_if:purpose,other', 'nullable', 'integer'],
+            'cheque_no' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:30'],
+            'bank_name' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:100'],
+            'cheque_date' => [Rule::requiredIf($chequeNow), 'nullable', 'date_format:Y-m-d'],
             'reason' => ['required_if:purpose,other', 'nullable', 'string', 'max:2000'],
         ])->validate();
 
@@ -87,7 +92,10 @@ final class RecordDisbursement
             'created_by' => $actor->id,
         ]);
         $out->save();
-        $this->paid->handle($out, ['method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
+        $this->paid->handle($out, [
+            'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null,
+            ...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])),
+        ], $actor);
 
         return $out->refresh();
     }

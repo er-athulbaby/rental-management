@@ -32,6 +32,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property CarbonImmutable|null $bounced_on
  * @property string|null $bounce_reason
  * @property int|null $payment_id
+ * @property int|null $disbursement_id
  * @property int|null $replaced_by_cheque_id
  */
 class Cheque extends Model
@@ -56,7 +57,7 @@ class Cheque extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['status', 'invoice_id', 'cheque_no', 'bank_name', 'cheque_date', 'amount', 'deposited_on', 'cleared_on', 'bounced_on', 'bounce_reason', 'returned_on', 'payment_id', 'replaced_by_cheque_id'])
+        return LogOptions::defaults()->logOnly(['status', 'invoice_id', 'cheque_no', 'bank_name', 'cheque_date', 'amount', 'deposited_on', 'cleared_on', 'bounced_on', 'bounce_reason', 'returned_on', 'payment_id', 'disbursement_id', 'replaced_by_cheque_id'])
             ->logOnlyDirty()->dontLogEmptyChanges();
     }
 
@@ -84,6 +85,12 @@ class Cheque extends Model
         return $this->belongsTo(Payment::class);
     }
 
+    /** @return BelongsTo<Disbursement, $this> */
+    public function disbursement(): BelongsTo
+    {
+        return $this->belongsTo(Disbursement::class);
+    }
+
     /** @return BelongsTo<Cheque, $this> */
     public function replacedBy(): BelongsTo
     {
@@ -104,6 +111,6 @@ class Cheque extends Model
             return;
         }
 
-        $query->whereIn('customer_id', Customer::query()->visibleTo($user)->select('id'));
+        $query->where(fn ($q) => $q->whereIn('customer_id', Customer::query()->visibleTo($user)->select('id'))->orWhereNotNull('owner_id'));
     }
 }

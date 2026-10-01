@@ -11,6 +11,7 @@
             @elseif ($canReverse)
                 <flux:modal.trigger name="reverse-payment"><flux:button variant="danger">{{ __('Request reversal') }}</flux:button></flux:modal.trigger>
             @endif
+            @if ($payment->cheque_id)<flux:button :href="route('cheques.show', $payment->cheque_id)" wire:navigate>{{ __('Cheque') }}</flux:button>@endif
         </div>
     </div>
 

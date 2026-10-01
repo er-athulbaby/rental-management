@@ -38,6 +38,11 @@ final class RequestPaymentReversal
                 throw ValidationException::withMessages(['reversalReason' => __('A deposit applied by a settlement is not reversed on its own.')]);
             }
 
+            // Plan ruling 3: a cheque payment is undone by bouncing its cheque, so cheque and payment never disagree.
+            if ($payment->method === PaymentMethod::Cheque && ! isset($payload['bounced_on'])) {
+                throw ValidationException::withMessages(['reversalReason' => __('This payment came from a cheque: mark the cheque as bounced instead.')]);
+            }
+
             return $this->request->handle($actor, $payment, ApprovalAction::PaymentReversal, trim($reason), $payload);
         }, attempts: 3);
     }

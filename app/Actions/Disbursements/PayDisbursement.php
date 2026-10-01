@@ -24,10 +24,14 @@ final class PayDisbursement
             throw new AuthorizationException;
         }
 
+        $cheque = ['required_if:method,cheque', 'nullable'];
         $v = Validator::make($data, [
             'method' => ['required', Rule::enum(DisbursementMethod::class)],
             'paid_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Bahrain')->toDateString()],
             'reference' => ['nullable', 'string', 'max:100'],
+            'cheque_no' => [...$cheque, 'string', 'max:30'],
+            'bank_name' => [...$cheque, 'string', 'max:100'],
+            'cheque_date' => [...$cheque, 'date_format:Y-m-d'],
         ])->validate();
 
         return DB::transaction(function () use ($actor, $disbursement, $v) {

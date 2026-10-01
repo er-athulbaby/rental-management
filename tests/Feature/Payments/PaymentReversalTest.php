@@ -1,6 +1,9 @@
 <?php
 
 use App\Actions\Approvals\DecideApproval;
+use App\Actions\Cheques\ClearCheque;
+use App\Actions\Cheques\DepositCheques;
+use App\Actions\Cheques\RecordCheques;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
 use App\Actions\Payments\RequestPaymentReversal;
@@ -129,4 +132,13 @@ test('a second reversal request while one is pending shows the error in the moda
         ->assertHasErrors(['reversalReason']);
 
     expect(Approval::count())->toBe(1);
+});
+
+test('a cheque payment is reversed only by bouncing its cheque', function () {
+    $customer = Customer::factory()->create();
+    $cheque = app(RecordCheques::class)->handle($this->finance, $customer, null, [['cheque_no' => '5', 'bank_name' => 'NBB', 'cheque_date' => '2026-10-05', 'amount' => '5']])->sole();
+    app(DepositCheques::class)->handle($this->finance, [$cheque->id], '2026-10-05');
+    $payment = app(ClearCheque::class)->handle($this->finance, $cheque->fresh(), '2026-10-05');
+
+    expect(fn () => app(RequestPaymentReversal::class)->handle($this->finance, $payment, 'Typo'))->toThrow(ValidationException::class);
 });

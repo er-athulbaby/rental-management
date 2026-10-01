@@ -41,7 +41,7 @@ final class ClearCheque
                 'cleared_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$cheque->deposited_on?->toDateString(), 'before_or_equal:'.now('Asia/Bahrain')->toDateString()],
             ])->validate();
 
-            $target = $cheque->invoice_id ? Invoice::query()->find($cheque->invoice_id) : null;
+            $target = $cheque->invoice_id ? Invoice::query()->lockForUpdate()->find($cheque->invoice_id) : null;
             if ($target?->status === InvoiceStatus::Scheduled) {
                 $this->issue->handle($target, $actor); // false when held back (spec §4.6): the money then goes oldest-first
             }

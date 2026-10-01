@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ChequeStatus: string
 {
     case Held = 'held';
+    case Issued = 'issued'; // an issued cheque not yet presented (spec §7.4)
     case Deposited = 'deposited';
     case Cleared = 'cleared';
     case Bounced = 'bounced';

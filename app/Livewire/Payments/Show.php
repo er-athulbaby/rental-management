@@ -59,7 +59,7 @@ class Show extends Component
         return view('livewire.payments.show', [
             'payment' => $payment,
             'credit' => Fils::toDecimal($payment->unallocatedFils()),
-            'canReverse' => $this->actor()->can('reverse', $payment) && $payment->status->value === 'confirmed' && $payment->method->value !== 'deposit_applied',
+            'canReverse' => $this->actor()->can('reverse', $payment) && $payment->status->value === 'confirmed' && $payment->method->value !== 'deposit_applied' && $payment->method->value !== 'cheque',
             'pendingReversal' => Approval::query()->pending()->where('approvable_type', $payment->getMorphClass())
                 ->where('approvable_id', $payment->id)->where('action', ApprovalAction::PaymentReversal)->exists(),
         ])
