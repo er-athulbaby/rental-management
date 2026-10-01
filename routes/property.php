@@ -43,6 +43,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('expenses/create', Expenses\Form::class)->middleware('can:expenses.manage')->name('expenses.create');
     Route::livewire('expenses/{expense}', Expenses\Show::class)->middleware('can:viewAny,'.Expense::class)->name('expenses.show');
     Route::livewire('invoices', Invoices\Index::class)->middleware('can:finance.view')->name('invoices.index');
+    Route::livewire('invoices/create', Invoices\ManualForm::class)->middleware('can:invoices.manage')->name('invoices.create');
+    Route::livewire('invoices/{invoice}/edit', Invoices\ManualForm::class)->middleware('can:invoices.manage')->name('invoices.edit');
     Route::livewire('invoices/{invoice}', Invoices\Show::class)->middleware('can:finance.view')->name('invoices.show');
     Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');

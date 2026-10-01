@@ -2,10 +2,12 @@
 
 namespace App\Livewire\Invoices;
 
+use App\Actions\Billing\CancelDraftInvoice;
 use App\Actions\Billing\IssueInvoice;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Invoice;
 use Flux\Flux;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -37,12 +39,24 @@ class Show extends Component
         Flux::toast(variant: 'success', text: __('Invoice issued.'));
     }
 
+    public function cancelDraft(CancelDraftInvoice $cancel): void
+    {
+        try {
+            $cancel->handle($this->actor(), Invoice::findOrFail($this->invoiceId));
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        Flux::toast(text: __('Draft cancelled.'));
+    }
+
     public function render(): View
     {
         $invoice = Invoice::with(['customer', 'agreement:id,number', 'lines.unit.building', 'lines.ownerContract:id,number', 'issuer:id,name'])->findOrFail($this->invoiceId);
 
         return view('livewire.invoices.show', [
             'invoice' => $invoice,
+            'canEdit' => $this->actor()->can('update', $invoice),
             'canIssue' => $this->actor()->can('issue', $invoice),
         ])->title($invoice->label());
     }

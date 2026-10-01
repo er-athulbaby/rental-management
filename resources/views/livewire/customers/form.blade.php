@@ -6,9 +6,14 @@
                 <div><flux:text size="sm">{{ __('Outstanding') }}</flux:text><div class="font-semibold">{{ $account['outstanding'] }}</div></div>
                 <div><flux:text size="sm">{{ __('Credit') }}</flux:text><div class="font-semibold">{{ $account['credit'] }}</div></div>
             </div>
-            @if ($account['canRecord'])
-                <flux:button variant="primary" :href="route('payments.create', ['customer' => $customer->id])" wire:navigate>{{ __('Record payment') }}</flux:button>
-            @endif
+            <div class="flex flex-wrap gap-2">
+                @if ($account['canRecord'])
+                    <flux:button variant="primary" :href="route('payments.create', ['customer' => $customer->id])" wire:navigate>{{ __('Record payment') }}</flux:button>
+                @endif
+                @can('create', App\Models\Invoice::class)
+                    <flux:button :href="route('invoices.create', ['customer' => $customer->id])" wire:navigate>{{ __('Manual invoice') }}</flux:button>
+                @endcan
+            </div>
         </flux:card>
     @endif
 

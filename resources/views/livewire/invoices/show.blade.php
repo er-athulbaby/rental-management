@@ -4,9 +4,18 @@
             <flux:heading size="xl" level="1">{{ $invoice->label() }}</flux:heading>
             <flux:badge>{{ $invoice->displayLabel() }}</flux:badge>
         </div>
-        @if ($canIssue)
-            <flux:button variant="primary" wire:click="issueNow" wire:confirm="{{ __('Issue this invoice now?') }}">{{ __('Issue now') }}</flux:button>
-        @endif
+        <div class="flex flex-wrap gap-2">
+            @if ($canEdit && $invoice->type->value === 'manual')
+                <flux:button :href="route('invoices.edit', $invoice)" wire:navigate>{{ __('Edit') }}</flux:button>
+            @endif
+            @if ($canEdit)
+                <flux:button variant="ghost" wire:click="cancelDraft" wire:confirm="{{ __('Cancel this draft?') }}">{{ __('Cancel draft') }}</flux:button>
+            @endif
+            @if ($canIssue)
+                <flux:button variant="primary" wire:click="issueNow" wire:confirm="{{ __('Issue this invoice now?') }}">{{ $invoice->status->value === 'draft' ? __('Issue') : __('Issue now') }}</flux:button>
+            @endif
+            {{-- Task 6: credit note. Task 9: PDF. --}}
+        </div>
     </div>
     <flux:error name="invoice" />
 
