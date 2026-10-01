@@ -8,6 +8,7 @@ use App\Actions\Agreements\SubmitAgreement;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\AgreementUnit;
+use App\Models\Cheque;
 use App\Models\Invoice;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -89,6 +90,7 @@ class Show extends Component
         return view('livewire.agreements.show', [
             'agreement' => $agreement,
             'canManage' => $this->actor()->can('update', $agreement),
+            'canEnterCheques' => $this->actor()->can('manage', Cheque::class) && $agreement->status->value === 'active',
             'invoices' => $this->actor()->can('viewAny', Invoice::class)
                 ? $agreement->invoices()->orderBy('due_date')->orderBy('id')->get()
                 : collect(),
