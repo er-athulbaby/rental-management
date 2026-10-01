@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DepositMovementType;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -11,8 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $agreement_unit_id
  * @property int|null $owner_contract_id
+ * @property CarbonImmutable $posted_at
  * @property DepositMovementType $type
  * @property string $amount
+ * @property-read AgreementUnit $agreementUnit
  */
 class DepositMovement extends Model
 {

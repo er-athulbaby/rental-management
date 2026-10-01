@@ -10,6 +10,7 @@
                 @if ($account['canRecord'])
                     <flux:button variant="primary" :href="route('payments.create', ['customer' => $customer->id])" wire:navigate>{{ __('Record payment') }}</flux:button>
                 @endif
+                <flux:button :href="route('customers.statement', $customer)" wire:navigate>{{ __('Statement') }}</flux:button>
                 @can('create', App\Models\Invoice::class)
                     <flux:button :href="route('invoices.create', ['customer' => $customer->id])" wire:navigate>{{ __('Manual invoice') }}</flux:button>
                 @endcan

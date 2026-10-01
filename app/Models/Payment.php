@@ -25,6 +25,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $cheque_id
  * @property PaymentStatus $status
  * @property int $recorded_by
+ * @property CarbonImmutable|null $reversed_at
  */
 class Payment extends Model
 {

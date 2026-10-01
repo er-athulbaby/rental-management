@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgreementPdfController;
+use App\Http\Controllers\CustomerStatementPdfController;
 use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\ReceiptPdfController;
@@ -34,6 +35,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('customers', Customers\Index::class)->middleware('can:customers.view')->name('customers.index');
     Route::livewire('customers/create', Customers\Form::class)->middleware('can:customers.manage')->name('customers.create');
     Route::livewire('customers/{customer}/edit', Customers\Form::class)->middleware('can:customers.view')->name('customers.edit');
+    Route::livewire('customers/{customer}/statement', Customers\Statement::class)->middleware('can:finance.view')->name('customers.statement');
+    Route::get('customers/{customer}/statement.pdf', CustomerStatementPdfController::class)->middleware('can:finance.view')->name('customers.statement.pdf');
     Route::livewire('units', Units\Index::class)->middleware('can:buildings.view')->name('units.index');
     Route::livewire('units/create', Units\Form::class)->middleware('can:buildings.manage')->name('units.create');
     Route::livewire('units/{unit}/edit', Units\Form::class)->middleware('can:buildings.view')->name('units.edit');
