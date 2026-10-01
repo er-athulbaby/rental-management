@@ -86,3 +86,13 @@ test('only disbursements.manage records payments out; amounts, dates and payment
         expect(fn () => ($this->refund)('1', $bad))->toThrow(ValidationException::class);
     }
 });
+
+test('a credit refund cannot be paid before the payment it refunds was received', function () {
+    try {
+        ($this->refund)('10.000', ['paid_on' => '2026-10-04']);
+        $this->fail('A refund dated before its payment was recorded.');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('paid_on');
+    }
+    expect(Disbursement::count())->toBe(0);
+});

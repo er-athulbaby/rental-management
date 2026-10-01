@@ -83,6 +83,9 @@ final class RecordDisbursement
         if ($payment->status !== PaymentStatus::Confirmed || $amount > $payment->unallocatedFils()) {
             throw ValidationException::withMessages(['amount' => __('At most :c BHD of this payment is credit that can be refunded.', ['c' => Fils::toDecimal(max(0, $payment->unallocatedFils()))])]);
         }
+        if ((string) $v['paid_on'] < $payment->received_on->toDateString()) {
+            throw ValidationException::withMessages(['paid_on' => __('The refund cannot be paid before the payment was received (:d).', ['d' => $payment->received_on->format('d/m/Y')])]);
+        }
 
         $out = (new Disbursement)->forceFill([
             'payee_type' => PayeeType::Customer,
