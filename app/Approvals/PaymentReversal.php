@@ -28,6 +28,7 @@ final class PaymentReversal implements ApprovalHandler
         $payment = Payment::query()->findOrFail($approval->approvable_id);
         Customer::query()->lockForUpdate()->findOrFail($payment->customer_id); // first lock (spec §7.2)
         $payment = Payment::query()->findOrFail($payment->id); // unlocked: payments lock last (spec §7.2); the customer and approval locks serialise reversals
+        $cheque = $payment->cheque_id !== null ? Cheque::query()->lockForUpdate()->findOrFail($payment->cheque_id) : null; // customer → cheque → lines → invoices → payment, as BounceCheque and ClearCheque
 
         if ($payment->status === PaymentStatus::Reversed) {
             throw ValidationException::withMessages(['approval' => __('This payment is already reversed.')]);
@@ -50,15 +51,12 @@ final class PaymentReversal implements ApprovalHandler
             throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the customer\'s credit below zero.')]);
         }
         // Spec §7.4: a cheque returned by the bank after clearing bounces once its payment is reversed.
-        if ($payment->cheque_id !== null) {
-            $cheque = Cheque::query()->lockForUpdate()->findOrFail($payment->cheque_id);
-            if ($cheque->status === ChequeStatus::Cleared) {
-                $cheque->forceFill([
-                    'status' => ChequeStatus::Bounced,
-                    'bounced_on' => $approval->payload['bounced_on'] ?? now('Asia/Bahrain')->toDateString(),
-                    'bounce_reason' => $approval->payload['bounce_reason'] ?? $approval->reason,
-                ])->save();
-            }
+        if ($cheque?->status === ChequeStatus::Cleared) {
+            $cheque->forceFill([
+                'status' => ChequeStatus::Bounced,
+                'bounced_on' => $approval->payload['bounced_on'] ?? now('Asia/Bahrain')->toDateString(),
+                'bounce_reason' => $approval->payload['bounce_reason'] ?? $approval->reason,
+            ])->save();
         }
     }
 
