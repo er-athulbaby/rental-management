@@ -84,3 +84,9 @@ test('the screen and the PDF show the statement to finance.view holders only', f
     $leasing = User::factory()->create()->assignRole(RoleName::Leasing);
     $this->actingAs($leasing)->get(route('customers.statement', $this->customer))->assertForbidden();
 });
+
+test('an impossible calendar date renders the range message instead of failing', function () {
+    Livewire::withQueryParams(['from' => '2026-13-45', 'to' => '2026-10-31'])->actingAs($this->finance)->test(Statement::class, ['customer' => $this->customer])
+        ->assertOk()
+        ->assertSee('Choose a valid date range.');
+});

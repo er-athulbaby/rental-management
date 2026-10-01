@@ -31,10 +31,15 @@ class Statement extends Component
         $this->to = $this->to ?: now('Asia/Bahrain')->toDateString();
     }
 
+    private function isDate(string $value): bool
+    {
+        return preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+    }
+
     public function render(): View
     {
         $customer = Customer::findOrFail($this->customerId);
-        $valid = preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->from) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->to) && $this->from <= $this->to;
+        $valid = $this->isDate($this->from) && $this->isDate($this->to) && $this->from <= $this->to;
 
         return view('livewire.customers.statement', [
             'customer' => $customer,

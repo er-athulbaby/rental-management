@@ -53,8 +53,12 @@ $view = [R::Admin, R::Management, R::Finance, R::VendorSupport];
 
 test('pages open for exactly the roles the spec allows', function (string $route, Closure $params, array $allowed) {
     foreach (R::cases() as $role) {
-        $status = $this->actingAs(matrixUser($role, $this->building))->get(route($route, $params->call($this)))->status();
-        $ok = in_array($status, [200, 302], true); // PDFs of stored documents redirect to the audited download
+        $response = $this->actingAs(matrixUser($role, $this->building))->get(route($route, $params->call($this)));
+        $status = $response->status();
+        // Stored-document routes redirect to the audited download; every other page must be a plain 200.
+        $toDownload = in_array($route, ['payments.receipt', 'agreements.pdf'], true) && $status === 302
+            && str_starts_with((string) $response->headers->get('Location'), url('/documents/'));
+        $ok = $status === 200 || $toDownload;
 
         expect($ok)->toBe(in_array($role, $allowed, true), "{$route} as {$role->value} gave {$status}");
     }

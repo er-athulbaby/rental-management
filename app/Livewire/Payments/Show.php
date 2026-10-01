@@ -11,6 +11,8 @@ use App\Support\Fils;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -40,6 +42,9 @@ class Show extends Component
             $request->handle($this->actor(), $this->payment(), $this->reversalReason);
         } catch (AuthorizationException) {
             abort(403);
+        } catch (ValidationException $e) {
+            // The modal only shows the reason field, so surface every message there.
+            throw ValidationException::withMessages(['reversalReason' => Arr::flatten($e->errors())]);
         }
 
         $this->reset('reversalReason');

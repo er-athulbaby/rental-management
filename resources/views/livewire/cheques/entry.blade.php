@@ -24,6 +24,6 @@
             @endforelse
         </div>
         <flux:error name="rows" />
-        <flux:button variant="primary" type="submit">{{ __('Save cheques') }}</flux:button>
+        <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="save">{{ __('Save cheques') }}</flux:button>
     </form>
 </section>

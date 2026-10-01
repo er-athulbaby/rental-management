@@ -31,6 +31,6 @@
             <flux:error name="allocations" />
         </flux:fieldset>
 
-        <flux:button variant="primary" type="submit">{{ __('Record payment') }}</flux:button>
+        <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="save">{{ __('Record payment') }}</flux:button>
     </form>
 </section>

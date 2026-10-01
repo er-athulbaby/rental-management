@@ -57,7 +57,9 @@ class Show extends Component
             $submit->handle($this->actor(), Invoice::findOrFail($this->invoiceId));
         } catch (AuthorizationException) {
             abort(403);
-        }        Flux::toast(variant: 'success', text: __('Credit note sent for approval.'));
+        }
+
+        Flux::toast(variant: 'success', text: __('Credit note sent for approval.'));
     }
 
     public function render(): View

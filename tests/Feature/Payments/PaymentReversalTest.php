@@ -119,3 +119,14 @@ test('Finance requests a reversal from the payment page', function () {
 
     expect(Approval::sole()->action->value)->toBe('payment.reverse');
 });
+
+test('a second reversal request while one is pending shows the error in the modal', function () {
+    Livewire::actingAs($this->finance)->test(Show::class, ['payment' => $this->payment])
+        ->set('reversalReason', 'First')
+        ->call('requestReversal')
+        ->set('reversalReason', 'Second')
+        ->call('requestReversal')
+        ->assertHasErrors(['reversalReason']);
+
+    expect(Approval::count())->toBe(1);
+});
