@@ -25,7 +25,7 @@ final class PaymentReversal implements ApprovalHandler
     {
         $payment = Payment::query()->findOrFail($approval->approvable_id);
         Customer::query()->lockForUpdate()->findOrFail($payment->customer_id); // first lock (spec §7.2)
-        $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+        $payment = Payment::query()->findOrFail($payment->id); // unlocked: payments lock last (spec §7.2); the customer and approval locks serialise reversals
 
         if ($payment->status === PaymentStatus::Reversed) {
             throw ValidationException::withMessages(['approval' => __('This payment is already reversed.')]);
@@ -37,6 +37,10 @@ final class PaymentReversal implements ApprovalHandler
         }
 
         $this->reverse->handle($cuts, $approver);
+        $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+        if ($payment->status === PaymentStatus::Reversed) {
+            throw ValidationException::withMessages(['approval' => __('This payment is already reversed.')]);
+        }
         $payment->forceFill(['status' => PaymentStatus::Reversed, 'reversed_at' => now()])->save();
 
         // Spec §7.2. ponytail: always true until credit refunds exist (M3b); then a refunded payment can't be reversed.
