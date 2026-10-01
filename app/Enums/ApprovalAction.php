@@ -8,6 +8,7 @@ use App\Approvals\CreditNote as CreditNoteHandler;
 use App\Approvals\OwnerContractActivation;
 use App\Approvals\OwnerContractTermination;
 use App\Approvals\PaymentOut as PaymentOutHandler;
+use App\Approvals\PaymentOutReversal as PaymentOutReversalHandler;
 use App\Approvals\PaymentReversal;
 
 /** Spec §8.3. Each later approval adds a case here and a handler in app/Approvals. */
@@ -19,6 +20,7 @@ enum ApprovalAction: string
     case PaymentReversal = 'payment.reverse';
     case CreditNote = 'credit_note.issue';
     case PaymentOut = 'payment_out.approve';
+    case PaymentOutReversal = 'payment_out.reverse';
 
     public function label(): string
     {
@@ -29,6 +31,7 @@ enum ApprovalAction: string
             self::PaymentReversal => __('Payment reversal'),
             self::CreditNote => __('Credit note'),
             self::PaymentOut => __('Payment out'),
+            self::PaymentOutReversal => __('Payment out reversal'),
         };
     }
 
@@ -42,6 +45,7 @@ enum ApprovalAction: string
             self::PaymentReversal => PaymentReversal::class,
             self::CreditNote => CreditNoteHandler::class,
             self::PaymentOut => PaymentOutHandler::class,
+            self::PaymentOutReversal => PaymentOutReversalHandler::class,
         };
     }
 }
