@@ -34,7 +34,7 @@
                     @foreach ($receivables['rows'] as $i => $row)
                         <flux:table.row :key="'r'.$i">
                             <flux:table.cell class="whitespace-nowrap">{{ \Carbon\CarbonImmutable::parse($row['date'])->format('d/m/Y') }}</flux:table.cell>
-                            <flux:table.cell>{{ $row['kind'] }} <flux:link :href="$row['url']" wire:navigate>{{ $row['reference'] }}</flux:link></flux:table.cell>
+                            <flux:table.cell>{{ $row['kind'] }} @if ($row['url'])<flux:link :href="$row['url']" wire:navigate>{{ $row['reference'] }}</flux:link>@else{{ $row['reference'] }}@endif</flux:table.cell>
                             <flux:table.cell class="text-end tabular-nums">{{ $row['debit'] ? $money($row['debit']) : '' }}</flux:table.cell>
                             <flux:table.cell class="text-end tabular-nums">{{ $row['credit'] ? $money($row['credit']) : '' }}</flux:table.cell>
                             <flux:table.cell class="text-end tabular-nums">{{ $money($row['balance']) }}</flux:table.cell>

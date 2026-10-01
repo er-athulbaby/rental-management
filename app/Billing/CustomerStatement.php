@@ -2,10 +2,13 @@
 
 namespace App\Billing;
 
+use App\Enums\DisbursementPurpose;
+use App\Enums\DisbursementStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Models\Customer;
 use App\Models\DepositMovement;
+use App\Models\Disbursement;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\Fils;
@@ -13,7 +16,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Spec §7.10: ledgers are queries. Receivables balance = debits − credits (positive: the customer owes; negative: credit).
- * ponytail: credit refunds (M3b) add a debit row here. If statements get slow, add a monthly snapshot (spec §7.10).
+ * ponytail: If statements get slow, add a monthly snapshot (spec §7.10).
  */
 final class CustomerStatement
 {
@@ -33,7 +36,7 @@ final class CustomerStatement
         return ['opening' => $opening, 'rows' => $rows, 'closing' => $balance];
     }
 
-    /** @return Collection<int, array{date: string, order: int, id: int, kind: string, reference: string, url: string, debit: int, credit: int}> */
+    /** @return Collection<int, array{date: string, order: int, id: int, kind: string, reference: string, url: string|null, debit: int, credit: int}> */
     private static function entries(Customer $customer): Collection
     {
         $invoices = Invoice::query()->where('customer_id', $customer->id)->where('status', InvoiceStatus::Issued)->get()
@@ -45,7 +48,14 @@ final class CustomerStatement
         $paid = $payments->map(fn (Payment $p) => ['date' => $p->received_on->toDateString(), 'order' => 4, 'id' => $p->id, 'kind' => 'Payment', 'reference' => $p->number, 'url' => route('payments.show', $p), 'debit' => 0, 'credit' => Fils::fromDecimal($p->amount)]);
         $reversed = $payments->flatMap(fn (Payment $p) => $p->reversed_at === null ? [] : [['date' => $p->reversed_at->timezone('Asia/Bahrain')->toDateString(), 'order' => 2, 'id' => $p->id, 'kind' => 'Payment reversal', 'reference' => $p->number, 'url' => route('payments.show', $p), 'debit' => Fils::fromDecimal($p->amount), 'credit' => 0]]);
 
-        return $invoices->concat($paid)->concat($reversed);
+        // Spec §7.10: credit refunds are debits; a reversed refund shows both its payment and its reversal.
+        $refunds = Disbursement::query()
+            ->where('purpose', DisbursementPurpose::CreditRefund)->where('payee_type', 'customer')->where('payee_id', $customer->id)
+            ->whereIn('status', [DisbursementStatus::Paid, DisbursementStatus::Reversed])->get();
+        $refunded = $refunds->map(fn (Disbursement $d) => ['date' => $d->paid_on?->toDateString() ?? '', 'order' => 5, 'id' => $d->id, 'kind' => 'Credit refund', 'reference' => (string) $d->number, 'url' => null, 'debit' => Fils::fromDecimal($d->amount), 'credit' => 0]);
+        $refundReversed = $refunds->flatMap(fn (Disbursement $d) => $d->reversed_at === null ? [] : [['date' => $d->reversed_at->timezone('Asia/Bahrain')->toDateString(), 'order' => 6, 'id' => $d->id, 'kind' => 'Credit refund reversal', 'reference' => (string) $d->number, 'url' => null, 'debit' => 0, 'credit' => Fils::fromDecimal($d->amount)]]);
+
+        return $invoices->concat($paid)->concat($reversed)->concat($refunded)->concat($refundReversed);
     }
 
     /** @return array<int, array{unit: string, opening: int, rows: list<array{date: string, kind: string, amount: int, held: int}>, closing: int}> */

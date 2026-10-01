@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\DisbursementPurpose;
+use App\Enums\DisbursementStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Support\Fils;
@@ -80,13 +82,25 @@ class Payment extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
-    /** The part of this payment not (or no longer) allocated: customer credit (spec §7.2). */
+    /** The part of this payment not allocated and not refunded: customer credit (spec §7.2). */
     public function unallocatedFils(): int
     {
         if ($this->status === PaymentStatus::Reversed) {
             return 0;
         }
 
-        return Fils::fromDecimal($this->amount) - Fils::fromDecimal((string) ($this->allocations()->sum('amount') ?: '0'));
+        return Fils::fromDecimal($this->amount)
+            - Fils::fromDecimal((string) ($this->allocations()->sum('amount') ?: '0'))
+            - $this->creditRefundedFils();
+    }
+
+    /** Σ non-reversed credit refunds of this payment (spec §7.2). */
+    public function creditRefundedFils(): int
+    {
+        return Fils::fromDecimal((string) (Disbursement::query()
+            ->where('source_type', Disbursement::SOURCE_PAYMENT)->where('source_id', $this->id)
+            ->where('purpose', DisbursementPurpose::CreditRefund)
+            ->whereIn('status', [DisbursementStatus::Paid])
+            ->sum('amount') ?: '0'));
     }
 }

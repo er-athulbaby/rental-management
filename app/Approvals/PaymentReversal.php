@@ -34,6 +34,11 @@ final class PaymentReversal implements ApprovalHandler
             throw ValidationException::withMessages(['approval' => __('This payment is already reversed.')]);
         }
 
+        // Spec §7.2: a payment whose credit was refunded cannot be reversed while the refund stands.
+        if ($payment->creditRefundedFils() > 0) {
+            throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the customer\'s credit below zero.')]);
+        }
+
         $cuts = [];
         foreach ($payment->allocations()->whereNull('reverses_allocation_id')->orderBy('id')->get() as $a) {
             $cuts[] = ['allocation' => $a, 'amount' => $a->liveFils()];
@@ -46,7 +51,6 @@ final class PaymentReversal implements ApprovalHandler
         }
         $payment->forceFill(['status' => PaymentStatus::Reversed, 'reversed_at' => now()])->save();
 
-        // Spec §7.2. ponytail: always true until credit refunds exist (M3b); then a refunded payment can't be reversed.
         if (CustomerCredit::fils($payment->customer_id) < 0) {
             throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the customer\'s credit below zero.')]);
         }

@@ -11,7 +11,7 @@ final class IntegrityCheck
      * Every immutability trigger (spec §8.5). A migration that adds or drops a trigger must change this number;
      * IntegrityCheckTest fails until it does.
      */
-    public const int EXPECTED_TRIGGERS = 38; // 27 at the end of M2 + 8 (payments, Task 2) + 2 (cheques) + 1 (expenses)
+    public const int EXPECTED_TRIGGERS = 40; // 38 at the end of M3a + 2 (disbursements)
 
     /** @return list<string> */
     public function run(): array
@@ -49,9 +49,11 @@ final class IntegrityCheck
         }
 
         foreach (DB::select(<<<'SQL'
-            SELECT p.customer_id, SUM(p.amount) - COALESCE(SUM(a.s), 0) AS credit
+            SELECT p.customer_id, SUM(p.amount) - COALESCE(SUM(a.s), 0) - COALESCE(SUM(r.s), 0) AS credit
             FROM payments p
             LEFT JOIN (SELECT payment_id, SUM(amount) AS s FROM payment_allocations GROUP BY payment_id) a ON a.payment_id = p.id
+            LEFT JOIN (SELECT source_id, SUM(amount) AS s FROM disbursements
+                       WHERE source_type = 'payment' AND purpose = 'credit_refund' AND status = 'paid' GROUP BY source_id) r ON r.source_id = p.id
             WHERE p.status = 'confirmed'
             GROUP BY p.customer_id
             HAVING credit < 0
