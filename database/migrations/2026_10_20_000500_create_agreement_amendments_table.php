@@ -84,7 +84,8 @@ return new class extends Migration
             BEGIN
                 IF (SELECT a.status FROM agreement_units au JOIN agreements a ON a.id = au.agreement_id WHERE au.id = NEW.agreement_unit_id) <> 'draft'
                     AND NOT EXISTS (SELECT 1 FROM agreement_units au JOIN agreement_amendments m ON m.id = au.amendment_id
-                        WHERE au.id = NEW.agreement_unit_id AND m.status = 'approved' AND m.applied_at IS NULL) THEN
+                        WHERE au.id = NEW.agreement_unit_id AND m.agreement_id = au.agreement_id AND m.type = 'add_unit'
+                          AND m.status = 'approved' AND m.applied_at IS NULL) THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'agreement_unit_charges are frozen once the agreement is submitted';
                 END IF;
             END

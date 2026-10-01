@@ -114,3 +114,35 @@ test('amendments are validated, scoped and need approval; rejecting returns the 
     app(DecideApproval::class)->handle($this->management, $approval, false, 'Talk to them first');
     expect($draft->fresh()->status->value)->toBe('draft')->and($this->agreement->fresh()->end_date->toDateString())->toBe('2027-09-30');
 });
+
+test('amendment state is re-checked on approval: a second release cannot empty the agreement', function () {
+    $au1 = $this->agreement->agreementUnits()->where('unit_id', $this->u1->id)->sole();
+    $au2 = $this->agreement->agreementUnits()->where('unit_id', $this->u2->id)->sole();
+    $save = fn ($au) => app(SaveAmendment::class)->handle($this->leasing, $this->agreement, null, ['type' => 'release_unit', 'agreement_unit_id' => $au->id, 'effective_date' => '2026-11-15', 'reason' => 'x']);
+    $first = app(SubmitAmendment::class)->handle($this->leasing, $save($au1));
+    $second = app(SubmitAmendment::class)->handle($this->leasing, $save($au2));
+
+    app(DecideApproval::class)->handle($this->management, $first, true);
+    expect(fn () => app(DecideApproval::class)->handle($this->management, $second, true))->toThrow(ValidationException::class);
+    expect($this->agreement->agreementUnits()->where('end_date', '>', '2026-11-15')->count())->toBe(1);
+});
+
+test('a release pending when a termination is approved is refused cleanly', function () {
+    $au2 = $this->agreement->agreementUnits()->where('unit_id', $this->u2->id)->sole();
+    $release = app(SubmitAmendment::class)->handle($this->leasing, app(SaveAmendment::class)->handle($this->leasing, $this->agreement, null,
+        ['type' => 'release_unit', 'agreement_unit_id' => $au2->id, 'effective_date' => '2026-12-15', 'reason' => 'x']));
+    ($this->approveAmendment)(['type' => 'terminate', 'effective_date' => '2026-11-30', 'reason' => 'y']);
+
+    expect(fn () => app(DecideApproval::class)->handle($this->management, $release, true))->toThrow(ValidationException::class);
+});
+
+test('adding a unit ignores other blocked units of the agreement but refuses a blocked new unit', function () {
+    $this->u1->update(['blocked' => true, 'blocked_reason' => 'Renovation']);
+    $charges = [['type' => 'rent', 'monthly_amount' => '300.000', 'tax_category' => 'exempt']];
+    ($this->approveAmendment)(['type' => 'add_unit', 'unit_id' => $this->spare->id, 'effective_date' => '2026-11-15', 'reason' => 'x', 'charges' => $charges]);
+    expect($this->agreement->agreementUnits()->count())->toBe(3);
+
+    $extra = Unit::factory()->for($this->building)->create(['blocked' => true, 'blocked_reason' => 'Repairs']);
+    $draft = app(SaveAmendment::class)->handle($this->leasing, $this->agreement, null, ['type' => 'add_unit', 'unit_id' => $extra->id, 'effective_date' => '2026-11-20', 'reason' => 'x', 'charges' => $charges]);
+    expect(fn () => app(DecideApproval::class)->handle($this->management, app(SubmitAmendment::class)->handle($this->leasing, $draft), true))->toThrow(ValidationException::class, 'blocked');
+});

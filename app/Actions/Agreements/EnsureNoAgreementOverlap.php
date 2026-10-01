@@ -11,8 +11,11 @@ use LogicException;
 /** Spec §5.5, on submit and again on approval. Run inside the caller's transaction, before anything else. */
 final class EnsureNoAgreementOverlap
 {
-    /** @return list<int> the unit ids that were locked, so a caller can detect the lines changing afterwards */
-    public function handle(Agreement $agreement): array
+    /**
+     * @param  list<int>|null  $onlyBlockedCheck  unit ids whose blocked flag matters (null = every unit of the agreement)
+     * @return list<int> the unit ids that were locked, so a caller can detect the lines changing afterwards
+     */
+    public function handle(Agreement $agreement, ?array $onlyBlockedCheck = null): array
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('EnsureNoAgreementOverlap must run inside the caller\'s transaction.');
@@ -26,7 +29,7 @@ final class EnsureNoAgreementOverlap
 
         $lines = DB::table('agreement_units')->where('agreement_id', $agreement->id)->orderBy('unit_id')
             ->lockForUpdate()->get(['unit_id', 'start_date', 'end_date']);
-        $blocked = $units->filter(fn ($u) => (bool) $u->blocked)->pluck('code')->all();
+        $blocked = $units->filter(fn ($u) => (bool) $u->blocked && ($onlyBlockedCheck === null || in_array($u->id, $onlyBlockedCheck, true)))->pluck('code')->all();
         if ($blocked !== []) {
             throw ValidationException::withMessages(['units' => __('These units are blocked: :list.', ['list' => implode(', ', $blocked)])]);
         }

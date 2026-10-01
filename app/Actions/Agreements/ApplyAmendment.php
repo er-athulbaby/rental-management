@@ -5,7 +5,6 @@ namespace App\Actions\Agreements;
 use App\Actions\Billing\CreateDepositInvoice;
 use App\Actions\Billing\RebillAgreement;
 use App\Billing\RebillResult;
-use App\Enums\AgreementStatus;
 use App\Enums\AmendmentStatus;
 use App\Enums\AmendmentType;
 use App\Models\Agreement;
@@ -20,8 +19,8 @@ use Illuminate\Validation\ValidationException;
 use LogicException;
 
 /**
- * Spec §5.7 on approval. Internal: inside DecideApproval's transaction. Locks: customer → units (overlap, add_unit) →
- * agreement → agreement units → (RebillAgreement: cheques → lines → invoices).
+ * Spec §5.7 on approval. Internal: inside DecideApproval's transaction. Locks: customer → amendment → agreement →
+ * agreement units → units (overlap, add_unit) → (RebillAgreement: cheques → lines → invoices).
  */
 final class ApplyAmendment
 {
@@ -47,8 +46,14 @@ final class ApplyAmendment
         $effective = $amendment->effective_date;
         $newUnitId = null;
 
+        // Agreement-side locks: agreement, then its units (ascending id). State is re-checked on the locked rows.
+        $agreement = Agreement::query()->lockForUpdate()->findOrFail($agreement->id);
+        $units = AgreementUnit::query()->where('agreement_id', $agreement->id)->orderBy('id')->lockForUpdate()->get();
+        $data = (array) $amendment->data;
+        AmendmentRules::check($agreement, $units, $amendment->type, $effective->toDateString(), $amendment->agreement_unit_id,
+            isset($data['unit_id']) ? (int) $data['unit_id'] : null, 'approval');
+
         if ($amendment->type === AmendmentType::AddUnit) {
-            $data = (array) $amendment->data;
             $au = (new AgreementUnit)->forceFill([
                 'agreement_id' => $agreement->id,
                 'amendment_id' => $amendment->id,
@@ -62,16 +67,9 @@ final class ApplyAmendment
             foreach ((array) $data['charges'] as $charge) {
                 $au->charges()->create($charge);
             }
-            $this->overlap->handle($agreement); // spec §5.5: locks the unit rows, then the overlap query as a locking read
+            $this->overlap->handle($agreement, [$au->unit_id]); // spec §5.5: locks the unit rows, then the overlap query as a locking read
             $newUnitId = $au->id;
         }
-
-        $agreement = Agreement::query()->lockForUpdate()->findOrFail($agreement->id);
-        if ($agreement->status !== AgreementStatus::Active) {
-            throw ValidationException::withMessages(['approval' => __('The agreement is no longer active.')]);
-        }
-
-        $units = AgreementUnit::query()->where('agreement_id', $agreement->id)->orderBy('id')->lockForUpdate()->get();
         if ($amendment->type === AmendmentType::ReleaseUnit) {
             $units->firstWhere('id', $amendment->agreement_unit_id)?->forceFill(['end_date' => $effective->toDateString(), 'planned_exit_date' => $effective->toDateString()])->save();
         }

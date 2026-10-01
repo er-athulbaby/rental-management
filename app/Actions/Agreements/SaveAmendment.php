@@ -2,7 +2,6 @@
 
 namespace App\Actions\Agreements;
 
-use App\Enums\AgreementStatus;
 use App\Enums\AmendmentStatus;
 use App\Enums\AmendmentType;
 use App\Enums\ChargeType;
@@ -47,32 +46,14 @@ final class SaveAmendment
         $type = AmendmentType::from($v['type']);
         $effective = $v['effective_date'];
 
-        if ($agreement->status !== AgreementStatus::Active) {
-            throw ValidationException::withMessages(['type' => __('Only an active agreement can be amended.')]);
-        }
-        if ($effective < $agreement->start_date->toDateString() || $effective >= $agreement->end_date->toDateString()) {
-            throw ValidationException::withMessages(['effective_date' => __('Choose a date after the start and before the end of the agreement.')]);
-        }
+        $agreementUnitId = $type === AmendmentType::ReleaseUnit ? (int) $v['agreement_unit_id'] : null;
+        $unitId = $type === AmendmentType::AddUnit ? (int) $v['unit_id'] : null;
+        AmendmentRules::check($agreement, $agreement->agreementUnits()->get(), $type, $effective, $agreementUnitId, $unitId);
 
-        $agreementUnitId = null;
         $payload = null;
-        if ($type === AmendmentType::ReleaseUnit) {
-            $au = $agreement->agreementUnits()->find((int) $v['agreement_unit_id']);
-            if ($au === null || $effective < $au->start_date->toDateString() || $effective >= $au->end_date->toDateString()) {
-                throw ValidationException::withMessages(['agreement_unit_id' => __('Choose a unit of this agreement that is let past that date.')]);
-            }
-            if ($agreement->agreementUnits()->where('end_date', '>', $effective)->count() < 2) {
-                throw ValidationException::withMessages(['agreement_unit_id' => __('This is the last unit: terminate the agreement instead.')]);
-            }
-            $agreementUnitId = $au->id;
-        }
         if ($type === AmendmentType::AddUnit) {
-            $unitId = (int) $v['unit_id'];
             if (! Unit::query()->visibleTo($actor)->whereKey($unitId)->exists()) {
                 throw new AuthorizationException;
-            }
-            if ($agreement->agreementUnits()->where('unit_id', $unitId)->exists()) {
-                throw ValidationException::withMessages(['unit_id' => __('This unit is already on the agreement.')]);
             }
             $rents = array_filter($v['charges'] ?? [], fn (array $c) => $c['type'] === ChargeType::Rent->value);
             if (count($rents) !== 1 || Fils::fromDecimal((string) array_values($rents)[0]['monthly_amount']) === 0) {
