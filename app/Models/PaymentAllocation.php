@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Fils;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -25,6 +26,18 @@ class PaymentAllocation extends Model
     protected function casts(): array
     {
         return ['amount' => 'decimal:3', 'tax_amount' => 'decimal:3', 'posted_at' => 'immutable_datetime'];
+    }
+
+    /** What is still allocated by this row: its amount plus every (negative) row reversing it. 0 for a reversal row. */
+    public function liveFils(): int
+    {
+        if ($this->reverses_allocation_id !== null) {
+            return 0;
+        }
+
+        $reversed = (string) (self::query()->where('reverses_allocation_id', $this->id)->sum('amount') ?: '0');
+
+        return Fils::fromDecimal($this->amount) + Fils::fromDecimal($reversed);
     }
 
     /** @return BelongsTo<Payment, $this> */

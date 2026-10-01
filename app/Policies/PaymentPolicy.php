@@ -24,4 +24,9 @@ class PaymentPolicy
     {
         return $user->can(PermissionName::PaymentsManage);
     }
+
+    public function reverse(User $user, Payment $payment): bool
+    {
+        return $user->can(PermissionName::PaymentsManage) && $this->view($user, $payment);
+    }
 }

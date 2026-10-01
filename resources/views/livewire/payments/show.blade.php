@@ -5,7 +5,12 @@
             <flux:badge>{{ str($payment->status->value)->headline() }}</flux:badge>
         </div>
         <div class="flex flex-wrap gap-2">
-            {{-- Task 4: reversal. Task 9: receipt PDF. --}}
+            {{-- Task 9: receipt PDF. --}}
+            @if ($pendingReversal)
+                <flux:badge color="amber">{{ __('Reversal waiting for approval') }}</flux:badge>
+            @elseif ($canReverse)
+                <flux:modal.trigger name="reverse-payment"><flux:button variant="danger">{{ __('Request reversal') }}</flux:button></flux:modal.trigger>
+            @endif
         </div>
     </div>
 
@@ -37,4 +42,14 @@
             </flux:table.rows>
         </flux:table>
     </div>
+    <flux:modal name="reverse-payment" class="md:w-96">
+        <form wire:submit="requestReversal" class="space-y-4">
+            <flux:heading size="lg">{{ __('Reverse :n', ['n' => $payment->number]) }}</flux:heading>
+            <flux:text>{{ __('Every allocation is undone and the invoices are owed again. Management approves.') }}</flux:text>
+            <flux:textarea wire:model="reversalReason" :label="__('Reason')" rows="3" />
+            <flux:error name="reversalReason" />
+            <flux:button variant="danger" type="submit">{{ __('Send for approval') }}</flux:button>
+        </form>
+    </flux:modal>
+
 </section>

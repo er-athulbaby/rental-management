@@ -117,3 +117,8 @@ function issuedInvoice(Customer $customer, array $lines, string $due = '2026-10-
 
     return $invoice->fresh(['lines']);
 }
+
+function Fils_from(string $bhd): int
+{
+    return Fils::fromDecimal($bhd);
+}
