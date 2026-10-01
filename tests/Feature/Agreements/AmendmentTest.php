@@ -146,3 +146,33 @@ test('adding a unit ignores other blocked units of the agreement but refuses a b
     $draft = app(SaveAmendment::class)->handle($this->leasing, $this->agreement, null, ['type' => 'add_unit', 'unit_id' => $extra->id, 'effective_date' => '2026-11-20', 'reason' => 'x', 'charges' => $charges]);
     expect(fn () => app(DecideApproval::class)->handle($this->management, app(SubmitAmendment::class)->handle($this->leasing, $draft), true))->toThrow(ValidationException::class, 'blocked');
 });
+
+test('a unit added inside an issued period is billed once: a later release in that period does not bill it again', function () {
+    $addUnit = ['type' => 'add_unit', 'unit_id' => $this->spare->id, 'effective_date' => '2026-11-15', 'reason' => 'Expansion',
+        'deposit_amount' => '300.000', 'charges' => [['type' => 'rent', 'monthly_amount' => '300.000', 'tax_category' => 'exempt']]];
+    ($this->approveAmendment)($addUnit);
+    $au2 = $this->agreement->agreementUnits()->where('unit_id', $this->u2->id)->sole();
+
+    ($this->approveAmendment)(['type' => 'release_unit', 'agreement_unit_id' => $au2->id, 'effective_date' => '2026-11-20', 'reason' => 'Downsizing']);
+
+    $manual = Invoice::where('type', 'manual')->sole();                       // still the one 157.808 invoice
+    $cn = Invoice::where('type', 'credit_note')->sole();
+    expect($manual->total)->toBe('157.808')
+        ->and($manual->credited)->toBe('0.000')
+        ->and($cn->lines->sole()->agreement_unit_id)->toBe($au2->id)       // only unit 2's November line is credited
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('terminating inside the period a unit joined credits its manual-invoice line for the unkept days', function () {
+    ($this->approveAmendment)(['type' => 'add_unit', 'unit_id' => $this->spare->id, 'effective_date' => '2026-11-15', 'reason' => 'Expansion',
+        'deposit_amount' => '300.000', 'charges' => [['type' => 'rent', 'monthly_amount' => '300.000', 'tax_category' => 'exempt']]]);
+
+    ($this->approveAmendment)(['type' => 'terminate', 'effective_date' => '2026-11-20', 'reason' => 'Company relocating']);
+
+    $manual = Invoice::where('type', 'manual')->sole();
+    expect($manual->total)->toBe('157.808')                                    // 15–30 Nov
+        ->and($manual->credited)->toBe('98.630')                               // 21–30 Nov: keeps 6 days, 59.178
+        ->and($manual->balance)->toBe('59.178')
+        ->and(Invoice::where('type', 'credit_note')->where('related_invoice_id', $manual->id)->count())->toBe(1)
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});

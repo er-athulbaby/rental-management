@@ -9,6 +9,7 @@ use App\Actions\Payments\RecordPayment;
 use App\Billing\CustomerCredit;
 use App\Enums\RoleName;
 use App\Integrity\IntegrityCheck;
+use App\Models\Agreement;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -19,6 +20,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     Storage::fake('local');
@@ -95,4 +97,61 @@ test('a credit on a paid period de-allocates and returns the money as credit', f
 
     expect(CustomerCredit::fils($this->customer->id))->toBe(202_740)
         ->and(($this->byMonth)('2026-11-01')->balance)->toBe('0.000');
+});
+
+test('a second, earlier cut credits only the gap: November keeps exactly 1–10 Nov', function () {
+    $this->au->forceFill(['end_date' => '2026-11-15'])->save();
+    ($this->rebill)('2026-11-15');
+    $this->au->forceFill(['end_date' => '2026-11-10'])->save();
+
+    $result = ($this->rebill)('2026-11-10');
+
+    $november = ($this->byMonth)('2026-11-01');
+    expect(Invoice::findOrFail($result->creditNoteIds[0])->total)->toBe('65.753') // 197.260 − 131.507
+        ->and($november->credited)->toBe('268.493')                               // 400 − 131.507
+        ->and($november->balance)->toBe('131.507')
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('VAT-registered partial credits keep the gross of the kept days, and split net and tax on the line', function () {
+    CompanySetting::current()->forceFill(['vat_registered' => true, 'vat_rate' => '10.00'])->save();
+    $agreement = Agreement::factory()->create(['customer_id' => $this->customer->id, 'start_date' => '2026-10-01', 'end_date' => '2027-09-30']);
+    $au = $agreement->agreementUnits()->create(['unit_id' => Unit::factory()->create()->id, 'list_rent' => '400.000', 'deposit_amount' => '400.000',
+        'start_date' => '2026-10-01', 'end_date' => '2027-09-30']);
+    $au->charges()->create(['type' => 'rent', 'monthly_amount' => '400.000', 'tax_category' => 'standard']);
+    $agreement->forceFill(['status' => 'pending_approval'])->save();
+    $agreement->forceFill(['status' => 'active', 'number' => 'AGR-T-'.$agreement->id, 'verify_token' => Str::random(32)])->save();
+    DB::transaction(fn () => app(GenerateRentSchedule::class)->handle($agreement->fresh(), $this->finance));
+    $october = Invoice::where('agreement_id', $agreement->id)->where('period_start', '2026-10-01')->sole();
+    app(IssueInvoice::class)->handle($october, $this->finance);
+    expect($october->fresh()->total)->toBe('440.000'); // 400 + 10 %
+    $rebill = fn (string $end) => DB::transaction(function () use ($agreement, $au, $end) {
+        Customer::query()->lockForUpdate()->findOrFail($this->customer->id);
+        $au->forceFill(['end_date' => $end])->save();
+
+        return app(RebillAgreement::class)->handle($agreement->fresh(), CarbonImmutable::parse($end), $this->finance, 'Unit released');
+    });
+
+    $first = Invoice::findOrFail($rebill('2026-10-15')->creditNoteIds[0]);
+    expect($first->subtotal)->toBe('202.740')->and($first->tax_total)->toBe('20.274')->and($first->total)->toBe('223.014'); // keeps 197.260 + 19.726
+
+    $second = Invoice::findOrFail($rebill('2026-10-10')->creditNoteIds[0]);
+    expect($second->total)->toBe('72.328')                                    // 216.986 − (131.507 + 13.151)
+        ->and($october->fresh()->balance)->toBe('144.658')
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('an issued rent invoice with lines without a charge cannot be re-billed', function () {
+    $december = ($this->byMonth)('2026-12-01');
+    $december->forceFill(['status' => 'cancelled'])->save();
+    $invoice = (new Invoice)->forceFill(['type' => 'rent', 'customer_id' => $this->customer->id, 'agreement_id' => $this->agreement->id,
+        'period_start' => '2026-12-01', 'period_end' => '2026-12-31', 'issue_date' => '2026-10-05', 'due_date' => '2026-12-01',
+        'status' => 'draft', 'subtotal' => '400.000', 'tax_total' => '0.000', 'total' => '400.000']);
+    $invoice->save();
+    $invoice->lines()->create(['agreement_unit_id' => $this->au->id, 'unit_id' => $this->au->unit_id, 'charge_type' => 'rent', 'description' => 'Rent',
+        'net' => '400.000', 'tax_category' => 'exempt', 'tax_rate' => '0.00', 'tax_amount' => '0.000', 'total' => '400.000']);
+    app(IssueInvoice::class)->handle($invoice, $this->finance);
+    $this->au->forceFill(['end_date' => '2026-11-15'])->save();
+
+    expect(fn () => ($this->rebill)('2026-11-15'))->toThrow(LogicException::class, 'Issued rent invoice '.$invoice->fresh()->number.' has lines without a charge; cannot re-bill');
 });

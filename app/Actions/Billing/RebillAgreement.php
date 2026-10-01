@@ -2,6 +2,7 @@
 
 namespace App\Actions\Billing;
 
+use App\Billing\AllocationTax;
 use App\Billing\InvoicePeriod;
 use App\Billing\RebillResult;
 use App\Billing\Tax;
@@ -20,7 +21,10 @@ use LogicException;
 
 /**
  * Spec §5.7 billing effect and §6.3 cancel-and-replace. Internal: the caller holds the customer and agreement locks and
- * has already applied the new unit dates. Locks, in the global order: cheques → issued lines → invoices.
+ * has already applied the new unit dates. Locks: cheques → scheduled invoices (ascending) → per credit note (one per
+ * affected invoice, ascending): its issued lines → that issued invoice → the credit note. A later credit note's lines are
+ * locked after an earlier invoice; that is safe because the caller holds the customer lock, which serialises every
+ * writer of this customer's invoices (spec §7.2).
  */
 final class RebillAgreement
 {
@@ -68,44 +72,65 @@ final class RebillAgreement
             }
         }
 
-        // 2. Issued rent invoices ending on or after the effective date: credit what is no longer billed, bill what is new.
-        $creditNotes = [];
-        $extra = [];
+        // 2. Issued rent periods ending on or after the effective date: per charge, compare what is still billed for the period
+        //    (the rent invoice and earlier re-billing manual invoices, less their credit notes) with what is correct now;
+        //    credit an excess against the lines holding it, bill a shortfall on one manual invoice.
         $issued = Invoice::query()->where('agreement_id', $agreement->id)->where('type', InvoiceType::Rent)
             ->where('status', InvoiceStatus::Issued)->where('period_end', '>=', $from)->orderBy('id')->get();
+        foreach ($issued as $invoice) {
+            if (InvoiceLine::query()->where('invoice_id', $invoice->id)->whereNull('agreement_unit_charge_id')->exists()) {
+                throw new LogicException("Issued rent invoice {$invoice->number} has lines without a charge; cannot re-bill");
+            }
+        }
 
+        $entries = []; // target invoice id => credit entries
+        $extra = [];
         foreach ($issued as $invoice) {
             $period = InvoicePeriod::of($agreement, $invoice);
             $desired = collect($this->schedule->linesFor($agreement, $period))->keyBy('agreement_unit_charge_id');
-            $billed = InvoiceLine::query()->where('invoice_id', $invoice->id)->whereNotNull('agreement_unit_charge_id')->orderBy('id')->get();
+            $billed = InvoiceLine::query()->whereNotNull('agreement_unit_charge_id')
+                ->whereHas('invoice', fn ($q) => $q->where('agreement_id', $agreement->id)->whereIn('type', [InvoiceType::Rent, InvoiceType::Manual])->where('status', InvoiceStatus::Issued))
+                ->where('period_start', '<=', $period->end->toDateString())->where('period_end', '>=', $period->start->toDateString())
+                ->orderByDesc('id')->get()->groupBy('agreement_unit_charge_id');
 
-            $entries = [];
-            foreach ($billed as $line) {
-                $correct = Fils::fromDecimal((string) ($desired->get($line->agreement_unit_charge_id)['net'] ?? '0'));
-                $creditNet = Fils::fromDecimal($line->net) - $correct;
-                $left = Fils::fromDecimal($line->total) - Fils::fromDecimal((string) $line->credited);
-                if ($creditNet <= 0 || $left <= 0) {
+            foreach ($desired->keys()->merge($billed->keys())->unique() as $chargeId) {
+                $row = $desired->get($chargeId);
+                $correct = $row === null ? 0 : Fils::fromDecimal((string) $row['net']);
+                $lines = $billed->get($chargeId) ?? collect();
+                $gap = $lines->sum(fn (InvoiceLine $l) => self::netLeft($l)) - $correct;
+
+                if ($gap < 0 && $row !== null) { // a unit added inside an already-issued period (add_unit)
+                    $extra[] = [...$row, 'net' => Fils::toDecimal(-$gap), 'total' => Fils::toDecimal(-$gap)];
+
                     continue;
                 }
-                // Plan ruling 4: the whole line takes exactly what is left; a partial credit adds its tax at the line's rate.
-                $gross = $correct === 0
-                    ? $left
-                    : min($left, $creditNet + Tax::amount($creditNet, $line->tax_category, (float) $line->tax_rate > 0, (string) $line->tax_rate));
-                $entries[] = [$line, $gross];
-            }
-            if ($entries !== []) {
-                $cn = $this->buildCreditNote->handle($invoice, $entries, $reason, $actor);
-                $cn->forceFill(['status' => InvoiceStatus::PendingApproval])->save();
-                $this->issueCreditNote->handle($cn, $actor);
-                $creditNotes[] = $cn->id;
-            }
-
-            $billedCharges = $billed->pluck('agreement_unit_charge_id')->all();
-            foreach ($desired as $chargeId => $row) {
-                if (! in_array($chargeId, $billedCharges, true)) {
-                    $extra[] = $row; // a unit added inside an already-issued period (add_unit)
+                foreach ($lines as $line) { // newest line first
+                    if ($gap <= 0) {
+                        break;
+                    }
+                    $netLeft = self::netLeft($line);
+                    $cut = min($gap, $netLeft);
+                    $gap -= $cut;
+                    // Plan ruling 4: the line keeps the gross of its correct net (its tax at the line's rate); keeping
+                    // nothing takes exactly what is left.
+                    $keep = $netLeft - $cut;
+                    $gross = Fils::fromDecimal($line->total) - Fils::fromDecimal((string) $line->credited)
+                        - ($keep + Tax::amount($keep, $line->tax_category, (float) $line->tax_rate > 0, (string) $line->tax_rate));
+                    if ($gross > 0) {
+                        $entries[$line->invoice_id][] = [$line, $gross];
+                    }
                 }
             }
+        }
+
+        // One credit note per affected invoice (rent or manual), ascending.
+        ksort($entries);
+        $creditNotes = [];
+        foreach ($entries as $invoiceId => $invoiceEntries) {
+            $cn = $this->buildCreditNote->handle(Invoice::query()->findOrFail($invoiceId), $invoiceEntries, $reason, $actor);
+            $cn->forceFill(['status' => InvoiceStatus::PendingApproval])->save();
+            $this->issueCreditNote->handle($cn, $actor);
+            $creditNotes[] = $cn->id;
         }
 
         // One manual invoice for everything newly billed in issued periods (spec §5.7).
@@ -131,5 +156,14 @@ final class RebillAgreement
         }
 
         return new RebillResult($cancelled, $replaced, $creditNotes, $manualId, $toReturn);
+    }
+
+    /** The net a line still bills after its credit notes: its credited gross less the tax share already credited. */
+    private static function netLeft(InvoiceLine $line): int
+    {
+        $total = Fils::fromDecimal($line->total);
+        $credited = Fils::fromDecimal((string) $line->credited);
+
+        return Fils::fromDecimal($line->net) - ($credited - AllocationTax::between(0, $credited, Fils::fromDecimal($line->tax_amount), $total));
     }
 }
