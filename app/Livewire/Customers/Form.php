@@ -3,10 +3,16 @@
 namespace App\Livewire\Customers;
 
 use App\Actions\Customers\SaveCustomer;
+use App\Billing\CustomerCredit;
 use App\Enums\CustomerType;
 use App\Enums\IdType;
+use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Support\Fils;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -61,6 +67,12 @@ class Form extends Component
             'customer' => $customer,
             'types' => CustomerType::cases(),
             'idTypes' => IdType::cases(),
+            'account' => $customer && $this->actor()->can('viewAny', Payment::class) ? [
+                'outstanding' => Fils::toDecimal(Fils::fromDecimal((string) (Invoice::query()->where('customer_id', $customer->id)
+                    ->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)->sum('balance') ?: '0'))),
+                'credit' => Fils::toDecimal(CustomerCredit::fils($customer->id)),
+                'canRecord' => $this->actor()->can('create', Payment::class),
+            ] : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
         ])->title($customer ? $customer->name_en : __('New customer'));
     }

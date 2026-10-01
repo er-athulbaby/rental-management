@@ -33,6 +33,7 @@
                 @can('finance.view')
                     <flux:sidebar.group :heading="__('Finance')" class="grid">
                         <flux:sidebar.item icon="banknotes" :href="route('invoices.index')" :current="request()->routeIs('invoices.*')" wire:navigate>{{ __('Invoices') }}</flux:sidebar.item>
+                        <flux:sidebar.item icon="credit-card" :href="route('payments.index')" :current="request()->routeIs('payments.*')" wire:navigate>{{ __('Payments') }}</flux:sidebar.item>
                     </flux:sidebar.group>
                 @endcan
 

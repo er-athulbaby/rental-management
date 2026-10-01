@@ -1,5 +1,16 @@
 <section class="w-full max-w-2xl space-y-6">
     <flux:heading size="xl" level="1">{{ $customer?->name_en ?? __('New customer') }}</flux:heading>
+    @if ($account)
+        <flux:card class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex gap-6 tabular-nums">
+                <div><flux:text size="sm">{{ __('Outstanding') }}</flux:text><div class="font-semibold">{{ $account['outstanding'] }}</div></div>
+                <div><flux:text size="sm">{{ __('Credit') }}</flux:text><div class="font-semibold">{{ $account['credit'] }}</div></div>
+            </div>
+            @if ($account['canRecord'])
+                <flux:button variant="primary" :href="route('payments.create', ['customer' => $customer->id])" wire:navigate>{{ __('Record payment') }}</flux:button>
+            @endif
+        </flux:card>
+    @endif
 
     <form wire:submit="save" class="space-y-4">
         <fieldset @disabled(! $canEdit) class="space-y-4">

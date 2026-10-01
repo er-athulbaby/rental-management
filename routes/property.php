@@ -11,6 +11,7 @@ use App\Livewire\Import;
 use App\Livewire\Invoices;
 use App\Livewire\OwnerContracts;
 use App\Livewire\Owners;
+use App\Livewire\Payments;
 use App\Livewire\Units;
 use App\Models\Expense;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +44,9 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('expenses/{expense}', Expenses\Show::class)->middleware('can:viewAny,'.Expense::class)->name('expenses.show');
     Route::livewire('invoices', Invoices\Index::class)->middleware('can:finance.view')->name('invoices.index');
     Route::livewire('invoices/{invoice}', Invoices\Show::class)->middleware('can:finance.view')->name('invoices.show');
+    Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');
+    Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');
+    Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');
     Route::livewire('import', Import\Index::class)->middleware('can:import.run')->name('import.index');
     Route::get('import/templates/{kind}', ImportTemplateController::class)->middleware('can:import.run')->name('import.template');
 });
