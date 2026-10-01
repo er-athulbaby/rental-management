@@ -18,6 +18,16 @@
             @if ($canManage && $agreement->status === AgreementStatus::Draft)
                 <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this agreement for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
             @endif
+            @if ($canAmend)
+                <flux:dropdown>
+                    <flux:button icon:trailing="chevron-down">{{ __('Amend') }}</flux:button>
+                    <flux:menu>
+                        <flux:menu.item :href="route('agreements.amend', ['agreement' => $agreement, 'type' => 'add_unit'])" wire:navigate>{{ __('Add a unit') }}</flux:menu.item>
+                        <flux:menu.item :href="route('agreements.amend', ['agreement' => $agreement, 'type' => 'release_unit'])" wire:navigate>{{ __('Release a unit') }}</flux:menu.item>
+                        <flux:menu.item :href="route('agreements.amend', ['agreement' => $agreement, 'type' => 'terminate'])" wire:navigate>{{ __('Early termination') }}</flux:menu.item>
+                    </flux:menu>
+                </flux:dropdown>
+            @endif
             @if ($canEnterCheques)
                 <flux:button :href="route('cheques.entry', ['agreement' => $agreement->id])" wire:navigate>{{ __('Enter cheques') }}</flux:button>
             @endif
@@ -81,6 +91,25 @@
             </flux:table.rows>
         </flux:table>
     </div>
+
+    @if ($amendments->isNotEmpty())
+        <div class="space-y-2">
+            <flux:heading size="lg">{{ __('Amendments') }}</flux:heading>
+            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                @foreach ($amendments as $m)
+                    <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm" wire:key="am-{{ $m->id }}">
+                        <span>{{ $m->type->label() }} · {{ __('from :d', ['d' => $m->effective_date->format('d/m/Y')]) }} · {{ $m->status->label() }} · {{ $m->reason }}</span>
+                        @if ($canManage && $m->status->value === 'draft')
+                            <span class="flex gap-2">
+                                <flux:button size="sm" :href="route('agreements.amend.edit', $m)" wire:navigate>{{ __('Edit') }}</flux:button>
+                                <flux:button size="sm" variant="ghost" wire:click="deleteAmendmentDraft({{ $m->id }})" wire:confirm="{{ __('Delete this draft amendment?') }}">{{ __('Delete') }}</flux:button>
+                            </span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     @if (auth()->user()->can('agreements.manage') && in_array($agreement->status, [AgreementStatus::Active, AgreementStatus::Expired], true))
         <flux:fieldset>

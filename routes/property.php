@@ -26,6 +26,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('agreements', Agreements\Index::class)->middleware('can:agreements.view')->name('agreements.index');
     Route::livewire('agreements/create', Agreements\Form::class)->middleware('can:agreements.manage')->name('agreements.create');
     Route::livewire('agreements/{agreement}/edit', Agreements\Form::class)->middleware('can:agreements.manage')->name('agreements.edit');
+    Route::livewire('agreements/{agreement}/amend', Agreements\AmendmentForm::class)->middleware('can:agreements.manage')->name('agreements.amend');
+    Route::livewire('amendments/{amendment}/edit', Agreements\AmendmentForm::class)->middleware('can:agreements.manage')->name('agreements.amend.edit');
     Route::livewire('agreements/{agreement}', Agreements\Show::class)->middleware('can:agreements.view')->name('agreements.show');
     Route::get('agreements/{agreement}/contract.pdf', AgreementPdfController::class)->middleware('can:agreements.view')->name('agreements.pdf');
     Route::get('invoices/{invoice}/pdf', InvoicePdfController::class)->middleware('can:finance.view')->name('invoices.pdf');

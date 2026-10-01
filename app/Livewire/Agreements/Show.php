@@ -5,8 +5,10 @@ namespace App\Livewire\Agreements;
 use App\Actions\Agreements\DeleteDraftAgreement;
 use App\Actions\Agreements\RecordNotice;
 use App\Actions\Agreements\SubmitAgreement;
+use App\Enums\AmendmentStatus;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
+use App\Models\AgreementAmendment;
 use App\Models\AgreementUnit;
 use App\Models\Cheque;
 use App\Models\DepositSettlement;
@@ -84,6 +86,15 @@ class Show extends Component
         Flux::toast(variant: 'success', text: __('Notice recorded.'));
     }
 
+    public function deleteAmendmentDraft(int $amendmentId): void
+    {
+        $amendment = AgreementAmendment::query()->where('agreement_id', $this->agreementId)->findOrFail($amendmentId);
+        abort_unless($this->actor()->can('update', $this->agreement()) && $amendment->status === AmendmentStatus::Draft, 403);
+        $amendment->delete(); // drafts only: the trigger refuses anything else
+
+        Flux::toast(text: __('Draft amendment deleted.'));
+    }
+
     public function render(): View
     {
         $agreement = $this->agreement();
@@ -91,6 +102,8 @@ class Show extends Component
         return view('livewire.agreements.show', [
             'agreement' => $agreement,
             'canManage' => $this->actor()->can('update', $agreement),
+            'amendments' => $agreement->amendments()->with('creator:id,name')->latest('id')->get(),
+            'canAmend' => $this->actor()->can('update', $agreement) && $agreement->status->value === 'active',
             'canEnterCheques' => $this->actor()->can('manage', Cheque::class) && $agreement->status->value === 'active',
             'invoices' => $this->actor()->can('viewAny', Invoice::class)
                 ? $agreement->invoices()->orderBy('due_date')->orderBy('id')->get()
