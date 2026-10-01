@@ -78,6 +78,12 @@ class Agreement extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    /** @return HasMany<AgreementAmendment, $this> */
+    public function amendments(): HasMany
+    {
+        return $this->hasMany(AgreementAmendment::class);
+    }
+
     /** @return HasMany<AgreementUnit, $this> */
     public function agreementUnits(): HasMany
     {

@@ -13,6 +13,7 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * @property int $id
  * @property int $agreement_id
+ * @property int|null $amendment_id
  * @property int $unit_id
  * @property string $list_rent
  * @property string $deposit_amount
