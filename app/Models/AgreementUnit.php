@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -21,6 +22,9 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property CarbonImmutable $end_date
  * @property CarbonImmutable|null $planned_exit_date
  * @property CarbonImmutable|null $move_out_date
+ * @property string|null $move_out_readings
+ * @property string|null $move_out_notes
+ * @property int|null $move_out_recorded_by
  * @property-read Unit $unit
  * @property-read Agreement $agreement
  * @property-read Collection<int, AgreementUnitCharge> $charges
@@ -58,6 +62,12 @@ class AgreementUnit extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    /** @return MorphMany<Document, $this> move-out photos (spec §5.9) */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
     /** @return HasMany<AgreementUnitCharge, $this> */

@@ -73,6 +73,7 @@
                 <flux:table.column>{{ __('Charges / month') }}</flux:table.column>
                 <flux:table.column>{{ __('List rent') }}</flux:table.column>
                 <flux:table.column>{{ __('Deposit') }}</flux:table.column>
+                <flux:table.column>{{ __('Move-out') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach ($agreement->agreementUnits as $au)
@@ -86,11 +87,20 @@
                         </flux:table.cell>
                         <flux:table.cell class="tabular-nums">{{ $au->list_rent }}</flux:table.cell>
                         <flux:table.cell class="tabular-nums">{{ $au->deposit_amount }}</flux:table.cell>
+                        <flux:table.cell class="whitespace-nowrap">{{ $au->move_out_date?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>
         </flux:table>
     </div>
+
+    @foreach ($agreement->agreementUnits->whereNotNull('move_out_date') as $au)
+        <div class="space-y-1" wire:key="mo-{{ $au->id }}">
+            <flux:heading size="sm">{{ __('Move-out photos — :u', ['u' => $au->unit->code]) }}</flux:heading>
+            @if ($au->move_out_notes || $au->move_out_readings)<flux:text size="sm">{{ $au->move_out_readings }} {{ $au->move_out_notes }}</flux:text>@endif
+            <livewire:documents.panel :documentable="$au" :key="'docs-au-'.$au->id" />
+        </div>
+    @endforeach
 
     @if ($amendments->isNotEmpty())
         <div class="space-y-2">
@@ -122,6 +132,20 @@
                 <flux:input wire:model="noticeDate" type="date" :label="__('Notice given on')" />
                 <flux:input wire:model="plannedExit" type="date" :label="__('Planned exit')" />
                 <flux:button type="submit" class="sm:col-span-3 sm:justify-self-start">{{ __('Record notice') }}</flux:button>
+            </form>
+        </flux:fieldset>
+        <flux:fieldset>
+            <flux:legend>{{ __('Record move-out') }}</flux:legend>
+            <form wire:submit="recordMoveOut" class="mt-2 grid gap-3 sm:grid-cols-2 sm:items-end">
+                <flux:select wire:model="moveOutTarget" :label="__('For')">
+                    <option value="">{{ __('Every unit still in') }}</option>
+                    @foreach ($agreement->agreementUnits->whereNull('move_out_date') as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
+                </flux:select>
+                <flux:input wire:model="moveOutDate" type="date" :label="__('Moved out on')" />
+                <flux:textarea wire:model="moveOutReadings" :label="__('Meter readings')" rows="2" />
+                <flux:textarea wire:model="moveOutNotes" :label="__('Notes')" rows="2" />
+                <flux:error name="moveOutDate" />
+                <flux:button type="submit" class="sm:col-span-2 sm:justify-self-start">{{ __('Record move-out') }}</flux:button>
             </form>
         </flux:fieldset>
     @endif

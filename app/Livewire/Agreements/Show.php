@@ -3,6 +3,7 @@
 namespace App\Livewire\Agreements;
 
 use App\Actions\Agreements\DeleteDraftAgreement;
+use App\Actions\Agreements\RecordMoveOut;
 use App\Actions\Agreements\RecordNotice;
 use App\Actions\Agreements\SubmitAgreement;
 use App\Enums\AmendmentStatus;
@@ -16,6 +17,7 @@ use App\Models\Invoice;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -84,6 +86,31 @@ class Show extends Component
 
         $this->reset('noticeTarget', 'noticeDate', 'plannedExit');
         Flux::toast(variant: 'success', text: __('Notice recorded.'));
+    }
+
+    public string $moveOutTarget = '';
+
+    public string $moveOutDate = '';
+
+    public string $moveOutReadings = '';
+
+    public string $moveOutNotes = '';
+
+    public function recordMoveOut(RecordMoveOut $moveOut): void
+    {
+        $agreement = $this->agreement();
+        $unit = $this->moveOutTarget !== '' ? AgreementUnit::query()->where('agreement_id', $agreement->id)->findOrFail((int) $this->moveOutTarget) : null;
+
+        try {
+            $moveOut->handle($this->actor(), $agreement, $unit, $this->moveOutDate, $this->moveOutReadings ?: null, $this->moveOutNotes ?: null);
+        } catch (AuthorizationException) {
+            abort(403);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(['moveOutDate' => Arr::flatten($e->errors())]);
+        }
+
+        $this->reset('moveOutTarget', 'moveOutDate', 'moveOutReadings', 'moveOutNotes');
+        Flux::toast(variant: 'success', text: __('Move-out recorded.'));
     }
 
     public function deleteAmendmentDraft(int $amendmentId): void
