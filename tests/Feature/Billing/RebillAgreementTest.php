@@ -1,8 +1,11 @@
 <?php
 
+use App\Actions\Approvals\DecideApproval;
 use App\Actions\Billing\GenerateRentSchedule;
 use App\Actions\Billing\IssueInvoice;
 use App\Actions\Billing\RebillAgreement;
+use App\Actions\Billing\SaveCreditNote;
+use App\Actions\Billing\SubmitCreditNote;
 use App\Actions\Cheques\RecordCheques;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
@@ -185,4 +188,30 @@ test('a 1-fil VAT drift on a partly credited line does not bill a 0.001 manual i
         ->and(Invoice::where('type', 'manual')->exists())->toBeFalse()
         ->and($u1Line->fresh()->credited)->toBe($u1Line->credited)
         ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('a discretionary credit note stays a concession: re-billing neither re-bills it nor counts it as kept', function () {
+    $november = ($this->byMonth)('2026-11-01');
+    $management = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
+    $concession = app(SaveCreditNote::class)->handle($this->finance, $november, null, ['reason' => 'Goodwill', 'lines' => [['credited_line_id' => $november->lines->sole()->id, 'amount' => '50']]]);
+    app(DecideApproval::class)->handle($management, app(SubmitCreditNote::class)->handle($this->finance, $concession), true);
+    expect($concession->fresh()->status->value)->toBe('issued')->and($concession->fresh()->credit_source)->toBeNull();
+
+    $this->au->forceFill(['end_date' => '2026-11-15'])->save();
+    $result = ($this->rebill)('2026-11-15');
+
+    $cn = Invoice::findOrFail($result->creditNoteIds[0]);
+    expect($result->manualInvoiceId)->toBeNull()
+        ->and(Invoice::where('type', 'manual')->exists())->toBeFalse()
+        ->and($cn->total)->toBe('202.740')                // 400 − 197.260 kept; the concession is not re-billed
+        ->and($cn->credit_source)->toBe('rebill')
+        ->and(fn () => DB::table('invoices')->where('id', $concession->id)->update(['credit_source' => 'rebill']))->toThrow(QueryException::class, 'the credit source is frozen')
+        ->and(($this->byMonth)('2026-11-01')->credited)->toBe('252.740')
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+
+    $this->au->forceFill(['end_date' => '2026-11-10'])->save();     // a second cut credits only 11–15 Nov, the concession untouched
+    $later = ($this->rebill)('2026-11-10');
+    expect(Invoice::findOrFail($later->creditNoteIds[0])->total)->toBe('65.753')
+        ->and($later->manualInvoiceId)->toBeNull()
+        ->and(($this->byMonth)('2026-11-01')->balance)->toBe('81.507');      // 131.507 kept − 50 concession
 });

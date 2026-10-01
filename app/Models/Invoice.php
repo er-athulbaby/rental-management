@@ -38,6 +38,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $issued_by
  * @property int|null $related_invoice_id
  * @property string|null $credit_reason
+ * @property string|null $credit_source 'rebill' for a credit note written by RebillAgreement, else null
  */
 class Invoice extends Model
 {
