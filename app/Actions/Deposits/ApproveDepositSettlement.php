@@ -2,6 +2,8 @@
 
 namespace App\Actions\Deposits;
 
+use App\Actions\Billing\BuildCreditNote;
+use App\Actions\Billing\IssueCreditNote;
 use App\Actions\Billing\IssueInvoice;
 use App\Actions\NextDocumentNumber;
 use App\Actions\Payments\ApplyToInvoices;
@@ -9,6 +11,7 @@ use App\Actions\Payments\PostPayment;
 use App\Enums\DeductionType;
 use App\Enums\DepositMovementType;
 use App\Enums\DepositSettlementStatus;
+use App\Enums\InvoiceChargeType;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Enums\NumberSequenceKey;
@@ -28,13 +31,16 @@ use Illuminate\Validation\ValidationException;
 use LogicException;
 
 /**
- * Spec §7.7 on approval, in one transaction. Locks: customer → settlement → (deductions invoice, new) → named lines →
- * invoices → payment, the global order. Credit auto-allocation is suppressed: the deductions invoice issues with
+ * Spec §7.7 on approval, in one transaction. Locks: customer → settlement → named rent lines → (system credit note for
+ * any unpaid deposit balance: its deposit lines → deposit invoice) → (deductions invoice, new) → invoices → payment; the
+ * customer lock serialises the second batch of lines. Credit auto-allocation is suppressed: the deductions invoice issues with
  * autoAllocate false, and the deposit_applied payment is allocated explicitly.
  */
 final class ApproveDepositSettlement
 {
     public function __construct(
+        private BuildCreditNote $buildCreditNote,
+        private IssueCreditNote $issueCreditNote,
         private IssueInvoice $issue,
         private PostPayment $post,
         private ApplyToInvoices $apply,
@@ -61,6 +67,19 @@ final class ApproveDepositSettlement
         $rentLines = InvoiceLine::query()
             ->whereKey($settlement->lines->where('type', DeductionType::UnpaidRent)->pluck('invoice_line_id'))
             ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+        // 0. An unpaid deposit balance on a settled unit is credited, so no later payment can reach it (as TransferDeposits).
+        $number = ($this->next)(NumberSequenceKey::DepositSettlement);
+        $unpaid = InvoiceLine::query()->whereIn('agreement_unit_id', $settlement->units->pluck('agreement_unit_id'))
+            ->where('charge_type', InvoiceChargeType::Deposit)
+            ->whereHas('invoice', fn ($q) => $q->where('status', InvoiceStatus::Issued))->orderBy('id')->get()
+            ->filter(fn (InvoiceLine $l) => $l->balanceFils() > 0);
+        foreach ($unpaid->groupBy('invoice_id') as $invoiceId => $lines) {
+            $cn = $this->buildCreditNote->handle(Invoice::query()->findOrFail($invoiceId), array_values($lines->map(fn (InvoiceLine $l) => [$l, $l->balanceFils()])->all()),
+                __('Deposit closed by settlement :n', ['n' => $number]), $approver);
+            $cn->forceFill(['status' => InvoiceStatus::PendingApproval])->save();
+            $this->issueCreditNote->handle($cn, $approver);
+        }
 
         // 1. Non-rent deductions → one issued manual invoice, attributed on the unit's last day (plan ruling 7).
         $invoice = $this->deductionsInvoice($settlement, $agreement->id, $customer->id, $approver);
@@ -132,7 +151,7 @@ final class ApproveDepositSettlement
         }
 
         $settlement->forceFill([
-            'number' => ($this->next)(NumberSequenceKey::DepositSettlement),
+            'number' => $number,
             'approved_at' => $now,
             'deductions_invoice_id' => $invoice?->id,
             'payment_id' => $payment?->id,

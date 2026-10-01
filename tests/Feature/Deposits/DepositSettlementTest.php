@@ -129,3 +129,28 @@ test('two rent deductions on one line cannot exceed its balance, and a deposit l
         ->and(fn () => app(SaveSettlementDeductions::class)->handle($this->finance, $this->settlement, [$row('1.000', $deposit->id)]))
         ->toThrow(ValidationException::class);
 });
+
+test('approval closes an unpaid deposit balance with a system credit note, so later payments never reach it', function () {
+    $customer = Customer::factory()->create();
+    $agreement = activeAgreement(['customer_id' => $customer->id, 'start_date' => '2025-10-01', 'end_date' => '2026-09-30'], [Unit::factory()->create()]);
+    $au = $agreement->agreementUnits()->sole();
+    $deposit = issuedInvoice($customer, [['net' => '400.000', 'tax' => 'out_of_scope', 'type' => 'deposit', 'au' => $au]], '2025-10-01', $agreement);
+    app(RecordPayment::class)->handle($this->finance, $customer, ['received_on' => '2026-10-05', 'method' => 'cash', 'amount' => '300.000']);
+    $au->forceFill(['move_out_date' => '2026-09-30'])->save();
+    $settlement = DB::transaction(fn () => app(CreateDepositSettlement::class)->handle($agreement, [$au->id], $this->finance));
+
+    app(DecideApproval::class)->handle($this->management, app(SubmitDepositSettlement::class)->handle($this->finance, $settlement), true);
+
+    $cn = Invoice::where('type', 'credit_note')->where('related_invoice_id', $deposit->id)->sole();
+    $line = $deposit->lines->sole()->fresh();
+    expect($cn->status->value)->toBe('issued')
+        ->and($cn->total)->toBe('100.000')
+        ->and($cn->credit_reason)->toBe('Deposit closed by settlement '.$settlement->fresh()->number)
+        ->and($line->balanceFils())->toBe(0);
+
+    app(RecordPayment::class)->handle($this->finance, $customer, ['received_on' => '2026-10-05', 'method' => 'cash', 'amount' => '50.000']);
+    expect($line->fresh()->allocated)->toBe('300.000')
+        ->and(DepositMovement::where('agreement_unit_id', $au->id)->where('type', 'received')->sum('amount'))->toEqual('300.000')
+        ->and(CustomerCredit::fils($customer->id))->toBe(50_000)
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
