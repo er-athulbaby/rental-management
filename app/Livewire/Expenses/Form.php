@@ -4,6 +4,7 @@ namespace App\Livewire\Expenses;
 
 use App\Actions\Expenses\RecordExpense;
 use App\Enums\ExpenseCategory;
+use App\Enums\PermissionName;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\Expense;
@@ -61,6 +62,7 @@ class Form extends Component
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('name')->get(['id', 'code', 'name']),
             'units' => Unit::query()->where('building_id', $this->form['building_id'] ?? 0)->whereHas('building', fn ($q) => $q->visibleTo($this->actor()))->orderBy('code')->get(['id', 'code']),
             'categories' => ExpenseCategory::cases(),
+            'canChargeTenant' => $this->actor()->can(PermissionName::InvoicesManage),
         ]);
     }
 }

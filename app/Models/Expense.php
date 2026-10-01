@@ -28,6 +28,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $total
  * @property ChargeTo $charge_to
  * @property int|null $owner_contract_id
+ * @property int|null $agreement_unit_id
+ * @property int|null $invoice_id
  * @property ExpenseStatus $status
  * @property int|null $reversed_by
  * @property int $recorded_by
@@ -75,6 +77,18 @@ class Expense extends Model
     public function ownerContract(): BelongsTo
     {
         return $this->belongsTo(OwnerContract::class);
+    }
+
+    /** @return BelongsTo<Invoice, $this> */
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
+    }
+
+    /** @return BelongsTo<AgreementUnit, $this> */
+    public function agreementUnit(): BelongsTo
+    {
+        return $this->belongsTo(AgreementUnit::class);
     }
 
     /** @return BelongsTo<User, $this> */

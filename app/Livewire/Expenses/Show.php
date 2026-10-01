@@ -41,7 +41,7 @@ class Show extends Component
 
     public function render(): View
     {
-        $expense = Expense::with(['building:id,code,name', 'unit:id,code', 'ownerContract:id,number', 'recorder:id,name'])->findOrFail($this->expenseId);
+        $expense = Expense::with(['building:id,code,name', 'unit:id,code', 'ownerContract:id,number', 'recorder:id,name', 'invoice:id,number,status'])->findOrFail($this->expenseId);
 
         return view('livewire.expenses.show', [
             'expense' => $expense,

@@ -25,7 +25,14 @@
         <flux:radio.group wire:model.live="form.charge_to" :label="__('Charge to')" variant="segmented">
             <flux:radio value="company" :label="__('Company')" />
             <flux:radio value="owner" :label="__('Owner')" />
+            @if ($canChargeTenant)
+                <flux:radio value="tenant" :label="__('Tenant')" />
+            @endif
         </flux:radio.group>
+
+        @if (($form['charge_to'] ?? '') === 'tenant')
+            <flux:text size="sm">{{ __('Choose the unit: its current tenant is invoiced for the net amount when you save.') }}</flux:text>
+        @endif
 
         @if (($form['charge_to'] ?? '') === 'owner')
             <flux:textarea wire:model="form.owner_approval_note" :label="__('Owner approval note (needed above the contract limit)')" rows="2" />
