@@ -5,6 +5,7 @@ namespace App\Actions\Payments;
 use App\Actions\NextDocumentNumber;
 use App\Enums\NumberSequenceKey;
 use App\Enums\PaymentStatus;
+use App\Jobs\StoreReceipt;
 use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\User;
@@ -38,7 +39,11 @@ final class PostPayment
 
         $this->apply->handle($payment, $plan, $actor);
 
-        // Task 9 adds the stored receipt PDF here (after commit).
+        // After commit: a rolled-back payment must not leave a receipt behind.
+        $paymentId = $payment->id;
+        $actorId = $actor->id;
+        DB::afterCommit(fn () => StoreReceipt::dispatch($paymentId, $actorId));
+
         return $payment;
     }
 }

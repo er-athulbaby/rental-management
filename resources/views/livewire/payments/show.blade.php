@@ -5,7 +5,7 @@
             <flux:badge>{{ str($payment->status->value)->headline() }}</flux:badge>
         </div>
         <div class="flex flex-wrap gap-2">
-            {{-- Task 9: receipt PDF. --}}
+            <flux:button icon="document-arrow-down" :href="route('payments.receipt', $payment)" target="_blank">{{ __('Receipt') }}</flux:button>
             @if ($pendingReversal)
                 <flux:badge color="amber">{{ __('Reversal waiting for approval') }}</flux:badge>
             @elseif ($canReverse)

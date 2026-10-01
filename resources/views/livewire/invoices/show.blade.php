@@ -21,7 +21,9 @@
             @if ($canCredit)
                 <flux:button :href="route('invoices.credit', $invoice)" wire:navigate>{{ __('Credit note') }}</flux:button>
             @endif
-            {{-- Task 9: PDF. --}}
+            @if ($invoice->status->value === 'issued')
+                <flux:button icon="document-arrow-down" :href="route('invoices.pdf', $invoice)" target="_blank">{{ __('PDF') }}</flux:button>
+            @endif
         </div>
     </div>
     <flux:error name="invoice" />
