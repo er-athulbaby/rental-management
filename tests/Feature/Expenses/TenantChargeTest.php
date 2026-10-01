@@ -79,3 +79,13 @@ test('the form offers Tenant to invoices.manage holders', function () {
     $pm = User::factory()->withTwoFactor()->create()->assignRole(RoleName::PropertyManager);
     Livewire::actingAs($pm)->test(Form::class)->assertDontSee('Tenant');
 });
+
+test('a unit with no default category is taxed by the company category for its use', function () {
+    CompanySetting::query()->update(['commercial_tax_category' => 'standard', 'residential_tax_category' => 'exempt']);
+    $this->unit->update(['default_tax_category' => null, 'use' => 'commercial']);
+
+    $expense = app(RecordExpense::class)->handle($this->finance, ($this->data)());
+
+    expect($expense->invoice->lines->sole()->tax_category->value)->toBe('standard')
+        ->and($expense->invoice->lines->sole()->tax_amount)->toBe('8.000');
+});

@@ -6,7 +6,6 @@ use App\Actions\Billing\IssueInvoice;
 use App\Actions\Documents\StoreDocument;
 use App\Enums\AgreementStatus;
 use App\Enums\ChargeTo;
-use App\Enums\ChargeType;
 use App\Enums\DocumentCategory;
 use App\Enums\ExpenseCategory;
 use App\Enums\ExpenseStatus;
@@ -15,7 +14,6 @@ use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Enums\OwnerContractType;
 use App\Enums\PermissionName;
-use App\Enums\TaxCategory;
 use App\Models\AgreementUnit;
 use App\Models\Building;
 use App\Models\Expense;
@@ -142,7 +140,7 @@ final class RecordExpense
     {
         $date = (string) $v['expense_date'];
         $au = AgreementUnit::query()
-            ->with(['agreement', 'unit', 'charges'])
+            ->with(['agreement', 'unit'])
             ->where('unit_id', $v['unit_id'])
             ->whereHas('agreement', fn ($q) => $q->where('status', AgreementStatus::Active))
             ->where('start_date', '<=', $date)
@@ -153,9 +151,7 @@ final class RecordExpense
             throw ValidationException::withMessages(['unit_id' => __('No active agreement covers this unit on that date.')]);
         }
 
-        $category = $au->unit->default_tax_category
-            ?? $au->charges->where('type', ChargeType::Rent)->first()->tax_category
-            ?? TaxCategory::Exempt;
+        $category = $au->unit->effectiveTaxCategory();
 
         $invoice = (new Invoice)->forceFill([
             'type' => InvoiceType::Manual,
