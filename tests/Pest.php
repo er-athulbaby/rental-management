@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\OwnerContract;
 use App\Support\Fils;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -121,4 +123,11 @@ function issuedInvoice(Customer $customer, array $lines, string $due = '2026-10-
 function Fils_from(string $bhd): int
 {
     return Fils::fromDecimal($bhd);
+}
+
+function scheduledEvent(string $command): Event
+{
+    return collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains((string) $event->command, $command))
+        ?? throw new RuntimeException("{$command} is not scheduled");
 }

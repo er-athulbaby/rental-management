@@ -6,15 +6,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
-
-function scheduledEvent(string $command): Event
-{
-    return collect(app(Schedule::class)->events())
-        ->first(fn ($event) => str_contains((string) $event->command, $command))
-        ?? throw new RuntimeException("{$command} is not scheduled");
-}
 
 test('the backup and numbering jobs are scheduled in Bahrain time without overlap', function (string $command, string $cron) {
     $event = scheduledEvent($command);
@@ -30,6 +22,7 @@ test('the backup and numbering jobs are scheduled in Bahrain time without overla
     ['rms:owner-contracts:close', '15 2 * * *'],
     ['rms:invoices:issue', '0 1 * * *'],
     ['rms:agreements:expire', '0 2 * * *'],
+    ['rms:integrity-check', '30 2 * * *'],
 ]);
 
 test('a successful run pings its heartbeat exactly once', function () {

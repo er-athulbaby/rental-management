@@ -25,3 +25,6 @@ Schedule::command('rms:invoices:issue')->dailyAt('01:00')->withoutOverlapping(12
 
 Schedule::command('rms:agreements:expire')->dailyAt('02:00')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.agreements_expire')), (string) $url);
+
+Schedule::command('rms:integrity-check')->dailyAt('02:30')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.integrity_check')), (string) $url);
