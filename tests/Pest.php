@@ -1,10 +1,13 @@
 <?php
 
 use App\Actions\Billing\IssueInvoice;
+use App\Enums\RoleName;
 use App\Models\Agreement;
+use App\Models\Building;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\OwnerContract;
+use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
@@ -118,6 +121,15 @@ function issuedInvoice(Customer $customer, array $lines, string $due = '2026-10-
     app(IssueInvoice::class)->handle($invoice);
 
     return $invoice->fresh(['lines']);
+}
+
+/** A two-factor user of the role, assigned the building (shared by the permission matrices). */
+function matrixUser(RoleName $role, Building $building): User
+{
+    $user = User::factory()->withTwoFactor()->create()->assignRole($role);
+    $user->buildings()->attach($building->id);
+
+    return $user;
 }
 
 function Fils_from(string $bhd): int

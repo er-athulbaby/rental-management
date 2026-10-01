@@ -47,14 +47,6 @@ beforeEach(function () {
     $this->scheduled = DB::transaction(fn () => app(GenerateRentSchedule::class)->handle($this->active, $this->leasingCreator))->first();
 });
 
-function matrixUser(R $role, Building $building): User
-{
-    $user = User::factory()->withTwoFactor()->create()->assignRole($role);
-    $user->buildings()->attach($building->id);
-
-    return $user;
-}
-
 test('pages open for exactly the roles the spec allows', function (string $route, array $allowed) {
     foreach (R::cases() as $role) {
         $status = $this->actingAs(matrixUser($role, $this->building))->get(route($route))->status();

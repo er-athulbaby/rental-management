@@ -66,3 +66,20 @@ test('quarterly periods end on the agreement end date', function () {
 test('an agreement shorter than its first stub is one partial period', function () {
     expect(spans(BillingPeriods::for(bpDate('2026-11-20'), bpDate('2026-11-25'), PaymentFrequency::Monthly, 1)))->toBe(['2026-11-20..2026-11-25 partial']);
 });
+
+test('a 31st anchor lands on 29 February in a leap year', function () {
+    expect(spans(BillingPeriods::for(bpDate('2028-01-31'), bpDate('2028-04-30'), PaymentFrequency::Monthly, null)))->toBe([
+        '2028-01-31..2028-02-28',
+        '2028-02-29..2028-03-30',
+        '2028-03-31..2028-04-29',
+        '2028-04-30..2028-04-30 partial',
+    ]);
+});
+
+test('a billing day equal to the start day adds no stub', function () {
+    $periods = BillingPeriods::for(bpDate('2026-11-15'), bpDate('2027-11-14'), PaymentFrequency::Monthly, 15);
+
+    expect($periods)->toHaveCount(12)
+        ->and(spans($periods)[0])->toBe('2026-11-15..2026-12-14')
+        ->and(collect($periods)->every(fn ($p) => $p->regular))->toBeTrue();
+});
