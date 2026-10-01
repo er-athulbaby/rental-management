@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
  * Spec §7.2: whenever an invoice is issued for a customer with credit, the credit is allocated oldest-first,
  * drawing from the oldest payments. Runs in its own transaction (after the issuing one has committed).
  */
-final class AllocateCustomerCredit
+class AllocateCustomerCredit
 {
     public function __construct(private ApplyToInvoices $apply) {}
 

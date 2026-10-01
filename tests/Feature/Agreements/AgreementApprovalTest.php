@@ -5,10 +5,12 @@ use App\Actions\Agreements\SubmitAgreement;
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\ContractTemplates\EnsureDefaultContractTemplate;
 use App\Actions\EnsureNumberSequences;
+use App\Actions\Payments\AllocateCustomerCredit;
 use App\Enums\AgreementStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Enums\RoleName;
+use App\Jobs\StoreApprovedContract;
 use App\Livewire\Agreements\Show;
 use App\Models\Building;
 use App\Models\CompanySetting;
@@ -19,6 +21,7 @@ use App\Notifications\ApprovalRequested;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -133,4 +136,23 @@ test('Leasing submits from the agreement page and sees the approval history', fu
 test('the agreement page renders the documents panel', function () {
     Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $this->draft])
         ->assertSeeLivewire('documents.panel');
+});
+
+test('a failing credit auto-allocation neither fails the approval nor skips the contract job', function () {
+    Queue::fake();
+    $this->app->bind(AllocateCustomerCredit::class, fn () => new class extends AllocateCustomerCredit
+    {
+        public function __construct() {}
+
+        public function handle(int $customerId, ?User $actor = null): int
+        {
+            throw new RuntimeException('deadlock');
+        }
+    });
+    $approval = app(SubmitAgreement::class)->handle($this->leasing, $this->draft);
+
+    app(DecideApproval::class)->handle($this->management, $approval, true);
+
+    expect($this->draft->fresh()->status)->toBe(AgreementStatus::Active);
+    Queue::assertPushed(StoreApprovedContract::class);
 });

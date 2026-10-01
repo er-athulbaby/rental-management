@@ -20,6 +20,7 @@ use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /** Spec §6.3 — the only place tax, owner attribution, numbers and grace dates are written. */
 final class IssueInvoice
@@ -86,7 +87,13 @@ final class IssueInvoice
             // so a customer row is never locked after invoice lines.
             if ($autoAllocate && $invoice->type !== InvoiceType::CreditNote) {
                 $customerId = $invoice->customer_id;
-                DB::afterCommit(fn () => app(AllocateCustomerCredit::class)->handle($customerId, $issuer));
+                DB::afterCommit(function () use ($customerId, $issuer) {
+                    try {
+                        app(AllocateCustomerCredit::class)->handle($customerId, $issuer);
+                    } catch (Throwable $e) {
+                        report($e); // credit simply stays credit; the next issue retries. Must not fail the committed caller.
+                    }
+                });
             }
 
             return true;
