@@ -4,8 +4,10 @@ namespace App\Approvals;
 
 use App\Actions\Payments\ReverseAllocations;
 use App\Billing\CustomerCredit;
+use App\Enums\ChequeStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Approval;
+use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\User;
@@ -47,7 +49,17 @@ final class PaymentReversal implements ApprovalHandler
         if (CustomerCredit::fils($payment->customer_id) < 0) {
             throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the customer\'s credit below zero.')]);
         }
-        // Task 7 adds: a cleared cheque behind this payment becomes bounced.
+        // Spec §7.4: a cheque returned by the bank after clearing bounces once its payment is reversed.
+        if ($payment->cheque_id !== null) {
+            $cheque = Cheque::query()->lockForUpdate()->findOrFail($payment->cheque_id);
+            if ($cheque->status === ChequeStatus::Cleared) {
+                $cheque->forceFill([
+                    'status' => ChequeStatus::Bounced,
+                    'bounced_on' => $approval->payload['bounced_on'] ?? now('Asia/Bahrain')->toDateString(),
+                    'bounce_reason' => $approval->payload['bounce_reason'] ?? $approval->reason,
+                ])->save();
+            }
+        }
     }
 
     /** A request about an existing record: rejecting leaves it unchanged (spec §8.3). */

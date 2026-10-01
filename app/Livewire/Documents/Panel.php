@@ -8,11 +8,13 @@ use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\Building;
+use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Expense;
 use App\Models\Owner;
 use App\Models\OwnerContract;
+use App\Models\Payment;
 use App\Models\Unit;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -31,7 +33,7 @@ class Panel extends Component
     use WithActor, WithFileUploads;
 
     /** Record types that may carry documents; later milestones add theirs. */
-    public const array ALLOWED = [Agreement::class, Building::class, Customer::class, Expense::class, Owner::class, OwnerContract::class, Unit::class];
+    public const array ALLOWED = [Agreement::class, Building::class, Cheque::class, Customer::class, Expense::class, Owner::class, OwnerContract::class, Payment::class, Unit::class];
 
     #[Locked]
     public string $type = '';

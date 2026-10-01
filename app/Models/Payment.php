@@ -61,6 +61,12 @@ class Payment extends Model
         return $this->hasMany(PaymentAllocation::class);
     }
 
+    /** @return BelongsTo<Cheque, $this> */
+    public function cheque(): BelongsTo
+    {
+        return $this->belongsTo(Cheque::class);
+    }
+
     /** @return BelongsTo<User, $this> */
     public function recorder(): BelongsTo
     {
