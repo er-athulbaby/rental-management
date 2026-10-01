@@ -55,23 +55,38 @@ test('Finance deposits selected cheques, then clears one into a payment', functi
         ->set('depositedOn', '2026-10-05')
         ->call('depositSelected')
         ->assertHasNoErrors();
-    expect(Cheque::where('status', 'deposited')->count())->toBe(2);
+    expect(Cheque::where('status', 'deposited')->count())->toBe(2)
+        ->and(Cheque::find($ids[0])->deposited_on->toDateString())->toBe('2026-10-05');
 
     Livewire::actingAs($this->finance)->test(Show::class, ['cheque' => Cheque::find($ids[0])])
         ->set('clearedOn', '2026-10-05')
         ->call('clear')
-        ->assertHasNoErrors()
-        ->assertSee('Cleared');
-    expect(Payment::sole()->method->value)->toBe('cheque');
+        ->assertHasNoErrors();
+    expect(Payment::sole()->method->value)->toBe('cheque')
+        ->and(Cheque::find($ids[0])->status->value)->toBe('cleared')
+        ->and(Cheque::find($ids[0])->cleared_on->toDateString())->toBe('2026-10-05');
 
     Livewire::actingAs($this->finance)->test(Show::class, ['cheque' => Cheque::find($ids[1])])
         ->set('bouncedOn', '2026-10-05')->set('bounceReason', 'Signature mismatch')->call('bounce')
-        ->assertHasNoErrors()
-        ->assertSee('Bounced');
+        ->assertHasNoErrors();
+    expect(Cheque::find($ids[1])->status->value)->toBe('bounced')
+        ->and(Cheque::find($ids[1])->bounce_reason)->toBe('Signature mismatch');
 });
 
 test('only cheques.manage holders enter and act; finance.view holders see the register', function () {
+    Livewire::withQueryParams(['agreement' => $this->agreement->id])->actingAs($this->finance)->test(Entry::class)
+        ->set('bank_name', 'NBB')->set('rows.0.cheque_no', '501')->set('rows.1.cheque_no', '502')->call('save');
+    $ids = Cheque::orderBy('id')->pluck('id')->all();
+    Livewire::actingAs($this->finance)->test(Index::class)->set('selected', [$ids[0]])->set('depositedOn', '2026-10-05')->call('depositSelected');
+
     $management = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
     $this->actingAs($management)->get(route('cheques.index'))->assertOk();
     $this->actingAs($management)->get(route('cheques.entry', ['agreement' => $this->agreement->id]))->assertForbidden();
+
+    Livewire::actingAs($management)->test(Index::class)->set('selected', [$ids[1]])->call('depositSelected')->assertForbidden();
+    Livewire::actingAs($management)->test(Show::class, ['cheque' => Cheque::find($ids[0])])->call('clear')->assertForbidden();
+
+    expect(Cheque::find($ids[1])->status->value)->toBe('held')
+        ->and(Cheque::find($ids[0])->status->value)->toBe('deposited')
+        ->and(Payment::count())->toBe(0);
 });
