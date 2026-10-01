@@ -4,7 +4,9 @@ namespace App\Actions\Deposits;
 
 use App\Enums\DeductionType;
 use App\Enums\DepositSettlementStatus;
+use App\Enums\InvoiceChargeType;
 use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
 use App\Models\DepositMovement;
 use App\Models\DepositSettlement;
 use App\Models\InvoiceLine;
@@ -42,6 +44,7 @@ final class SaveSettlementDeductions
             }
             $unitIds = $settlement->units->pluck('agreement_unit_id')->all();
 
+            $named = [];
             foreach ($v as $i => $line) {
                 if (! in_array((int) $line['agreement_unit_id'], $unitIds, true)) {
                     throw ValidationException::withMessages(["lines.$i.agreement_unit_id" => __('Choose a unit of this settlement.')]);
@@ -49,10 +52,12 @@ final class SaveSettlementDeductions
                 if ($line['type'] === DeductionType::UnpaidRent->value) {
                     $invoiceLine = InvoiceLine::query()->with('invoice')->find((int) $line['invoice_line_id']);
                     if ($invoiceLine === null || $invoiceLine->agreement_unit_id !== (int) $line['agreement_unit_id']
-                        || $invoiceLine->invoice?->status !== InvoiceStatus::Issued) {
+                        || $invoiceLine->invoice?->status !== InvoiceStatus::Issued
+                        || $invoiceLine->invoice->type === InvoiceType::CreditNote || $invoiceLine->charge_type === InvoiceChargeType::Deposit) {
                         throw ValidationException::withMessages(["lines.$i.invoice_line_id" => __('Choose an issued invoice line of this unit.')]);
                     }
-                    if (Fils::fromDecimal((string) $line['amount']) > $invoiceLine->balanceFils()) {
+                    $named[$invoiceLine->id] = ($named[$invoiceLine->id] ?? 0) + Fils::fromDecimal((string) $line['amount']);
+                    if ($named[$invoiceLine->id] > $invoiceLine->balanceFils()) {
                         throw ValidationException::withMessages(["lines.$i.amount" => __('At most :b BHD is unpaid on that line.', ['b' => Fils::toDecimal($invoiceLine->balanceFils())])]);
                     }
                 }

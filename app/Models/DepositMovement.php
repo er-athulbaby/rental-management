@@ -36,9 +36,11 @@ class DepositMovement extends Model
     }
 
     /** Deposit held per agreement unit = Σ amount (spec §7.6). */
-    public static function heldFils(int $agreementUnitId): int
+    public static function heldFils(int $agreementUnitId, bool $lock = false): int
     {
-        return Fils::fromDecimal((string) (self::query()->where('agreement_unit_id', $agreementUnitId)->sum('amount') ?: '0'));
+        $query = self::query()->where('agreement_unit_id', $agreementUnitId);
+
+        return Fils::fromDecimal((string) (($lock ? $query->lockForUpdate() : $query)->sum('amount') ?: '0'));
     }
 
     /** Spec §7.6, plan ruling 8: applied, refunded and transfer_out copy the stamp of the unit's latest positive movement. */

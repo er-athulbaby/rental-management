@@ -12,6 +12,7 @@ use App\Integrity\IntegrityCheck;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\DepositMovement;
+use App\Models\Invoice;
 use App\Models\Unit;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -116,4 +117,15 @@ test('deductions are validated; only invoices.manage edits; rejecting returns th
     $approval = app(SubmitDepositSettlement::class)->handle($this->finance, $this->settlement);
     app(DecideApproval::class)->handle($this->management, $approval, false, 'Add the cleaning');
     expect($this->settlement->fresh()->status->value)->toBe('draft');
+});
+
+test('two rent deductions on one line cannot exceed its balance, and a deposit line cannot be named', function () {
+    $line = $this->rent->lines->sole();
+    $deposit = Invoice::query()->where('customer_id', $this->customer->id)->whereHas('lines', fn ($q) => $q->where('charge_type', 'deposit'))->firstOrFail()->lines->sole();
+    $row = fn (string $amount, int $lineId) => ['agreement_unit_id' => $this->au->id, 'type' => 'unpaid_rent', 'description' => 'x', 'amount' => $amount, 'invoice_line_id' => $lineId];
+
+    expect(fn () => app(SaveSettlementDeductions::class)->handle($this->finance, $this->settlement, [$row('250.000', $line->id), $row('250.000', $line->id)]))
+        ->toThrow(ValidationException::class)
+        ->and(fn () => app(SaveSettlementDeductions::class)->handle($this->finance, $this->settlement, [$row('1.000', $deposit->id)]))
+        ->toThrow(ValidationException::class);
 });

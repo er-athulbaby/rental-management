@@ -13,6 +13,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Enums\NumberSequenceKey;
 use App\Enums\PaymentMethod;
+use App\Models\Agreement;
 use App\Models\AgreementUnit;
 use App\Models\Customer;
 use App\Models\DepositMovement;
@@ -46,12 +47,20 @@ final class ApproveDepositSettlement
             throw new LogicException('ApproveDepositSettlement must run inside the caller\'s transaction.');
         }
 
-        $agreement = $pending->agreement()->firstOrFail();
-        $customer = Customer::query()->lockForUpdate()->findOrFail($agreement->customer_id);
+        // The customer lock is the first read: a locking read, so the later reads see everything committed before it.
+        $customer = Customer::query()
+            ->whereIn('id', Agreement::query()->select('customer_id')->whereKey($pending->agreement_id))
+            ->lockForUpdate()->firstOrFail();
+        $agreement = Agreement::query()->findOrFail($pending->agreement_id);
         $settlement = DepositSettlement::query()->lockForUpdate()->with(['units', 'lines'])->findOrFail($pending->id);
         if ($settlement->status !== DepositSettlementStatus::PendingApproval) {
             throw ValidationException::withMessages(['approval' => __('This settlement is no longer waiting for approval.')]);
         }
+
+        // Lock the named unpaid_rent lines (ascending) before planning; the caps come from these rows.
+        $rentLines = InvoiceLine::query()
+            ->whereKey($settlement->lines->where('type', DeductionType::UnpaidRent)->pluck('invoice_line_id'))
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
         // 1. Non-rent deductions → one issued manual invoice, attributed on the unit's last day (plan ruling 7).
         $invoice = $this->deductionsInvoice($settlement, $agreement->id, $customer->id, $approver);
@@ -62,19 +71,19 @@ final class ApproveDepositSettlement
         $heldBy = [];
         $useBy = [];
         foreach ($settlement->units as $unit) {
-            $held = DepositMovement::heldFils($unit->agreement_unit_id);
+            $held = DepositMovement::heldFils($unit->agreement_unit_id, lock: true);
             $left = $held;
-            $rentLines = $settlement->lines->where('agreement_unit_id', $unit->agreement_unit_id)->where('type', DeductionType::UnpaidRent);
-            foreach ($rentLines as $line) {
-                $invoiceLine = InvoiceLine::query()->findOrFail($line->invoice_line_id);
-                $take = min($left, Fils::fromDecimal($line->amount), $invoiceLine->balanceFils());
+            $unitRent = $settlement->lines->where('agreement_unit_id', $unit->agreement_unit_id)->where('type', DeductionType::UnpaidRent);
+            foreach ($unitRent as $line) {
+                $invoiceLine = $rentLines->get($line->invoice_line_id) ?? throw new LogicException("Invoice line {$line->invoice_line_id} is missing.");
+                $take = min($left, Fils::fromDecimal($line->amount), $invoiceLine->balanceFils() - ($plan[$invoiceLine->id] ?? 0));
                 if ($take > 0) {
                     $plan[$invoiceLine->id] = ($plan[$invoiceLine->id] ?? 0) + $take;
                     $left -= $take;
                 }
             }
             foreach ($deductionLines->where('agreement_unit_id', $unit->agreement_unit_id) as $invoiceLine) {
-                $take = min($left, $invoiceLine->balanceFils());
+                $take = min($left, $invoiceLine->balanceFils() - ($plan[$invoiceLine->id] ?? 0));
                 if ($take > 0) {
                     $plan[$invoiceLine->id] = ($plan[$invoiceLine->id] ?? 0) + $take;
                     $left -= $take;
