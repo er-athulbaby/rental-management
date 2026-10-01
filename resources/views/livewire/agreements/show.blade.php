@@ -178,6 +178,15 @@
         </div>
     @endif
 
+    @if ($chequesToReturn->isNotEmpty())
+        <div class="space-y-1">
+            <flux:heading size="lg">{{ __('Cheques to return') }}</flux:heading>
+            @foreach ($chequesToReturn as $cheque)
+                <div class="text-sm"><flux:link :href="route('cheques.show', $cheque)" wire:navigate>{{ $cheque->cheque_no }}</flux:link> · {{ $cheque->bank_name }} · {{ $cheque->cheque_date->format('d/m/Y') }} · <span class="tabular-nums">{{ $cheque->amount }}</span> · {{ $cheque->status->label() }}</div>
+            @endforeach
+        </div>
+    @endif
+
     @if ($settlements->isNotEmpty())
         <div class="space-y-1">
             <flux:heading size="lg">{{ __('Deposit settlements') }}</flux:heading>

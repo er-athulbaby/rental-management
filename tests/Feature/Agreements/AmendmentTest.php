@@ -5,9 +5,11 @@ use App\Actions\Agreements\SubmitAmendment;
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\Billing\GenerateRentSchedule;
 use App\Actions\Billing\IssueInvoice;
+use App\Actions\Cheques\RecordCheques;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\RoleName;
 use App\Integrity\IntegrityCheck;
+use App\Livewire\Agreements\Show;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -20,6 +22,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 
 beforeEach(function () {
     Storage::fake('local');
@@ -175,4 +178,18 @@ test('terminating inside the period a unit joined credits its manual-invoice lin
         ->and($manual->balance)->toBe('59.178')
         ->and(Invoice::where('type', 'credit_note')->where('related_invoice_id', $manual->id)->count())->toBe(1)
         ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('a cheque left without an invoice by a termination is listed under "Cheques to return" on the agreement page', function () {
+    $finance = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Finance);
+    $december = Invoice::where('agreement_id', $this->agreement->id)->where('period_start', '2026-12-01')->where('status', 'scheduled')->sole();
+    $cheque = app(RecordCheques::class)->handle($finance, $this->customer, $this->agreement, [['cheque_no' => '777123', 'bank_name' => 'NBB', 'cheque_date' => '2026-12-01', 'amount' => '800', 'invoice_id' => $december->id]])->sole();
+    Livewire::actingAs($finance)->test(Show::class, ['agreement' => $this->agreement])->assertDontSee(__('Cheques to return'));
+
+    ($this->approveAmendment)(['type' => 'terminate', 'effective_date' => '2026-11-30', 'reason' => 'Company relocating']);
+
+    expect($cheque->fresh()->invoice_id)->toBeNull();
+    Livewire::actingAs($finance)->test(Show::class, ['agreement' => $this->agreement])
+        ->assertSeeInOrder([__('Cheques to return'), '777123'])
+        ->assertSeeHtml(route('cheques.show', $cheque));
 });
