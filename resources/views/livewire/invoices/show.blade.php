@@ -14,7 +14,14 @@
             @if ($canIssue)
                 <flux:button variant="primary" wire:click="issueNow" wire:confirm="{{ __('Issue this invoice now?') }}">{{ $invoice->status->value === 'draft' ? __('Issue') : __('Issue now') }}</flux:button>
             @endif
-            {{-- Task 6: credit note. Task 9: PDF. --}}
+            @if ($canEdit && $invoice->type->value === 'credit_note')
+                <flux:button :href="route('invoices.credit.edit', $invoice)" wire:navigate>{{ __('Edit') }}</flux:button>
+                <flux:button variant="primary" wire:click="submitCreditNote">{{ __('Send for approval') }}</flux:button>
+            @endif
+            @if ($canCredit)
+                <flux:button :href="route('invoices.credit', $invoice)" wire:navigate>{{ __('Credit note') }}</flux:button>
+            @endif
+            {{-- Task 9: PDF. --}}
         </div>
     </div>
     <flux:error name="invoice" />
@@ -57,8 +64,20 @@
         <dt>{{ __('Subtotal') }}</dt><dd class="text-end">{{ $invoice->subtotal }}</dd>
         <dt>{{ __('Tax') }}</dt><dd class="text-end">{{ $invoice->tax_total }}</dd>
         <dt class="font-semibold">{{ __('Total (BHD)') }}</dt><dd class="text-end font-semibold">{{ $invoice->total }}</dd>
+        @if ((float) $invoice->credited > 0)<dt>{{ __('Credited') }}</dt><dd class="text-end">{{ $invoice->credited }}</dd>@endif
         @if ($invoice->status->value === 'issued')
             <dt>{{ __('Balance') }}</dt><dd class="text-end">{{ $invoice->balance }}</dd>
         @endif
     </dl>
+    @if ($invoice->relatedInvoice)
+        <flux:text>{{ __('Credits') }} <flux:link :href="route('invoices.show', $invoice->related_invoice_id)" wire:navigate>{{ $invoice->relatedInvoice->label() }}</flux:link>. {{ $invoice->credit_reason }}</flux:text>
+    @endif
+    @if ($invoice->creditNotes->isNotEmpty())
+        <div class="space-y-1">
+            <flux:heading size="sm">{{ __('Credit notes') }}</flux:heading>
+            @foreach ($invoice->creditNotes as $cn)
+                <div class="text-sm"><flux:link :href="route('invoices.show', $cn)" wire:navigate>{{ $cn->label() }}</flux:link> · {{ $cn->total }} · {{ $cn->status->label() }}</div>
+            @endforeach
+        </div>
+    @endif
 </section>

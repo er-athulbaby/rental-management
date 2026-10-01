@@ -45,6 +45,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('invoices', Invoices\Index::class)->middleware('can:finance.view')->name('invoices.index');
     Route::livewire('invoices/create', Invoices\ManualForm::class)->middleware('can:invoices.manage')->name('invoices.create');
     Route::livewire('invoices/{invoice}/edit', Invoices\ManualForm::class)->middleware('can:invoices.manage')->name('invoices.edit');
+    Route::livewire('invoices/{invoice}/credit-note', Invoices\CreditNoteForm::class)->middleware('can:invoices.manage')->name('invoices.credit');
+    Route::livewire('credit-notes/{creditNote}/edit', Invoices\CreditNoteForm::class)->middleware('can:invoices.manage')->name('invoices.credit.edit');
     Route::livewire('invoices/{invoice}', Invoices\Show::class)->middleware('can:finance.view')->name('invoices.show');
     Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');

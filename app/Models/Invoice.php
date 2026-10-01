@@ -36,6 +36,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $credited
  * @property string $balance
  * @property int|null $issued_by
+ * @property int|null $related_invoice_id
+ * @property string|null $credit_reason
  */
 class Invoice extends Model
 {
@@ -111,6 +113,10 @@ class Invoice extends Model
             return $this->status->label();
         }
 
+        if ($this->type === InvoiceType::CreditNote) {
+            return __('Credit note'); // never paid, partly paid or overdue (spec §6.1)
+        }
+
         $balance = Fils::fromDecimal($this->balance);
         $total = Fils::fromDecimal($this->total);
 
@@ -125,5 +131,17 @@ class Invoice extends Model
     public function label(): string
     {
         return $this->number ?? __(':status #:id', ['status' => $this->status->label(), 'id' => $this->id]);
+    }
+
+    /** @return BelongsTo<Invoice, $this> the invoice a credit note credits */
+    public function relatedInvoice(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'related_invoice_id');
+    }
+
+    /** @return HasMany<Invoice, $this> */
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(self::class, 'related_invoice_id');
     }
 }

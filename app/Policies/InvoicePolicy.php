@@ -7,6 +7,7 @@ use App\Enums\InvoiceType;
 use App\Enums\PermissionName;
 use App\Models\Invoice;
 use App\Models\User;
+use App\Support\Fils;
 
 /** Spec §8.1: Admin and Management view; Finance manages. */
 class InvoicePolicy
@@ -41,5 +42,14 @@ class InvoicePolicy
             || ($invoice->status === InvoiceStatus::Draft && $invoice->type === InvoiceType::Manual);
 
         return $user->can(PermissionName::InvoicesManage) && $issuable && $this->view($user, $invoice);
+    }
+
+    /** A credit note against an issued invoice with something left to credit (spec §6.5). */
+    public function credit(User $user, Invoice $invoice): bool
+    {
+        return $user->can(PermissionName::InvoicesManage) && $invoice->status === InvoiceStatus::Issued
+            && $invoice->type !== InvoiceType::CreditNote
+            && Fils::fromDecimal((string) $invoice->credited) < Fils::fromDecimal($invoice->total) // decimal casts are strings
+            && $this->view($user, $invoice);
     }
 }

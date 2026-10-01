@@ -81,4 +81,10 @@ class InvoiceLine extends Model
     {
         return Fils::fromDecimal($this->total) - Fils::fromDecimal((string) $this->allocated) - Fils::fromDecimal((string) $this->credited);
     }
+
+    /** @return BelongsTo<InvoiceLine, $this> */
+    public function creditedLine(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'credited_line_id');
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Enums;
 
 use App\Approvals\AgreementActivation;
 use App\Approvals\ApprovalHandler;
+use App\Approvals\CreditNote as CreditNoteHandler;
 use App\Approvals\OwnerContractActivation;
 use App\Approvals\OwnerContractTermination;
 use App\Approvals\PaymentReversal;
@@ -15,6 +16,7 @@ enum ApprovalAction: string
     case OwnerContractTermination = 'owner_contract.terminate';
     case AgreementActivation = 'agreement.activate';
     case PaymentReversal = 'payment.reverse';
+    case CreditNote = 'credit_note.issue';
 
     public function label(): string
     {
@@ -23,6 +25,7 @@ enum ApprovalAction: string
             self::OwnerContractTermination => __('Owner contract early termination'),
             self::AgreementActivation => __('Agreement activation'),
             self::PaymentReversal => __('Payment reversal'),
+            self::CreditNote => __('Credit note'),
         };
     }
 
@@ -34,6 +37,7 @@ enum ApprovalAction: string
             self::OwnerContractTermination => OwnerContractTermination::class,
             self::AgreementActivation => AgreementActivation::class,
             self::PaymentReversal => PaymentReversal::class,
+            self::CreditNote => CreditNoteHandler::class,
         };
     }
 }

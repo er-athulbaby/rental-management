@@ -4,6 +4,7 @@ namespace App\Livewire\Invoices;
 
 use App\Actions\Billing\CancelDraftInvoice;
 use App\Actions\Billing\IssueInvoice;
+use App\Actions\Billing\SubmitCreditNote;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Invoice;
 use Flux\Flux;
@@ -50,14 +51,24 @@ class Show extends Component
         Flux::toast(text: __('Draft cancelled.'));
     }
 
+    public function submitCreditNote(SubmitCreditNote $submit): void
+    {
+        try {
+            $submit->handle($this->actor(), Invoice::findOrFail($this->invoiceId));
+        } catch (AuthorizationException) {
+            abort(403);
+        }        Flux::toast(variant: 'success', text: __('Credit note sent for approval.'));
+    }
+
     public function render(): View
     {
-        $invoice = Invoice::with(['customer', 'agreement:id,number', 'lines.unit.building', 'lines.ownerContract:id,number', 'issuer:id,name'])->findOrFail($this->invoiceId);
+        $invoice = Invoice::with(['customer', 'agreement:id,number', 'lines.unit.building', 'lines.ownerContract:id,number', 'issuer:id,name', 'relatedInvoice', 'creditNotes'])->findOrFail($this->invoiceId);
 
         return view('livewire.invoices.show', [
             'invoice' => $invoice,
             'canEdit' => $this->actor()->can('update', $invoice),
             'canIssue' => $this->actor()->can('issue', $invoice),
+            'canCredit' => $this->actor()->can('credit', $invoice),
         ])->title($invoice->label());
     }
 }
