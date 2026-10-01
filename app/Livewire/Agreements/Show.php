@@ -5,6 +5,7 @@ namespace App\Livewire\Agreements;
 use App\Actions\Agreements\DeleteDraftAgreement;
 use App\Actions\Agreements\RecordMoveOut;
 use App\Actions\Agreements\RecordNotice;
+use App\Actions\Agreements\RenewAgreement;
 use App\Actions\Agreements\SubmitAgreement;
 use App\Enums\AmendmentStatus;
 use App\Livewire\Concerns\WithActor;
@@ -113,6 +114,24 @@ class Show extends Component
         Flux::toast(variant: 'success', text: __('Move-out recorded.'));
     }
 
+    /** @var list<int|string> */
+    public array $renewUnits = [];
+
+    public string $renewEnd = '';
+
+    public function renew(RenewAgreement $renew): void
+    {
+        try {
+            $draft = $renew->handle($this->actor(), $this->agreement(), array_map('intval', $this->renewUnits), $this->renewEnd);
+        } catch (AuthorizationException) {
+            abort(403);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(['renewUnits' => Arr::flatten($e->errors())]);
+        }
+
+        $this->redirectRoute('agreements.edit', $draft, navigate: true);
+    }
+
     public function deleteAmendmentDraft(int $amendmentId): void
     {
         $amendment = AgreementAmendment::query()->where('agreement_id', $this->agreementId)->findOrFail($amendmentId);
@@ -131,6 +150,8 @@ class Show extends Component
             'canManage' => $this->actor()->can('update', $agreement),
             'amendments' => $agreement->amendments()->with('creator:id,name')->latest('id')->get(),
             'canAmend' => $this->actor()->can('update', $agreement) && $agreement->status->value === 'active',
+            'canRenew' => $this->actor()->can('create', Agreement::class) && $this->actor()->can('update', $agreement) && in_array($agreement->status->value, ['active', 'expired'], true),
+            'renewal' => Agreement::query()->where('previous_agreement_id', $agreement->id)->latest('id')->first(),
             'canEnterCheques' => $this->actor()->can('manage', Cheque::class) && $agreement->status->value === 'active',
             'invoices' => $this->actor()->can('viewAny', Invoice::class)
                 ? $agreement->invoices()->orderBy('due_date')->orderBy('id')->get()

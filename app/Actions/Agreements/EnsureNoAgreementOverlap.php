@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 
-/** Spec §5.5, on submit and again on approval. Run inside the caller's transaction, before anything else. */
+/** Spec §5.5, on submit and again on approval. Run inside the caller's transaction, before anything else except the customer lock. */
 final class EnsureNoAgreementOverlap
 {
     /**
@@ -46,7 +46,12 @@ final class EnsureNoAgreementOverlap
                 ->where('a.status', '<>', 'draft')          // drafts never hold units
                 ->whereNull('a.deleted_at')
                 ->where('au.start_date', '<=', $line->end_date)
-                ->whereRaw('('.AgreementUnit::effectiveEndSql('au').') >= ?', [$today, $line->start_date])
+                // Spec §5.8: the agreement being renewed holds a carried unit only to its end_date (or a later move-out).
+                ->where(fn ($q) => $q
+                    ->where(fn ($q) => $q->where('a.id', '<>', $agreement->previous_agreement_id ?? 0)
+                        ->whereRaw('('.AgreementUnit::effectiveEndSql('au').') >= ?', [$today, $line->start_date]))
+                    ->orWhere(fn ($q) => $q->where('a.id', $agreement->previous_agreement_id ?? 0)
+                        ->whereRaw('GREATEST(au.end_date, COALESCE(au.move_out_date, au.end_date)) >= ?', [$line->start_date])))
                 ->lockForUpdate()
                 ->first(['u.code', 'a.id', 'a.number']);
 

@@ -28,6 +28,9 @@
                     </flux:menu>
                 </flux:dropdown>
             @endif
+            @if ($canRenew)
+                <flux:modal.trigger name="renew"><flux:button>{{ __('Renew') }}</flux:button></flux:modal.trigger>
+            @endif
             @if ($canEnterCheques)
                 <flux:button :href="route('cheques.entry', ['agreement' => $agreement->id])" wire:navigate>{{ __('Enter cheques') }}</flux:button>
             @endif
@@ -45,6 +48,10 @@
     @php($lastRejection = $agreement->status === AgreementStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null)
     @if ($lastRejection)
         <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
+    @endif
+
+    @if ($renewal)
+        <flux:text>{{ __('Renewed by') }} <flux:link :href="route('agreements.show', $renewal)" wire:navigate>{{ $renewal->label() }}</flux:link></flux:text>
     @endif
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -196,4 +203,17 @@
     @endif
 
     <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
+
+    <flux:modal name="renew" class="md:w-96">
+        <form wire:submit="renew" class="space-y-4">
+            <flux:heading size="lg">{{ __('Renew from :d', ['d' => $agreement->end_date->addDay()->format('d/m/Y')]) }}</flux:heading>
+            <flux:checkbox.group wire:model="renewUnits" :label="__('Units to carry')">
+                @foreach ($agreement->agreementUnits as $au)<flux:checkbox value="{{ $au->unit_id }}" :label="$au->unit->building->code.' / '.$au->unit->code" />@endforeach
+            </flux:checkbox.group>
+            <flux:input wire:model="renewEnd" type="date" :label="__('New end date')" />
+            <flux:error name="renewUnits" />
+            <flux:text size="sm">{{ __('A draft opens with the current rents and deposits; change them before sending it for approval.') }}</flux:text>
+            <flux:button variant="primary" type="submit">{{ __('Create renewal draft') }}</flux:button>
+        </form>
+    </flux:modal>
 </section>

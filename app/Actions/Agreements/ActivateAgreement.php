@@ -9,6 +9,7 @@ use App\Actions\NextDocumentNumber;
 use App\Enums\AgreementStatus;
 use App\Enums\NumberSequenceKey;
 use App\Models\Agreement;
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -23,6 +24,7 @@ final class ActivateAgreement
         private GenerateRentSchedule $schedule,
         private CreateDepositInvoice $deposit,
         private IssueDueInvoices $issueDue,
+        private TransferDeposits $transfer,
     ) {}
 
     public function handle(Agreement $agreement, User $approver): Agreement
@@ -31,6 +33,7 @@ final class ActivateAgreement
             throw new LogicException('ActivateAgreement must run inside the caller\'s transaction.');
         }
 
+        Customer::query()->lockForUpdate()->findOrFail($agreement->customer_id); // spec §7.2: customer first, then the units (§5.5)
         $this->overlap->handle($agreement); // checked again on approval
 
         $agreement = Agreement::query()->lockForUpdate()->findOrFail($agreement->id);
@@ -45,7 +48,9 @@ final class ActivateAgreement
         ])->save();
 
         $this->schedule->handle($agreement, $approver);
-        $this->deposit->handle($agreement, $approver);
+        $agreement->previous_agreement_id !== null
+            ? $this->transfer->handle($agreement, $approver)   // spec §5.8
+            : $this->deposit->handle($agreement, $approver);
         ($this->issueDue)($agreement, $approver); // activation itself issues what is already due (spec §6.3)
 
         return $agreement;
