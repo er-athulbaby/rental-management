@@ -4,6 +4,8 @@ namespace App\Actions\Agreements;
 
 use App\Enums\AgreementStatus;
 use App\Models\Agreement;
+use App\Models\AgreementUnit;
+use App\Models\DepositSettlementUnit;
 use App\Models\User;
 use App\Policies\AgreementPolicy;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -21,10 +23,6 @@ final class RenewAgreement
         if (! $actor->can('create', Agreement::class) || ! AgreementPolicy::allUnitsInScope($actor, $old)) {
             throw new AuthorizationException;
         }
-        if (! in_array($old->status, [AgreementStatus::Active, AgreementStatus::Expired], true)) {
-            throw ValidationException::withMessages(['units' => __('Only an active or expired agreement can be renewed.')]);
-        }
-
         $old->load('agreementUnits.charges');
         $carried = $old->agreementUnits->whereIn('unit_id', $unitIds);
         if ($unitIds === [] || $carried->count() !== count(array_unique($unitIds))) {
@@ -40,8 +38,16 @@ final class RenewAgreement
             $units[] = ['unit_id' => $au->unit_id, 'deposit_amount' => $au->deposit_amount, 'charges' => $charges];
         }
 
-        return DB::transaction(function () use ($actor, $old, $units, $endDate) {
-            Agreement::query()->lockForUpdate()->findOrFail($old->id); // serialises two renewals of the same agreement
+        return DB::transaction(function () use ($actor, $old, $carried, $units, $endDate) {
+            $locked = Agreement::query()->lockForUpdate()->findOrFail($old->id); // serialises two renewals of the same agreement
+            if (! in_array($locked->status, [AgreementStatus::Active, AgreementStatus::Expired], true)) {
+                throw ValidationException::withMessages(['units' => __('Only an active or expired agreement can be renewed.')]);
+            }
+            $busy = AgreementUnit::query()->whereIn('id', $carried->pluck('id'))->orderBy('id')->lockForUpdate()->get()
+                ->contains(fn (AgreementUnit $au) => $au->move_out_date !== null || DepositSettlementUnit::query()->where('agreement_unit_id', $au->id)->exists());
+            if ($busy) {
+                throw ValidationException::withMessages(['units' => __('A unit that has moved out or is in a deposit settlement cannot be renewed.')]);
+            }
             if (Agreement::query()->where('previous_agreement_id', $old->id)->whereIn('status', [AgreementStatus::Draft, AgreementStatus::PendingApproval, AgreementStatus::Active])->exists()) {
                 throw ValidationException::withMessages(['units' => __('This agreement already has a renewal.')]);
             }

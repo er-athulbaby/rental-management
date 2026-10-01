@@ -6,17 +6,20 @@ use App\Actions\Billing\BuildCreditNote;
 use App\Actions\Billing\CreateDepositInvoice;
 use App\Actions\Billing\IssueCreditNote;
 use App\Actions\Deposits\CreateDepositSettlement;
+use App\Enums\AgreementStatus;
 use App\Enums\DepositMovementType;
 use App\Enums\InvoiceChargeType;
 use App\Enums\InvoiceStatus;
 use App\Models\Agreement;
 use App\Models\AgreementUnit;
 use App\Models\DepositMovement;
+use App\Models\DepositSettlementUnit;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 
 /**
@@ -38,8 +41,13 @@ final class TransferDeposits
             throw new LogicException('TransferDeposits must run inside the caller\'s transaction.');
         }
 
-        $old = Agreement::query()->findOrFail($renewal->previous_agreement_id);
-        $oldUnits = AgreementUnit::query()->where('agreement_id', $old->id)->get()->keyBy('unit_id');
+        $old = Agreement::query()->lockForUpdate()->findOrFail($renewal->previous_agreement_id);
+        $newUnitIds = AgreementUnit::query()->where('agreement_id', $renewal->id)->pluck('unit_id');
+        $oldUnits = AgreementUnit::query()->where('agreement_id', $old->id)->whereIn('unit_id', $newUnitIds)->orderBy('id')->lockForUpdate()->get()->keyBy('unit_id');
+        if (! in_array($old->status, [AgreementStatus::Active, AgreementStatus::Expired], true)
+            || $oldUnits->contains(fn (AgreementUnit $au) => $au->move_out_date !== null || DepositSettlementUnit::query()->where('agreement_unit_id', $au->id)->exists())) {
+            throw ValidationException::withMessages(['approval' => __('The agreement being renewed has changed; a carried unit has moved out or is being settled.')]);
+        }
         $amounts = [];
         $leftover = [];
         $now = now();
@@ -69,7 +77,7 @@ final class TransferDeposits
             }
 
             // 2. Carry min(held, new deposit).
-            $held = DepositMovement::heldFils($oldAu->id);
+            $held = DepositMovement::heldFils($oldAu->id, lock: true);
             $carry = min($held, $wanted);
             if ($carry > 0) {
                 $owner = DepositMovement::ownerContractFor($oldAu->id);

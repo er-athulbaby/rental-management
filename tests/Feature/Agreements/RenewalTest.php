@@ -109,3 +109,31 @@ test('renewing needs an active or expired agreement, carried units of it, and no
     app(RenewAgreement::class)->handle($this->leasing, $this->old, [$this->u1->id], '2027-09-30');
     expect(fn () => app(RenewAgreement::class)->handle($this->leasing, $this->old, [$this->u2->id], '2027-09-30'))->toThrow(ValidationException::class);
 });
+
+test('a unit that has moved out cannot be renewed', function () {
+    app(RecordMoveOut::class)->handle($this->leasing, $this->old->fresh(), ($this->oldAu)($this->u1), '2026-09-20', null, null);
+
+    expect(fn () => app(RenewAgreement::class)->handle($this->leasing, $this->old->fresh(), [$this->u1->id], '2027-09-30'))->toThrow(ValidationException::class);
+});
+
+test('a carried unit moving out before approval stops the transfer', function () {
+    ($this->depositPaid)('800.000');
+    $draft = app(RenewAgreement::class)->handle($this->leasing, $this->old->fresh(), [$this->u1->id], '2027-09-30');
+    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh());
+    app(RecordMoveOut::class)->handle($this->leasing, $this->old->fresh(), ($this->oldAu)($this->u1), '2026-09-25', null, null);
+
+    expect(fn () => app(DecideApproval::class)->handle($this->management, $approval, true))->toThrow(ValidationException::class)
+        ->and(DepositMovement::whereIn('type', ['transfer_out', 'transfer_in'])->count())->toBe(0)
+        ->and($draft->fresh()->status->value)->toBe('pending_approval');
+});
+
+test('a renewal pending while the old agreement closes cannot activate', function () {
+    ($this->depositPaid)('800.000');
+    $draft = app(RenewAgreement::class)->handle($this->leasing, $this->old->fresh(), [$this->u1->id], '2027-09-30');
+    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh());
+    app(RecordMoveOut::class)->handle($this->leasing, $this->old->fresh(), null, '2026-09-25', null, null);
+    expect($this->old->fresh()->status->value)->toBe('closed');
+
+    expect(fn () => app(DecideApproval::class)->handle($this->management, $approval, true))->toThrow(ValidationException::class)
+        ->and($draft->fresh()->status->value)->toBe('pending_approval');
+});
