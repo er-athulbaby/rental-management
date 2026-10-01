@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property int $invoice_id
  * @property int|null $agreement_unit_id
+ * @property int|null $agreement_unit_charge_id
  * @property int|null $unit_id
  * @property InvoiceChargeType $charge_type
  * @property string $description
@@ -56,6 +57,12 @@ class InvoiceLine extends Model
     public function agreementUnit(): BelongsTo
     {
         return $this->belongsTo(AgreementUnit::class);
+    }
+
+    /** @return BelongsTo<AgreementUnitCharge, $this> */
+    public function charge(): BelongsTo
+    {
+        return $this->belongsTo(AgreementUnitCharge::class, 'agreement_unit_charge_id');
     }
 
     /** @return BelongsTo<Unit, $this> */
