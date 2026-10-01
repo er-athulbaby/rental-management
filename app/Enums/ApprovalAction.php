@@ -5,6 +5,7 @@ namespace App\Enums;
 use App\Approvals\AgreementActivation;
 use App\Approvals\ApprovalHandler;
 use App\Approvals\CreditNote as CreditNoteHandler;
+use App\Approvals\DepositSettlementApproval;
 use App\Approvals\OwnerContractActivation;
 use App\Approvals\OwnerContractTermination;
 use App\Approvals\PaymentOut as PaymentOutHandler;
@@ -21,6 +22,7 @@ enum ApprovalAction: string
     case CreditNote = 'credit_note.issue';
     case PaymentOut = 'payment_out.approve';
     case PaymentOutReversal = 'payment_out.reverse';
+    case DepositSettlement = 'deposit_settlement.approve';
 
     public function label(): string
     {
@@ -32,6 +34,7 @@ enum ApprovalAction: string
             self::CreditNote => __('Credit note'),
             self::PaymentOut => __('Payment out'),
             self::PaymentOutReversal => __('Payment out reversal'),
+            self::DepositSettlement => __('Deposit settlement'),
         };
     }
 
@@ -46,6 +49,7 @@ enum ApprovalAction: string
             self::CreditNote => CreditNoteHandler::class,
             self::PaymentOut => PaymentOutHandler::class,
             self::PaymentOutReversal => PaymentOutReversalHandler::class,
+            self::DepositSettlement => DepositSettlementApproval::class,
         };
     }
 }

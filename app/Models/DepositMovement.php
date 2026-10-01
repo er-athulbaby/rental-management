@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DepositMovementType;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,5 +33,18 @@ class DepositMovement extends Model
     public function agreementUnit(): BelongsTo
     {
         return $this->belongsTo(AgreementUnit::class);
+    }
+
+    /** Deposit held per agreement unit = Σ amount (spec §7.6). */
+    public static function heldFils(int $agreementUnitId): int
+    {
+        return Fils::fromDecimal((string) (self::query()->where('agreement_unit_id', $agreementUnitId)->sum('amount') ?: '0'));
+    }
+
+    /** Spec §7.6, plan ruling 8: applied, refunded and transfer_out copy the stamp of the unit's latest positive movement. */
+    public static function ownerContractFor(int $agreementUnitId): ?int
+    {
+        return self::query()->where('agreement_unit_id', $agreementUnitId)->where('amount', '>', 0)
+            ->whereIn('type', ['received', 'opening', 'transfer_in'])->latest('id')->value('owner_contract_id');
     }
 }

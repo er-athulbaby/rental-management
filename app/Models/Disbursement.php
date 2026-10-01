@@ -73,7 +73,7 @@ class Disbursement extends Model
     {
         return match ($this->source_type) {
             self::SOURCE_PAYMENT => Payment::query()->find($this->source_id),
-            self::SOURCE_SETTLEMENT => null, // Task 5 returns DepositSettlement::query()->find($this->source_id)
+            self::SOURCE_SETTLEMENT => DepositSettlement::query()->find($this->source_id),
             default => null,
         };
     }
