@@ -16,7 +16,7 @@ final class ClearIssuedCheque
 {
     public function handle(User $actor, Cheque $cheque, string $clearedOn): void
     {
-        if (! $actor->can('manage', Cheque::class)) {
+        if (! $actor->can('manage', Cheque::class) || ! Cheque::query()->visibleTo($actor)->whereKey($cheque->id)->exists()) {
             throw new AuthorizationException;
         }
         Validator::make(['cleared_on' => $clearedOn], ['cleared_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Bahrain')->toDateString()]])->validate();
