@@ -47,6 +47,13 @@ final class RecordMoveOut
             if ($targets->isEmpty() || $targets->contains(fn (AgreementUnit $au) => $au->move_out_date !== null)) {
                 throw ValidationException::withMessages(['move_out_date' => __('That move-out is already recorded.')]);
             }
+            // Spec §5.8: a unit carried into a pending or active renewal continues there; only uncarried units move out.
+            $carried = AgreementUnit::query()->whereIn('unit_id', $targets->pluck('unit_id'))
+                ->whereHas('agreement', fn ($q) => $q->where('previous_agreement_id', $agreement->id)->whereIn('status', [AgreementStatus::PendingApproval, AgreementStatus::Active]))
+                ->exists();
+            if ($carried) {
+                throw ValidationException::withMessages(['move_out_date' => __('A unit carried into the renewal continues there and gets no move-out here.')]);
+            }
             if ($targets->contains(fn (AgreementUnit $au) => $moveOutDate < $au->start_date->toDateString())) {
                 throw ValidationException::withMessages(['move_out_date' => __('The move-out cannot be before the unit\'s start date.')]);
             }

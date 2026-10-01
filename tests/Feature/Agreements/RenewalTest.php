@@ -119,21 +119,46 @@ test('a unit that has moved out cannot be renewed', function () {
 test('a carried unit moving out before approval stops the transfer', function () {
     ($this->depositPaid)('800.000');
     $draft = app(RenewAgreement::class)->handle($this->leasing, $this->old->fresh(), [$this->u1->id], '2027-09-30');
-    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh());
     app(RecordMoveOut::class)->handle($this->leasing, $this->old->fresh(), ($this->oldAu)($this->u1), '2026-09-25', null, null);
+    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh()); // moved out while the renewal was a draft
 
     expect(fn () => app(DecideApproval::class)->handle($this->management, $approval, true))->toThrow(ValidationException::class)
         ->and(DepositMovement::whereIn('type', ['transfer_out', 'transfer_in'])->count())->toBe(0)
         ->and($draft->fresh()->status->value)->toBe('pending_approval');
 });
 
-test('a renewal pending while the old agreement closes cannot activate', function () {
+test('a renewal drafted while the old agreement closes cannot activate', function () {
     ($this->depositPaid)('800.000');
     $draft = app(RenewAgreement::class)->handle($this->leasing, $this->old->fresh(), [$this->u1->id], '2027-09-30');
-    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh());
     app(RecordMoveOut::class)->handle($this->leasing, $this->old->fresh(), null, '2026-09-25', null, null);
+    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh()); // closed while the renewal was a draft
     expect($this->old->fresh()->status->value)->toBe('closed');
 
     expect(fn () => app(DecideApproval::class)->handle($this->management, $approval, true))->toThrow(ValidationException::class)
         ->and($draft->fresh()->status->value)->toBe('pending_approval');
+});
+
+test('a unit carried into a pending or active renewal gets no move-out of its own', function () {
+    ($this->depositPaid)('800.000');
+    $draft = app(RenewAgreement::class)->handle($this->leasing, $this->old->fresh(), [$this->u1->id], '2027-09-30');
+    $approval = app(SubmitAgreement::class)->handle($this->leasing, $draft->fresh());
+    $moveOut = fn (?Unit $u) => app(RecordMoveOut::class)->handle($this->leasing, $this->old->fresh(), $u ? ($this->oldAu)($u) : null, '2026-10-03', null, null);
+
+    foreach (['pending', 'active'] as $stage) {
+        if ($stage === 'active') {
+            app(DecideApproval::class)->handle($this->management, $approval, true);
+        }
+        foreach ([$this->u1, null] as $target) {
+            try {
+                $moveOut($target);
+                $this->fail("A move-out on a carried unit was recorded ({$stage}).");
+            } catch (ValidationException $e) {
+                expect($e->errors())->toHaveKey('move_out_date');
+            }
+        }
+        expect(($this->oldAu)($this->u1)->move_out_date)->toBeNull();
+    }
+
+    $moveOut($this->u2); // the uncarried unit still moves out
+    expect(($this->oldAu)($this->u2)->move_out_date?->toDateString())->toBe('2026-10-03');
 });
