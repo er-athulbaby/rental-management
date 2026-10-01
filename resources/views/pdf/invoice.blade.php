@@ -6,7 +6,7 @@
     table { width: 100%; border-collapse: collapse; }
     table.lines th, table.lines td { border-bottom: 0.2mm solid #bbb; padding: 1.5mm; text-align: left; }
     table.lines th { background: #f0f0f0; }
-    .num { text-align: right; }
+    table.lines td.num, table.lines th.num, .num { text-align: right; }
     .muted { color: #555; }
 </style>
 </head>

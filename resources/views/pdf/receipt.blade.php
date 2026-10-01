@@ -5,7 +5,7 @@
     h1 { font-size: 15pt; margin: 0 0 3mm; }
     table { width: 100%; border-collapse: collapse; }
     table.lines td, table.lines th { border-bottom: 0.2mm solid #bbb; padding: 1.5mm; text-align: left; }
-    .num { text-align: right; }
+    table.lines td.num, table.lines th.num, .num { text-align: right; }
     .muted { color: #555; }
 </style>
 </head>
