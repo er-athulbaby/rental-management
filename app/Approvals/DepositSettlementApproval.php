@@ -44,6 +44,6 @@ final class DepositSettlementApproval implements ApprovalHandler
 
     public function url(Approval $approval): string
     {
-        return route('approvals.index'); // Task 6 points this at the settlement page
+        return route('deposit-settlements.show', $approval->approvable_id);
     }
 }

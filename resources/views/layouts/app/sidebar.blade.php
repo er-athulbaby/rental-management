@@ -36,6 +36,7 @@
                         <flux:sidebar.item icon="credit-card" :href="route('payments.index')" :current="request()->routeIs('payments.*')" wire:navigate>{{ __('Payments') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="banknotes" :href="route('cheques.index')" :current="request()->routeIs('cheques.*')" wire:navigate>{{ __('Cheques') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="arrow-up-right" :href="route('disbursements.index')" :current="request()->routeIs('disbursements.*')" wire:navigate>{{ __('Payments out') }}</flux:sidebar.item>
+                        <flux:sidebar.item icon="shield-check" :href="route('deposit-settlements.index')" :current="request()->routeIs('deposit-settlements.*')" wire:navigate>{{ __('Deposit settlements') }}</flux:sidebar.item>
                     </flux:sidebar.group>
                 @endcan
 

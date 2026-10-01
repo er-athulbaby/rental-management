@@ -5,13 +5,19 @@ namespace App\Actions\Disbursements;
 use App\Actions\NextDocumentNumber;
 use App\Enums\ChequeDirection;
 use App\Enums\ChequeStatus;
+use App\Enums\DepositMovementType;
+use App\Enums\DepositSettlementStatus;
 use App\Enums\DisbursementMethod;
+use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\NumberSequenceKey;
 use App\Enums\PayeeType;
 use App\Models\Cheque;
+use App\Models\DepositMovement;
+use App\Models\DepositSettlement;
 use App\Models\Disbursement;
 use App\Models\User;
+use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -45,8 +51,6 @@ final class MarkDisbursementPaid
             $chequeId = $cheque->id;
         }
 
-        // Task 6 adds: refunded deposit movements.
-
         $locked->forceFill([
             'status' => DisbursementStatus::Paid,
             'number' => ($this->next)(NumberSequenceKey::PaymentOut),
@@ -57,5 +61,32 @@ final class MarkDisbursementPaid
             'posted_at' => now(),
             'recorded_by' => $actor->id,
         ])->save();
+
+        // Spec §7.7: a deposit refund writes refunded movements, unit by unit up to each unit's refund, and completes the
+        // settlement once fully refunded.
+        if ($locked->purpose === DisbursementPurpose::DepositRefund) {
+            $settlement = DepositSettlement::query()->lockForUpdate()->with('units')->findOrFail($locked->source_id);
+            $left = Fils::fromDecimal($locked->amount);
+            foreach ($settlement->units as $unit) {
+                $refundedHere = -Fils::fromDecimal((string) (DepositMovement::query()->where('agreement_unit_id', $unit->agreement_unit_id)
+                    ->where('type', DepositMovementType::Refunded)->sum('amount') ?: '0'));
+                $take = min($left, Fils::fromDecimal((string) $unit->refund_amount) - $refundedHere);
+                if ($take > 0) {
+                    DepositMovement::create([
+                        'agreement_unit_id' => $unit->agreement_unit_id,
+                        'owner_contract_id' => DepositMovement::ownerContractFor($unit->agreement_unit_id),
+                        'type' => DepositMovementType::Refunded,
+                        'amount' => Fils::toDecimal(-$take),
+                        'source_type' => 'disbursement',
+                        'source_id' => $locked->id,
+                        'posted_at' => now(),
+                    ]);
+                    $left -= $take;
+                }
+            }
+            if ($settlement->refundedFils() >= $settlement->refundFils()) {
+                $settlement->forceFill(['status' => DepositSettlementStatus::Completed])->save();
+            }
+        }
     }
 }

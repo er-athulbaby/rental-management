@@ -9,6 +9,7 @@ use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\AgreementUnit;
 use App\Models\Cheque;
+use App\Models\DepositSettlement;
 use App\Models\Invoice;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -93,6 +94,9 @@ class Show extends Component
             'canEnterCheques' => $this->actor()->can('manage', Cheque::class) && $agreement->status->value === 'active',
             'invoices' => $this->actor()->can('viewAny', Invoice::class)
                 ? $agreement->invoices()->orderBy('due_date')->orderBy('id')->get()
+                : collect(),
+            'settlements' => $this->actor()->can('viewAny', DepositSettlement::class)
+                ? DepositSettlement::query()->where('agreement_id', $agreement->id)->latest('id')->get()
                 : collect(),
             'approvals' => $agreement->approvals()->with(['requester:id,name', 'decider:id,name'])->latest('id')->get(),
         ])->title($agreement->label());

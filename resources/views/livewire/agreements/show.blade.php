@@ -118,6 +118,15 @@
         </div>
     @endif
 
+    @if ($settlements->isNotEmpty())
+        <div class="space-y-1">
+            <flux:heading size="lg">{{ __('Deposit settlements') }}</flux:heading>
+            @foreach ($settlements as $st)
+                <div class="text-sm"><flux:link :href="route('deposit-settlements.show', $st)" wire:navigate>{{ $st->label() }}</flux:link> · {{ $st->status->label() }}</div>
+            @endforeach
+        </div>
+    @endif
+
     @if ($approvals->isNotEmpty())
         <div class="space-y-2">
             <flux:heading size="lg">{{ __('Approval history') }}</flux:heading>

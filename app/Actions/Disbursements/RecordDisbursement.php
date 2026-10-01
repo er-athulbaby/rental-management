@@ -4,12 +4,14 @@ namespace App\Actions\Disbursements;
 
 use App\Actions\Approvals\RequestApproval;
 use App\Enums\ApprovalAction;
+use App\Enums\DepositSettlementStatus;
 use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\PayeeType;
 use App\Enums\PaymentStatus;
 use App\Models\Customer;
+use App\Models\DepositSettlement;
 use App\Models\Disbursement;
 use App\Models\Owner;
 use App\Models\Payment;
@@ -22,7 +24,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Spec §7.5. With a source (a payment holding credit; a deposit settlement from Task 6): paid at once, within the
+ * Spec §7.5. With a source (a payment holding credit; a deposit settlement): paid at once, within the
  * source's limit. Without one (purpose other): pending → Management (§8.3 item 9) → approved → PayDisbursement.
  */
 final class RecordDisbursement
@@ -38,15 +40,17 @@ final class RecordDisbursement
 
         $today = now('Asia/Bahrain')->toDateString();
         // A source-less payment out (purpose other) gets its cheque details when Finance pays it, not now.
-        $chequeNow = ($data['method'] ?? null) === DisbursementMethod::Cheque->value && ($data['purpose'] ?? null) === DisbursementPurpose::CreditRefund->value;
+        $chequeNow = ($data['method'] ?? null) === DisbursementMethod::Cheque->value
+            && in_array($data['purpose'] ?? null, [DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value], true);
         $v = Validator::make($data, [
-            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::Other->value])], // Task 6 adds deposit_refund
+            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::Other->value])],
             'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
             'method' => ['required', Rule::enum(DisbursementMethod::class)],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'paid_on' => ['required_unless:purpose,other', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.$today],
             'payment_id' => ['required_if:purpose,credit_refund', 'nullable', 'integer', Rule::exists('payments', 'id')],
+            'deposit_settlement_id' => ['required_if:purpose,deposit_refund', 'nullable', 'integer', Rule::exists('deposit_settlements', 'id')],
             'payee_type' => ['required_if:purpose,other', 'nullable', Rule::enum(PayeeType::class)],
             'payee_id' => ['required_if:purpose,other', 'nullable', 'integer'],
             'cheque_no' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:30'],
@@ -60,6 +64,7 @@ final class RecordDisbursement
         return DB::transaction(function () use ($actor, $v, $amount) {
             return match ($v['purpose']) {
                 DisbursementPurpose::CreditRefund->value => $this->creditRefund($actor, $v, $amount),
+                DisbursementPurpose::DepositRefund->value => $this->depositRefund($actor, $v, $amount),
                 default => $this->other($actor, $v, $amount),
             };
         }, attempts: 3);
@@ -96,6 +101,39 @@ final class RecordDisbursement
             'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null,
             ...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])),
         ], $actor);
+
+        return $out->refresh();
+    }
+
+    /** @param  array<string, mixed>  $v */
+    private function depositRefund(User $actor, array $v, int $amount): Disbursement
+    {
+        $settlement = DepositSettlement::query()->with('agreement')->findOrFail((int) $v['deposit_settlement_id']);
+        $customer = Customer::query()->lockForUpdate()->findOrFail($settlement->agreement->customer_id); // first lock
+        if (! $actor->can('view', $settlement)) {
+            throw new AuthorizationException;
+        }
+        $settlement = DepositSettlement::query()->lockForUpdate()->findOrFail($settlement->id);
+
+        $left = $settlement->refundFils() - $settlement->refundedFils();
+        if ($settlement->status !== DepositSettlementStatus::Approved || $amount > $left) {
+            throw ValidationException::withMessages(['amount' => __('At most :c BHD of this settlement is left to refund.', ['c' => Fils::toDecimal(max(0, $left))])]);
+        }
+
+        $out = (new Disbursement)->forceFill([
+            'payee_type' => PayeeType::Customer,
+            'payee_id' => $customer->id,
+            'purpose' => DisbursementPurpose::DepositRefund,
+            'amount' => Fils::toDecimal($amount),
+            'method' => $v['method'],
+            'source_type' => Disbursement::SOURCE_SETTLEMENT,
+            'source_id' => $settlement->id,
+            'status' => DisbursementStatus::Approved,
+            'notes' => $v['notes'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+        $out->save();
+        $this->paid->handle($out, [...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])), 'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
 
         return $out->refresh();
     }

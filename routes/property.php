@@ -10,6 +10,7 @@ use App\Livewire\Approvals;
 use App\Livewire\Buildings;
 use App\Livewire\Cheques;
 use App\Livewire\Customers;
+use App\Livewire\DepositSettlements;
 use App\Livewire\Disbursements;
 use App\Livewire\Expenses;
 use App\Livewire\Import;
@@ -63,6 +64,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('disbursements', Disbursements\Index::class)->middleware('can:finance.view')->name('disbursements.index');
     Route::livewire('disbursements/create', Disbursements\Create::class)->middleware('can:disbursements.manage')->name('disbursements.create');
     Route::livewire('disbursements/{disbursement}', Disbursements\Show::class)->middleware('can:finance.view')->name('disbursements.show');
+    Route::livewire('deposit-settlements', DepositSettlements\Index::class)->middleware('can:finance.view')->name('deposit-settlements.index');
+    Route::livewire('deposit-settlements/{settlement}', DepositSettlements\Show::class)->middleware('can:finance.view')->name('deposit-settlements.show');
     Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');
     Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');
