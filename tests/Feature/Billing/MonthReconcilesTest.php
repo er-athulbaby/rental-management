@@ -69,7 +69,7 @@ test('October 2026 reconciles to the fil', function () {
     $this->artisan('rms:invoices:issue')->assertExitCode(0);
 
     // The deposit invoices were issued at activation (25 September), due on each start date.
-    // Corporate: October's cheque clears; a transfer pays both deposits. Family: cash pays the deposit and part of the stub.
+    // Corporate: October's cheque clears; a transfer pays both deposits. Family: cash pays the stub (lower id) and part of the deposit.
     $octRent = Invoice::where('agreement_id', $a1->id)->where('type', 'rent')->where('status', 'issued')->sole();
     $cheque = app(RecordCheques::class)->handle($finance, $corporate, $a1, [['cheque_no' => '7001', 'bank_name' => 'NBB', 'cheque_date' => '2026-10-01', 'amount' => $octRent->total, 'invoice_id' => $octRent->id]])->sole();
     $this->travelTo(CarbonImmutable::parse('2026-10-02 10:00', 'Asia/Bahrain'));

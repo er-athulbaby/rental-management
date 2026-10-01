@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Agreements\SaveAgreement;
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\Billing\GenerateRentSchedule;
 use App\Actions\Billing\SaveCreditNote;
@@ -41,6 +42,10 @@ beforeEach(function () {
     $this->invoice = issuedInvoice($this->customer, [['net' => '100.000']], now()->toDateString(), $this->agreement);
     $this->payment = app(RecordPayment::class)->handle($finance, $this->customer, ['received_on' => now('Asia/Bahrain')->toDateString(), 'method' => 'cash', 'amount' => '10']);
     $this->cheque = app(RecordCheques::class)->handle($finance, $this->customer, $this->agreement, [['cheque_no' => '1', 'bank_name' => 'NBB', 'cheque_date' => now()->toDateString(), 'amount' => '400']])->sole();
+    $this->draft = app(SaveAgreement::class)->handle(matrixUser(R::Leasing, $this->building), null, [
+        'customer_id' => $this->customer->id, 'start_date' => '2031-01-01', 'end_date' => '2031-12-31', 'frequency' => 'monthly',
+        'units' => [['unit_id' => $this->unit->id, 'charges' => [['type' => 'rent', 'monthly_amount' => '300', 'tax_category' => 'exempt']]]],
+    ]);
     $this->creditNote = app(SubmitCreditNote::class)->handle($finance, app(SaveCreditNote::class)->handle($finance, $this->invoice, null, ['reason' => 'x', 'lines' => [['credited_line_id' => $this->invoice->lines->sole()->id, 'amount' => '1']]]));
 });
 
@@ -66,9 +71,10 @@ test('pages open for exactly the roles the spec allows', function (string $route
     ['cheques.entry', fn () => ['agreement' => $this->agreement->id], [R::Finance]],
     ['cheques.show', fn () => [$this->cheque], $view],
     ['customers.statement', fn () => [$this->customer], $view],
-    // M2 carry-in: show, edit and PDF routes of agreements.
+    // M2 carry-in: show, PDF and edit routes of agreements (edit needs a draft).
     ['agreements.show', fn () => [$this->agreement], [R::Admin, R::Management, R::Finance, R::PropertyManager, R::Leasing, R::VendorSupport]],
     ['agreements.pdf', fn () => [$this->agreement], [R::Admin, R::Management, R::Finance, R::PropertyManager, R::Leasing, R::VendorSupport]],
+    ['agreements.edit', fn () => [$this->draft], [R::Admin, R::PropertyManager, R::Leasing, R::VendorSupport]],
 ]);
 
 test('each protected Action allows exactly the spec roles', function (string $name, Closure $run, array $allowed) {
