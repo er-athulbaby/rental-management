@@ -65,7 +65,6 @@ test('pages open for exactly the roles the spec allows', function (string $route
 test('each protected Action allows exactly the spec roles', function (string $name, Closure $run, array $allowed) {
     foreach (R::cases() as $role) {
         $user = matrixUser($role, $this->building);
-        $denied = false;
         $rollback = new RuntimeException('matrix rollback');
         try {
             // The sentinel rolls the run back so each role starts from the same state.
@@ -73,17 +72,18 @@ test('each protected Action allows exactly the spec roles', function (string $na
                 $run->call($this, $user);
                 throw $rollback;
             });
+            $outcome = 'no rollback';
         } catch (AuthorizationException) {
-            $denied = true;
-        } catch (ValidationException) {
-            // through authorisation; the data was refused
+            $outcome = 'denied';
+        } catch (ValidationException $e) {
+            $outcome = 'refused: '.json_encode($e->errors()); // an allowed role must run, a denied one must be denied
         } catch (RuntimeException $e) {
-            if ($e !== $rollback) {
-                throw $e;
-            }
+            $outcome = $e === $rollback ? 'ran' : throw $e;
         }
 
-        expect($denied)->toBe(! in_array($role, $allowed, true), "{$name} as {$role->value}");
+        $ran = $outcome === 'ran';
+        expect($ran)->toBe(in_array($role, $allowed, true), "{$name} as {$role->value}: {$outcome}")
+            ->and($ran || $outcome === 'denied')->toBeTrue("{$name} as {$role->value}: {$outcome}");
     }
 })->with([
     ['credit refund', fn (User $u) => app(RecordDisbursement::class)->handle($u, ['purpose' => 'credit_refund', 'payment_id' => $this->payment->id, 'amount' => '1', 'method' => 'cash', 'paid_on' => now('Asia/Bahrain')->toDateString()]), [R::Finance]],
