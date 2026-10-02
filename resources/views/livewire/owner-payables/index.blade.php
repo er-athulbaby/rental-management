@@ -9,6 +9,7 @@
             @endforeach
         </flux:select>
         <flux:input type="date" wire:model.live="dueBy" :label="__('Due by')" />
+        @can('reports.financial')<div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>@endcan
     </div>
 
     <div class="overflow-x-auto">

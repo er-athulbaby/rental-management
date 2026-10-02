@@ -42,6 +42,12 @@
                     </flux:sidebar.group>
                 @endcan
 
+                @can('reports.financial')
+                    <flux:sidebar.group :heading="__('Reports')" class="grid">
+                        <flux:sidebar.item icon="chart-bar" :href="route('reports.building-profitability')" :current="request()->routeIs('reports.building-profitability')" wire:navigate>{{ __('Building profitability') }}</flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endcan
+
                 <flux:sidebar.group :heading="__('Property')" class="grid">
                     @can('buildings.view')
                         <flux:sidebar.item icon="building-office-2" :href="route('buildings.index')" :current="request()->routeIs('buildings.*')" wire:navigate>{{ __('Buildings') }}</flux:sidebar.item>

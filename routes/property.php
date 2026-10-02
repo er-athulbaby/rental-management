@@ -22,6 +22,7 @@ use App\Livewire\OwnerPayables;
 use App\Livewire\Owners;
 use App\Livewire\OwnerStatements;
 use App\Livewire\Payments;
+use App\Livewire\Reports;
 use App\Livewire\Units;
 use App\Models\Expense;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +72,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('disbursements/create', Disbursements\Create::class)->middleware('can:disbursements.manage')->name('disbursements.create');
     Route::livewire('disbursements/{disbursement}', Disbursements\Show::class)->middleware('can:finance.view')->name('disbursements.show');
     Route::livewire('head-lease-payments', OwnerPayables\Index::class)->middleware('can:finance.view')->name('owner-payables.index');
+    Route::livewire('reports/building-profitability', Reports\BuildingProfitabilityReport::class)->middleware('can:reports.financial')->name('reports.building-profitability');
     Route::livewire('owner-statements', OwnerStatements\Index::class)->middleware('can:finance.view')->name('owner-statements.index');
     Route::livewire('owner-statements/{statement}', OwnerStatements\Show::class)->middleware('can:finance.view')->name('owner-statements.show');
     Route::get('owner-statements/{statement}/pdf', OwnerStatementPdfController::class)->middleware('can:finance.view')->name('owner-statements.pdf');

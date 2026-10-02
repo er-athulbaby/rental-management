@@ -3,6 +3,7 @@
 namespace App\Livewire\OwnerPayables;
 
 use App\Actions\Disbursements\RecordDisbursement;
+use App\Audit\Audit;
 use App\Enums\DisbursementMethod;
 use App\Enums\OwnerPayableStatus;
 use App\Livewire\Concerns\WithActor;
@@ -14,10 +15,14 @@ use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Spatie\SimpleExcel\SimpleExcelWriter;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /** Spec §10: head-lease payments due — scheduled payables to owners, paid from here (§7.5). */
 class Index extends Component
@@ -73,14 +78,36 @@ class Index extends Component
             ->whereIn('owner_contract_id', OwnerContract::visibleTo($this->actor())->select('id'));
     }
 
+    /** @return Collection<int, OwnerPayable> */
+    private function rows(): Collection
+    {
+        return $this->payables()
+            ->with(['contract:id,number,owner_id,building_id', 'contract.owner:id,name_en', 'contract.building:id,code'])
+            ->when($this->building, fn ($q, $b) => $q->whereIn('owner_contract_id', OwnerContract::query()->where('building_id', $b)->select('id')))
+            ->where('due_date', '<=', $this->dueBy)
+            ->orderBy('due_date')->orderBy('id')->get();
+    }
+
+    public function export(): BinaryFileResponse
+    {
+        abort_unless($this->actor()->can('reports.financial'), 403);
+        Audit::log('report.exported', properties: ['report' => 'head_lease_due', 'due_by' => $this->dueBy, 'building' => $this->building], causer: $this->actor());
+
+        $path = sys_get_temp_dir().'/rms-head-lease-'.Str::uuid().'.xlsx';
+        $writer = SimpleExcelWriter::create($path);
+        foreach ($this->rows() as $p) {
+            $writer->addRow(['Due' => $p->due_date->toDateString(), 'Contract' => $p->contract?->number, 'Building' => $p->contract?->building?->code,
+                'Owner' => $p->contract?->owner?->name_en, 'From' => $p->period_start->toDateString(), 'To' => $p->period_end->toDateString(), 'Amount' => $p->amount]);
+        }
+        $writer->close();
+
+        return response()->download($path, "head-lease-due-{$this->dueBy}.xlsx")->deleteFileAfterSend();
+    }
+
     public function render(): View
     {
         return view('livewire.owner-payables.index', [
-            'rows' => $this->payables()
-                ->with(['contract:id,number,owner_id,building_id', 'contract.owner:id,name_en', 'contract.building:id,code'])
-                ->when($this->building, fn ($q, $b) => $q->whereIn('owner_contract_id', OwnerContract::query()->where('building_id', $b)->select('id')))
-                ->where('due_date', '<=', $this->dueBy)
-                ->orderBy('due_date')->orderBy('id')->get(),
+            'rows' => $this->rows(),
             'buildings' => Building::visibleTo($this->actor())->orderBy('code')->get(['id', 'code', 'name']),
             'methods' => DisbursementMethod::cases(),
             'canPay' => $this->actor()->can('create', Disbursement::class),
