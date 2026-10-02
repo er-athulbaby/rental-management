@@ -30,7 +30,7 @@ enum ImportKind: string
                 'notice_period_days', 'building_code', 'unit_code', 'unit_start_date', 'unit_end_date', 'deposit_amount', 'rent', 'service_charge', 'parking',
                 'other', 'other_description', 'tax_category'],
             self::CustomerBalances => ['customer_id_type', 'customer_id_number', 'agreement_ref', 'building_code', 'unit_code', 'amount', 'description'],
-            self::OwnerBalances => ['owner_id_type', 'owner_id_number', 'building_code', 'amount', 'notes'],
+            self::OwnerBalances => ['owner_id_type', 'owner_id_number', 'building_code', 'amount'],
         };
     }
 

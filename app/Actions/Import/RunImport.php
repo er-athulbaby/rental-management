@@ -114,10 +114,11 @@ final class RunImport
                 foreach (self::units($kind, $items) as $line => $group) {
                     try {
                         // A savepoint per unit of work: a failed one leaves nothing behind for later ones to trip on.
-                        DB::transaction(fn () => $this->importRow($actor, $kind, array_map(fn (array $r) => $this->normalise($kind, $r), $group), $cutover));
+                        $clean = array_map(fn (array $r) => $this->normalise($kind, $r), $group);
+                        DB::transaction(fn () => $this->importRow($actor, $kind, $clean, $cutover));
                         $passed += count($group);
                         if (($column = $kind->moneyColumn()) !== null) {
-                            $totals[$kind->value] = ($totals[$kind->value] ?? 0) + array_sum(array_map(fn (array $r) => Fils::fromDecimal((string) $this->normalise($kind, $r)[$column]), $group));
+                            $totals[$kind->value] = ($totals[$kind->value] ?? 0) + array_sum(array_map(fn (array $r) => Fils::fromDecimal((string) $r[$column]), $clean));
                         }
                     } catch (ValidationException $e) {
                         $errors[$kind->value][$line] = array_values(Arr::flatten($e->errors()));
@@ -385,9 +386,14 @@ final class RunImport
 
         $ownerId = Owner::query()->where('id_type', $row['owner_id_type'] ?? '')->where('id_number', $row['owner_id_number'] ?? '')->value('id')
             ?? throw ValidationException::withMessages(['owner_id_number' => __('No owner with ID :type :number.', ['type' => $row['owner_id_type'] ?? '', 'number' => $row['owner_id_number'] ?? ''])]);
-        $contract = OwnerContract::query()->effectiveOn($cutover)->where('owner_id', $ownerId)->where('building_id', $this->buildingId($row['building_code'] ?? null))
-            ->where('type', OwnerContractType::Managed)->first()
-            ?? throw ValidationException::withMessages(['building_code' => __('This owner has no managed contract on :b at cutover.', ['b' => (string) ($row['building_code'] ?? '')])]);
+        $building = (string) ($row['building_code'] ?? '');
+        $matches = OwnerContract::query()->effectiveOn($cutover)->where('owner_id', $ownerId)->where('building_id', $this->buildingId($building))
+            ->where('type', OwnerContractType::Managed)->get();
+        if ($matches->count() > 1) {
+            throw ValidationException::withMessages(['building_code' => __('This owner has more than one managed contract on :b at cutover; split the balance by contract.', ['b' => $building])]);
+        }
+        $contract = $matches->first()
+            ?? throw ValidationException::withMessages(['building_code' => __('This owner has no managed contract on :b at cutover.', ['b' => $building])]);
         if ($contract->charges()->where('type', OwnerChargeType::OpeningBalance)->exists()) {
             throw ValidationException::withMessages(['owner_id_number' => __('Contract :c already has an opening balance.', ['c' => $contract->number])]);
         }
@@ -419,6 +425,9 @@ final class RunImport
     private function agreementUnitByRow(array $row, Customer $customer, bool $unitRequired): array
     {
         $ref = (string) ($row['agreement_ref'] ?? '');
+        if ($ref === '' && (filled($row['building_code'] ?? null) || filled($row['unit_code'] ?? null))) {
+            throw ValidationException::withMessages(['agreement_ref' => __('Name the agreement (agreement_ref) for this unit.')]);
+        }
         if ($ref === '') {
             return $unitRequired
                 ? throw ValidationException::withMessages(['agreement_ref' => __('Name the agreement (agreement_ref).')])

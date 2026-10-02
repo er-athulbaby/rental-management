@@ -41,7 +41,7 @@
 
         <ul class="text-sm">
             @foreach ($result['counts'] as $kind => $count)
-                <li>{{ str($kind)->headline() }}: {{ trans_choice(':count row passed|:count rows passed', $count) }}</li>
+                <li>{{ str($kind)->replace('_', ' ')->ucfirst() }}: {{ trans_choice(':count row passed|:count rows passed', $count) }}</li>
             @endforeach
         </ul>
 

@@ -356,3 +356,15 @@ test('the screen lists the totals of a dry run', function () {
         ->set('result', ['errors' => [], 'counts' => ['customer_balances' => 2], 'totals' => ['customer_balances' => '200.500'], 'committed' => false, 'commit' => false])
         ->assertSee('Customer balances total: 200.500 BHD');
 });
+
+test('a balance naming a unit but no agreement is refused rather than losing the owner attribution', function () {
+    $files = [...agreementFiles($this->files),
+        'customer_balances' => importFile(ImportKind::CustomerBalances, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'building_code' => 'MT', 'unit_code' => '101', 'amount' => '5.000'],
+        ]),
+    ];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: false);
+
+    expect($result->errors['customer_balances'][2][0])->toBe('Name the agreement (agreement_ref) for this unit.');
+});
