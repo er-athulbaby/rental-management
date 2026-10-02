@@ -74,7 +74,7 @@ test('a dry run validates every file and saves nothing', function () {
     expect($result->errors)->toBe([])
         ->and($result->counts)->toBe(['buildings' => 1, 'units' => 2, 'owners' => 1, 'owner_contracts' => 2, 'customers' => 2])
         ->and($result->committed)->toBeFalse()
-        ->and(Building::count() + Unit::count() + Owner::count() + OwnerContract::count())->toBe(0);
+        ->and(Building::count() + Unit::count() + Owner::count() + OwnerContract::count() + Customer::count())->toBe(0);
 });
 
 test('a clean import saves everything and activates contracts with an Imported by approval', function () {
@@ -185,6 +185,7 @@ test('imports need the go-live date: it is the cutover date', function () {
 });
 
 test('head-lease payables start with the first period on or after cutover', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-09-20 10:00', 'Asia/Bahrain'));
     app(RunImport::class)->handle($this->vendor, $this->files, commit: true);
 
     $leased = OwnerContract::where('type', 'leased')->sole();
