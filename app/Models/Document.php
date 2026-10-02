@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DocumentCategory;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -10,7 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-/** @property DocumentCategory $category */
+/**
+ * @property DocumentCategory $category
+ * @property CarbonImmutable|null $expires_on
+ */
 class Document extends Model
 {
     use LogsActivity, SoftDeletes;

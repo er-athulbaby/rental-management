@@ -19,6 +19,8 @@ class Index extends Component
                 ['route' => 'reports.occupancy', 'label' => __('Unit availability and occupancy')],
                 ['route' => 'reports.expiring', 'label' => __('Agreements expiring')],
                 ['route' => 'reports.overstays', 'label' => __('Overstays: expired, not closed')],
+                ['route' => 'reports.approvals', 'label' => __('Pending approvals')],
+                ['route' => 'reports.id-documents', 'label' => __('ID documents expiring')],
             ],
             'financial' => [
                 ['route' => 'reports.building-profitability', 'label' => __('Building profitability')],

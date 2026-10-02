@@ -3,12 +3,21 @@
 namespace App\Reports;
 
 use App\Enums\AgreementStatus;
+use App\Enums\DocumentCategory;
+use App\Enums\PermissionName;
 use App\Models\Agreement;
+use App\Models\AgreementAmendment;
 use App\Models\AgreementUnit;
+use App\Models\Approval;
+use App\Models\CompanySetting;
+use App\Models\Customer;
+use App\Models\Document;
+use App\Models\Owner;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -49,6 +58,68 @@ final class Queries
             ->whereRaw('('.AgreementUnit::effectiveEndSql('au').') >= ?', [$on, $on])
             ->whereIn('au.unit_id', Unit::query()->visibleTo($user)->select('id'))
             ->select('au.unit_id')->distinct();
+    }
+
+    /**
+     * Spec §10: pending approvals whose record the viewer may view, plus the viewer's own requests (plan ruling 8).
+     *
+     * @return Collection<int, Approval>
+     */
+    public static function visiblePendingApprovals(User $user): Collection
+    {
+        return Approval::query()->pending()->with(['requester:id,name', 'approvable'])->orderBy('requested_at')->get()
+            ->filter(fn (Approval $a) => $a->requested_by === $user->id || self::mayView($user, $a))
+            ->values();
+    }
+
+    /**
+     * Pending approvals the viewer may decide (approvals.decide, and not their own when require_different_approver).
+     *
+     * @return Collection<int, Approval>
+     */
+    public static function approvalsToDecide(User $user): Collection
+    {
+        if (! $user->can(PermissionName::ApprovalsDecide)) {
+            return collect();
+        }
+        $different = CompanySetting::current()->require_different_approver;
+
+        return Approval::query()->pending()->orderBy('requested_at')->get()
+            ->reject(fn (Approval $a) => $different && in_array($user->id, [$a->requested_by, $a->handler()->creatorId($a)], true))
+            ->values();
+    }
+
+    private static function mayView(User $user, Approval $approval): bool
+    {
+        $record = $approval->approvable;
+        if ($record instanceof AgreementAmendment) {
+            $record = $record->agreement; // amendments have no policy: their agreement decides
+        }
+
+        return $record !== null && $user->can('view', $record);
+    }
+
+    /**
+     * Plan ruling 7: ID and CR copies expiring within $days, of visible customers and (with owners.view) owners.
+     *
+     * @return Collection<int, Document>
+     */
+    public static function expiringIdDocuments(User $user, int $days): Collection
+    {
+        $today = now('Asia/Bahrain')->toDateString();
+        $until = now('Asia/Bahrain')->addDays($days)->toDateString();
+
+        return Document::query()->with('documentable')
+            ->whereIn('category', [DocumentCategory::IdCopy->value, DocumentCategory::CrCopy->value])
+            ->whereBetween('expires_on', [$today, $until])
+            ->where(function ($q) use ($user) {
+                $q->where(fn ($c) => $c->where('documentable_type', (new Customer)->getMorphClass())
+                    ->whereIn('documentable_id', Customer::query()->visibleTo($user)->select('id')));
+                if ($user->can(PermissionName::OwnersView)) {
+                    $q->orWhere('documentable_type', (new Owner)->getMorphClass());
+                }
+            })
+            ->orderBy('expires_on')->orderBy('id')->get();
     }
 
     /**
