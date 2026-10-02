@@ -18,6 +18,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -66,8 +67,16 @@ test('ID documents expiring within the window, never showing the ID number', fun
 
     $finance = matrixUser(RoleName::Finance, $this->mine); // finance.view-all and owners.view
     Livewire::actingAs($finance)->test(IdDocumentsReport::class)
-        ->assertSee('Sara Ahmed')->assertSee('Ali Hassan')->assertSee('30/06/2026')->assertDontSee('30/09/2026')
+        ->assertSee('Sara Ahmed')->assertSee('Ali Hassan')->assertSee('ID copy')->assertSee('CR copy')->assertSee('30/06/2026')->assertDontSee('30/09/2026')
         ->assertDontSee('090202345')->assertDontSee('080101234');
 
     Livewire::actingAs($this->leasing)->test(IdDocumentsReport::class)->assertDontSee('Ali Hassan'); // no owners.view
+});
+
+test('the approvals and ID documents reports show no building filter and audit none on export', function () {
+    $finance = matrixUser(RoleName::Finance, $this->mine);
+    foreach ([PendingApprovalsReport::class => 'pending_approvals', IdDocumentsReport::class => 'id_documents'] as $report => $name) {
+        Livewire::actingAs($finance)->test($report)->assertDontSee('All buildings')->call('export')->assertFileDownloaded();
+        expect(Activity::where('event', 'report.exported')->where('properties->report', $name)->sole()->properties->has('building'))->toBeFalse();
+    }
 });

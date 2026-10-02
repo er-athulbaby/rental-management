@@ -27,6 +27,11 @@ class IdDocumentsReport extends Component
         return $this->actor()->can('reports.operational');
     }
 
+    protected function buildingFilter(): bool
+    {
+        return false; // its rows are not filtered by building
+    }
+
     protected function dateMode(): string
     {
         return 'none';
@@ -64,7 +69,7 @@ class IdDocumentsReport extends Component
                 '_url' => $who instanceof Customer ? route('customers.edit', $who) : route('owners.edit', $who),
                 'name' => $who->name_en,
                 'kind' => $who instanceof Customer ? __('Customer') : __('Owner'),
-                'document' => str($d->category->value)->headline()->toString(),
+                'document' => $d->category->label(),
                 'expires' => $d->expires_on->format('d/m/Y'),
                 'days' => (int) $today->diffInDays($d->expires_on, true),
             ];

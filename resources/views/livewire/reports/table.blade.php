@@ -5,12 +5,14 @@
     </div>
 
     <div class="grid gap-3 sm:grid-cols-4">
-        <flux:select wire:model.live="building" :label="__('Building')">
-            <flux:select.option value="">{{ __('All buildings') }}</flux:select.option>
-            @foreach ($buildings as $b)
-                <flux:select.option :value="$b->id">{{ $b->code }} — {{ $b->name }}</flux:select.option>
-            @endforeach
-        </flux:select>
+        @if ($buildingFilter)
+            <flux:select wire:model.live="building" :label="__('Building')">
+                <flux:select.option value="">{{ __('All buildings') }}</flux:select.option>
+                @foreach ($buildings as $b)
+                    <flux:select.option :value="$b->id">{{ $b->code }} — {{ $b->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        @endif
         @if ($dateMode === 'range')
             <flux:input type="date" wire:model.live="from" :label="__('From')" />
             <flux:input type="date" wire:model.live="to" :label="__('To')" />

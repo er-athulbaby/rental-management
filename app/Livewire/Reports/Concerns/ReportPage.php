@@ -44,6 +44,12 @@ trait ReportPage
         return 'range';
     }
 
+    /** False for a report whose rows have no building (the filter is then neither shown nor audited). */
+    protected function buildingFilter(): bool
+    {
+        return true;
+    }
+
     /** @return array<string, array<array-key, string>> */
     protected function options(): array
     {
@@ -100,7 +106,7 @@ trait ReportPage
             'single' => ['to' => $this->to],
             default => [],
         };
-        Audit::log('report.exported', properties: ['report' => $report, 'building' => $this->building, ...$dates,
+        Audit::log('report.exported', properties: ['report' => $report, ...($this->buildingFilter() ? ['building' => $this->building] : []), ...$dates,
             ...array_intersect_key($this->all(), $this->options())], causer: $this->actor());
 
         $path = sys_get_temp_dir().'/rms-'.$report.'-'.Str::uuid().'.xlsx';
@@ -126,7 +132,8 @@ trait ReportPage
             'numeric' => $this->numeric(),
             'options' => $this->options(),
             'dateMode' => $this->dateMode(),
-            'buildings' => Building::visibleTo($this->actor())->orderBy('code')->get(['id', 'code', 'name']),
+            'buildingFilter' => $this->buildingFilter(),
+            'buildings' => $this->buildingFilter() ? Building::visibleTo($this->actor())->orderBy('code')->get(['id', 'code', 'name']) : collect(),
         ])->title($this->title());
     }
 }

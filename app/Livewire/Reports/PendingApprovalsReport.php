@@ -22,6 +22,11 @@ class PendingApprovalsReport extends Component
         return $this->actor()->can('reports.operational');
     }
 
+    protected function buildingFilter(): bool
+    {
+        return false; // its rows are not filtered by building
+    }
+
     protected function dateMode(): string
     {
         return 'none';

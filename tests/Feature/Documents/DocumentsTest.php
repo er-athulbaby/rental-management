@@ -4,6 +4,7 @@ use App\Actions\Documents\DeleteDocument;
 use App\Actions\Documents\StoreDocument;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
+use App\Livewire\Documents\Panel;
 use App\Models\Building;
 use App\Models\Document;
 use App\Models\User;
@@ -12,6 +13,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
@@ -78,4 +80,14 @@ test('delete soft-deletes and audits', function () {
     expect(Document::find($document->id))->toBeNull()
         ->and(Document::withTrashed()->find($document->id))->not->toBeNull()
         ->and(Activity::query()->where('event', 'document.deleted')->exists())->toBeTrue();
+});
+
+test('categories read in proper English in the panel', function () {
+    upload($this->manager, $this->building, UploadedFile::fake()->create('a.pdf', 10, 'application/pdf'));
+    $this->manager->buildings()->attach($this->building->id);
+
+    Livewire::actingAs($this->manager)->test(Panel::class, ['documentable' => $this->building])
+        ->assertSee('ID copy')->assertSee('CR copy')->assertSee('Move-out photo')->assertDontSee('Id Copy');
+    expect(array_map(fn (DocumentCategory $c) => $c->label(), DocumentCategory::cases()))
+        ->toBe(['Photo', 'ID copy', 'CR copy', 'Signed contract', 'Cheque image', 'Move-out photo', 'Owner approval', 'Generated PDF', 'Other']);
 });
