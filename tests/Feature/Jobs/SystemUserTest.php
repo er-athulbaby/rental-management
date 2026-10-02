@@ -31,15 +31,17 @@ beforeEach(function () {
 
 test('the System user exists once, cannot sign in and is hidden from user administration', function () {
     $system = User::system();
+    $system->forceFill(['password' => Hash::make('secret-password')])->save();
 
     expect(User::system()->id)->toBe($system->id)
         ->and($system->is_system)->toBeTrue()->and($system->active)->toBeFalse();
 
-    $this->post('/login', ['email' => $system->email, 'password' => 'anything'])->assertSessionHasErrors();
+    $this->post('/login', ['email' => $system->email, 'password' => 'secret-password'])->assertSessionHasErrors();
     $this->assertGuest();
 
     $admin = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Admin);
-    Livewire::actingAs($admin)->test(Index::class)->assertDontSee($system->email);
+    Livewire::actingAs($admin)->test(Index::class)->set('status', 'all')->assertDontSee($system->email);
+    expect($admin->can('update', $system))->toBeFalse();
     $this->actingAs($admin)->get(route('admin.users.edit', $system))->assertNotFound();
 });
 

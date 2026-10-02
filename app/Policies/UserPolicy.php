@@ -20,22 +20,22 @@ class UserPolicy
     /** Vendor Support can't be edited by Admin (spec §8.1). */
     public function update(User $actor, User $user): bool
     {
-        return $actor->can(PermissionName::UsersManage) && ! $user->isVendorSupport();
+        return $actor->can(PermissionName::UsersManage) && ! $user->isVendorSupport() && ! $user->is_system;
     }
 
     public function deactivate(User $actor, User $user): bool
     {
-        return $actor->can(PermissionName::UsersManage) && ! $actor->is($user) && $user->active;
+        return $actor->can(PermissionName::UsersManage) && ! $actor->is($user) && ! $user->is_system && $user->active;
     }
 
     /** Vendor Support is re-enabled only with rms:vendor-support on the server. */
     public function reactivate(User $actor, User $user): bool
     {
-        return $actor->can(PermissionName::UsersManage) && ! $user->isVendorSupport() && ! $user->active;
+        return $actor->can(PermissionName::UsersManage) && ! $user->isVendorSupport() && ! $user->is_system && ! $user->active;
     }
 
     public function resetTwoFactor(User $actor, User $user): bool
     {
-        return $actor->can(PermissionName::UsersManage) && ! $actor->is($user) && ! $user->isVendorSupport();
+        return $actor->can(PermissionName::UsersManage) && ! $actor->is($user) && ! $user->isVendorSupport() && ! $user->is_system;
     }
 }
