@@ -48,10 +48,11 @@ class OutstandingReport extends Component
         $customers = Customer::query()->visibleTo($this->actor())->when($this->building, fn ($q) => $q->whereIn('id', $balances->keys()))
             ->orderBy('name_en')->get(['id', 'name_en']);
 
-        // ponytail: one credit query per customer; batch it if the customer list passes a few thousand.
-        return array_values($customers->map(function (Customer $c) use ($balances) {
+        $credits = CustomerCredit::filsFor($customers->map(fn (Customer $c) => $c->id)->all());
+
+        return array_values($customers->map(function (Customer $c) use ($balances, $credits) {
             $balance = Fils::fromDecimal((string) ($balances[$c->id] ?? '0'));
-            $credit = CustomerCredit::fils($c->id);
+            $credit = $credits[$c->id];
 
             return $balance === 0 && $credit === 0 ? null : [
                 '_url' => route('customers.statement', $c),

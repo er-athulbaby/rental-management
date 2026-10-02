@@ -96,3 +96,14 @@ test('a credit refund cannot be paid before the payment it refunds was received'
     }
     expect(Disbursement::count())->toBe(0);
 });
+
+test('filsFor gives each customer the same credit as fils, in one pass', function () {
+    ($this->refund)('40.000');                // payment, allocation and refund: 20 credit
+    $paidOnly = Customer::factory()->create(); // payment only: 75 credit
+    app(RecordPayment::class)->handle($this->finance, $paidOnly, ['received_on' => '2026-10-05', 'method' => 'cash', 'amount' => '75.000']);
+    $nothing = Customer::factory()->create();
+    $ids = [$this->customer->id, $paidOnly->id, $nothing->id];
+
+    expect(CustomerCredit::filsFor($ids))->toBe(array_combine($ids, array_map(CustomerCredit::fils(...), $ids)))
+        ->and(CustomerCredit::filsFor($ids))->toBe([$this->customer->id => 20_000, $paidOnly->id => 75_000, $nothing->id => 0]);
+});
