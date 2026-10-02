@@ -19,6 +19,7 @@ use App\Models\CompanySetting;
 use App\Models\Owner;
 use App\Models\Unit;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Arr;
@@ -174,7 +175,8 @@ final class RunImport
             'ip' => request()->ip(),
         ]);
 
-        $this->activate->handle($contract);
+        // ponytail: today stands in for the cutover date (spec §11); M5 replaces it with the formal cutover date.
+        $this->activate->handle($contract, CarbonImmutable::today('Asia/Bahrain'));
     }
 
     private function buildingId(mixed $code): int

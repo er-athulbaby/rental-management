@@ -6,6 +6,7 @@ use App\Actions\NextDocumentNumber;
 use App\Enums\NumberSequenceKey;
 use App\Enums\OwnerContractStatus;
 use App\Models\OwnerContract;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
@@ -15,7 +16,7 @@ final class ActivateOwnerContract
 {
     public function __construct(private EnsureNoOverlap $overlap, private NextDocumentNumber $next, private GenerateOwnerPayables $payables, private RescheduleOwnerPayables $reschedule) {}
 
-    public function handle(OwnerContract $contract): OwnerContract
+    public function handle(OwnerContract $contract, ?CarbonImmutable $payablesFrom = null): OwnerContract
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('ActivateOwnerContract must run inside the caller\'s transaction.');
@@ -47,7 +48,7 @@ final class ActivateOwnerContract
             'status' => OwnerContractStatus::Active,
             'number' => ($this->next)(NumberSequenceKey::OwnerContract),
         ])->save();
-        $this->payables->handle($contract);
+        $this->payables->handle($contract, $payablesFrom);
 
         return $contract;
     }

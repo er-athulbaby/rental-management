@@ -14,14 +14,7 @@ final class HeadLeaseAmount
             return $rentFils;
         }
 
-        $from = $period->start->startOfDay();
-        $to = $period->end->startOfDay();
-        $whole = 0;
-        while ($from->addMonthsNoOverflow($whole + 1)->subDay()->lessThanOrEqualTo($to)) {
-            $whole++;
-        }
-        $rest = $from->addMonthsNoOverflow($whole);
-        $days = $rest->greaterThan($to) ? 0 : (int) $rest->diffInDays($to, true) + 1;
+        [$whole, $days] = Proration::span($period->start, $period->end);
 
         return match ($basis) {
             ProrationBasis::Actual365 => Fils::divRound(($whole * 365 + $days * 12) * $rentFils, 365 * $months),

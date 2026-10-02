@@ -26,8 +26,12 @@ final class Proration
         return self::partial($monthlyFils, $from, $to, $basis);
     }
 
-    /** Whole months counted from $from × monthly + remaining days × daily rate; rounded once. */
-    public static function partial(int $monthlyFils, CarbonImmutable $from, CarbonImmutable $to, ProrationBasis $basis): int
+    /**
+     * Whole months counted from $from, then the remaining days (inclusive), for the span $from..$to.
+     *
+     * @return array{0: int, 1: int} [wholeMonths, days]
+     */
+    public static function span(CarbonImmutable $from, CarbonImmutable $to): array
     {
         $from = $from->startOfDay();
         $to = $to->startOfDay();
@@ -38,7 +42,14 @@ final class Proration
         }
 
         $rest = $from->addMonthsNoOverflow($whole);
-        $days = $rest->greaterThan($to) ? 0 : (int) $rest->diffInDays($to, true) + 1;
+
+        return [$whole, $rest->greaterThan($to) ? 0 : (int) $rest->diffInDays($to, true) + 1];
+    }
+
+    /** Whole months counted from $from × monthly + remaining days × daily rate; rounded once. */
+    public static function partial(int $monthlyFils, CarbonImmutable $from, CarbonImmutable $to, ProrationBasis $basis): int
+    {
+        [$whole, $days] = self::span($from, $to);
 
         $dayPart = match ($basis) {
             ProrationBasis::Actual365 => Fils::divRound($monthlyFils * $days * 12, 365),

@@ -10,13 +10,14 @@ use App\Models\CompanySetting;
 use App\Models\OwnerContract;
 use App\Models\OwnerPayable;
 use App\Support\Fils;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
 /** Spec §7.8: a leased contract's payments to its owner, one per payment period, anchored on its start date. */
 final class GenerateOwnerPayables
 {
-    public function handle(OwnerContract $contract): int
+    public function handle(OwnerContract $contract, ?CarbonImmutable $from = null): int
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('GenerateOwnerPayables must run inside the caller\'s transaction.');
@@ -31,6 +32,9 @@ final class GenerateOwnerPayables
         $count = 0;
 
         foreach (BillingPeriods::for($contract->start_date, $contract->end_date, $contract->payment_frequency, null) as $period) {
+            if ($from !== null && $period->start->lessThan($from->startOfDay())) {
+                continue; // spec §11: periods before cutover were billed in the old system; the anchor stays on start_date
+            }
             (new OwnerPayable)->forceFill([
                 'owner_contract_id' => $contract->id,
                 'period_start' => $period->start->toDateString(),

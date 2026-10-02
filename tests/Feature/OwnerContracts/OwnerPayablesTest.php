@@ -2,6 +2,7 @@
 
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\EnsureNumberSequences;
+use App\Actions\OwnerContracts\ActivateOwnerContract;
 use App\Actions\OwnerContracts\RequestOwnerContractTermination;
 use App\Actions\OwnerContracts\SaveOwnerContract;
 use App\Actions\OwnerContracts\SubmitOwnerContract;
@@ -87,4 +88,17 @@ test('the contract page lists the payables', function () {
     $contract = ($this->lease)();
 
     Livewire::actingAs($this->finance)->test(Show::class, ['contract' => $contract])->assertSee('Head-lease payments')->assertSee('2000.000');
+});
+
+test('an imported contract gets payables only from cutover, on its own anchor', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-05-10 10:00', 'Asia/Bahrain'));
+    $draft = app(SaveOwnerContract::class)->handle($this->finance, null, [
+        'owner_id' => Owner::factory()->create()->id, 'building_id' => $this->building->id, 'type' => 'leased',
+        'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'rent_amount' => '3000.000', 'payment_frequency' => 'quarterly',
+        'unit_ids' => $this->building->units()->pluck('id')->all(),
+    ]);
+    app(SubmitOwnerContract::class)->handle($this->finance, $draft);
+    DB::transaction(fn () => app(ActivateOwnerContract::class)->handle($draft, CarbonImmutable::today('Asia/Bahrain')));
+
+    expect(OwnerPayable::where('owner_contract_id', $draft->id)->orderBy('period_start')->pluck('period_start')->map->toDateString()->all())->toBe(['2026-07-01', '2026-10-01']);
 });
