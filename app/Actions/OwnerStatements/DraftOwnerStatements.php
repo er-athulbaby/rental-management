@@ -7,6 +7,7 @@ use App\Billing\OwnerStatementCalculator;
 use App\Enums\OwnerContractStatus;
 use App\Enums\OwnerContractType;
 use App\Enums\OwnerStatementStatus;
+use App\Models\CompanySetting;
 use App\Models\OwnerContract;
 use App\Models\OwnerStatement;
 use App\Models\User;
@@ -33,6 +34,12 @@ final class DraftOwnerStatements
         $cutoff = CarbonImmutable::parse($end->toDateString().' 23:59:59', 'Asia/Bahrain');
         if ($cutoff->greaterThanOrEqualTo(now())) {
             throw new DomainException(__(':m has not ended yet; its statements are drafted after its last day.', ['m' => $start->format('M Y')]));
+        }
+
+        // Spec §11: months before go-live were charged by the old system; their balances arrive as the opening charge.
+        $goLive = CompanySetting::current()->go_live_at;
+        if ($goLive !== null && $end->toDateString() < $goLive->toDateString()) {
+            return ['created' => 0, 'failed' => 0];
         }
 
         $ids = OwnerContract::query()->where('type', OwnerContractType::Managed)

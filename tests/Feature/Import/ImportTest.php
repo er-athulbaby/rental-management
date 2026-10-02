@@ -412,3 +412,70 @@ test('a second deposit for a unit, or a cheque number typed as a number, is refu
     expect(array_keys($result->errors['deposits_held']))->toBe([3])
         ->and($result->errors['cheques'][2][0])->toContain('formatted as Text');
 });
+
+test('opening balances can be imported only once, even in a later run', function () {
+    Storage::fake('local');
+    $balances = fn () => importFile(ImportKind::CustomerBalances, [['customer_id_type' => 'cr', 'customer_id_number' => '12345-1', 'amount' => '80.000']]);
+    expect(app(RunImport::class)->handle($this->vendor, [...agreementFiles($this->files), 'customer_balances' => $balances()], commit: true)->committed)->toBeTrue();
+
+    $again = app(RunImport::class)->handle($this->vendor, ['customer_balances' => $balances()], commit: true);
+
+    expect($again->errors['customer_balances'][2][0])->toBe('Opening balances were already imported; they can be imported only once.')
+        ->and(Invoice::where('type', 'opening')->count())->toBe(1);
+});
+
+test('a cheque already imported, in an earlier run or earlier in this one, is refused', function () {
+    Storage::fake('local');
+    $cheque = fn (string $no) => ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'cheque_no' => $no, 'bank_name' => 'NBB', 'cheque_date' => '2026-11-01', 'amount' => '450.000'];
+    app(RunImport::class)->handle($this->vendor, [...agreementFiles($this->files), 'cheques' => importFile(ImportKind::Cheques, [$cheque('000123')])], commit: true);
+
+    $again = app(RunImport::class)->handle($this->vendor, ['cheques' => importFile(ImportKind::Cheques, [$cheque('000123'), $cheque('000124'), $cheque('000124')])], commit: false);
+
+    expect(array_keys($again->errors['cheques']))->toBe([2, 4])
+        ->and($again->errors['cheques'][2][0])->toBe('Cheque 000123 of NBB was already imported for this customer.');
+});
+
+test('a balance naming an agreement but no unit goes to its only unit, and is refused when it has more than one', function () {
+    Storage::fake('local');
+    $balance = ['customer_balances' => importFile(ImportKind::CustomerBalances, [
+        ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'amount' => '5.000'],
+    ])];
+
+    $two = app(RunImport::class)->handle($this->vendor, [...agreementFiles($this->files), ...$balance], commit: false);
+    expect($two->errors['customer_balances'][2][0])->toBe('Name the unit (building_code, unit_code): agreement L-001 has more than one.');
+
+    $oneRow = [['import_ref' => 'L-001', 'customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'frequency' => 'monthly',
+        'building_code' => 'MT', 'unit_code' => '101', 'rent' => '450.000', 'tax_category' => 'exempt']];
+    $one = app(RunImport::class)->handle($this->vendor, [...agreementFiles($this->files, $oneRow), ...$balance], commit: true);
+    $line = Invoice::where('type', 'opening')->sole()->lines->sole();
+    expect($one->errors)->toBe([])
+        ->and([$line->unit_id, $line->owner_contract_id])->toBe([Unit::where('code', '101')->value('id'), OwnerContract::where('type', 'managed')->value('id')]);
+});
+
+test('an over-long reference, or an agreement unit that ended before cutover, is refused on its line', function () {
+    $row = fn (string $ref, string $unit, ?string $unitEnd = null) => ['import_ref' => $ref, 'customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+        'frequency' => 'monthly', 'building_code' => 'MT', 'unit_code' => $unit, 'unit_end_date' => $unitEnd, 'rent' => '450.000', 'tax_category' => 'exempt'];
+
+    $result = app(RunImport::class)->handle($this->vendor, agreementFiles($this->files, [
+        $row(str_repeat('L', 41), '101'),
+        $row('L-005', '103', '2026-10-15'),
+    ]), commit: false);
+
+    expect(array_keys($result->errors['agreements']))->toBe([2, 3])
+        ->and($result->errors['agreements'][2][0])->toContain('40 characters')
+        ->and($result->errors['agreements'][3][0])->toBe('Unit 103 on L-005 ended before cutover: do not import it.');
+});
+
+test('an owner balance is refused when the owner has more than one managed contract on the building at cutover', function () {
+    $files = [...agreementFiles($this->files),
+        'owner_contracts' => importFile(ImportKind::OwnerContracts, array_map(fn (string $unit) => ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'units' => $unit,
+            'type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'fee_type' => 'percent_collected', 'fee_value' => '7', 'deposits_held_by' => 'company'], ['101', '103'])),
+        'owner_balances' => importFile(ImportKind::OwnerBalances, [['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'amount' => '10.000']]),
+    ];
+    unset($files['agreements']);
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: false);
+
+    expect($result->counts['owner_contracts'])->toBe(2)
+        ->and($result->errors['owner_balances'][2][0])->toContain('more than one managed contract on MT');
+});

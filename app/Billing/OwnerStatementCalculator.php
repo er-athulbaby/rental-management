@@ -37,6 +37,9 @@ final class OwnerStatementCalculator
 
         if ($type === FeeType::Fixed) {
             $from = $contract->start_date->max($s->period_start);
+            if ($settings->go_live_at !== null) { // the old system charged the days before go-live
+                $from = $from->max(CarbonImmutable::instance($settings->go_live_at)->startOfDay());
+            }
             $to = $contract->end_date->min($s->period_end);
             $base = $from->greaterThan($to) ? 0 : Proration::partial(Fils::fromDecimal((string) $contract->fee_value), $from, $to, $settings->proration_basis);
             $fee = $base;

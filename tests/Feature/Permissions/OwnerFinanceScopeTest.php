@@ -31,24 +31,31 @@ beforeEach(function () {
     $this->user = User::factory()->withTwoFactor()->create()->assignRole($role);
     $this->user->buildings()->attach($this->mine->id);
 
-    $managed = activeOwnerContract(['building_id' => $this->theirs->id, 'type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'deposits_held_by' => 'company', 'fee_type' => 'fixed', 'fee_value' => '10.000'], [Unit::factory()->for($this->theirs)->create()]);
-    $this->statement = (new OwnerStatement)->forceFill(['owner_contract_id' => $managed->id, 'period_start' => '2026-03-01', 'period_end' => '2026-03-31', 'cutoff_at' => '2026-03-31 23:59:59', 'closing_balance' => '100.000', 'status' => 'draft', 'created_by' => $managed->created_by]);
-    $this->statement->save();
-    DB::table('owner_statements')->where('id', $this->statement->id)->update(['status' => 'pending_approval']);
-    DB::table('owner_statements')->where('id', $this->statement->id)->update(['status' => 'finalised', 'number' => 'OS-T-1', 'finalised_at' => now(), 'finalised_by' => $managed->created_by]);
+    // A finalised statement and a scheduled head-lease payable on each building.
+    $fixtures = function (Building $building, string $number) {
+        $managed = activeOwnerContract(['building_id' => $building->id, 'type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'deposits_held_by' => 'company', 'fee_type' => 'fixed', 'fee_value' => '10.000'], [Unit::factory()->for($building)->create()]);
+        $statement = (new OwnerStatement)->forceFill(['owner_contract_id' => $managed->id, 'period_start' => '2026-03-01', 'period_end' => '2026-03-31', 'cutoff_at' => '2026-03-31 23:59:59', 'closing_balance' => '100.000', 'status' => 'draft', 'created_by' => $managed->created_by]);
+        $statement->save();
+        DB::table('owner_statements')->where('id', $statement->id)->update(['status' => 'pending_approval']);
+        DB::table('owner_statements')->where('id', $statement->id)->update(['status' => 'finalised', 'number' => $number, 'finalised_at' => now(), 'finalised_by' => $managed->created_by]);
 
-    $leased = activeOwnerContract(['building_id' => $this->theirs->id, 'type' => 'leased', 'rent_amount' => '50.000', 'payment_frequency' => 'monthly', 'fee_type' => null, 'fee_value' => null, 'deposits_held_by' => null, 'start_date' => '2026-04-01', 'end_date' => '2027-03-31'], [Unit::factory()->for($this->theirs)->create()]);
-    $this->payable = (new OwnerPayable)->forceFill(['owner_contract_id' => $leased->id, 'period_start' => '2026-04-01', 'period_end' => '2026-04-30', 'due_date' => '2026-04-01', 'amount' => '50.000', 'status' => 'scheduled']);
-    $this->payable->save();
+        $leased = activeOwnerContract(['building_id' => $building->id, 'type' => 'leased', 'rent_amount' => '50.000', 'payment_frequency' => 'monthly', 'fee_type' => null, 'fee_value' => null, 'deposits_held_by' => null, 'start_date' => '2026-04-01', 'end_date' => '2027-03-31'], [Unit::factory()->for($building)->create()]);
+        $payable = (new OwnerPayable)->forceFill(['owner_contract_id' => $leased->id, 'period_start' => '2026-04-01', 'period_end' => '2026-04-30', 'due_date' => '2026-04-01', 'amount' => '50.000', 'status' => 'scheduled']);
+        $payable->save();
+
+        return [$statement, $payable, $leased];
+    };
+    [, , $this->myLeased] = $fixtures($this->mine, 'OS-T-2');
+    [$this->statement, $this->payable, $this->theirLeased] = $fixtures($this->theirs, 'OS-T-1');
 });
 
 test('another building\'s statement pages are refused', function (string $route) {
     $this->actingAs($this->user)->get(route($route, $this->statement))->assertForbidden();
 })->with(['owner-statements.show', 'owner-statements.pdf', 'owner-statements.export']);
 
-test('another building\'s payables, statements and figures are not listed', function () {
-    $this->actingAs($this->user)->get(route('owner-statements.index'))->assertOk()->assertDontSee('OS-T-1');
-    Livewire::actingAs($this->user)->test(PayablesIndex::class)->assertDontSee('50.000');
+test('another building\'s payables, statements and figures are not listed; the user\'s own are', function () {
+    $this->actingAs($this->user)->get(route('owner-statements.index'))->assertOk()->assertSee('OS-T-2')->assertDontSee('OS-T-1');
+    Livewire::actingAs($this->user)->test(PayablesIndex::class)->assertSee($this->myLeased->number)->assertDontSee($this->theirLeased->number);
     Livewire::actingAs($this->user)->test(BuildingProfitabilityReport::class)->assertSee($this->mine->code)->assertDontSee($this->theirs->code);
 });
 

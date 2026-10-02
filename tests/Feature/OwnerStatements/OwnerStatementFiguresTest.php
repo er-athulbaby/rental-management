@@ -157,3 +157,27 @@ test('the draft command fails, so the heartbeat stays silent, when a contract ca
     $this->artisan('rms:owner-statements:draft')->expectsOutputToContain('1 owner statement(s) drafted for 2026-03; 1 failed')->assertExitCode(1);
     expect(OwnerStatement::pluck('owner_contract_id')->all())->toBe([$ok->id]);
 });
+
+test('no statement is drafted for a month before go-live; the go-live month carries the opening charge and its own fee only', function () {
+    CompanySetting::current()->forceFill(['go_live_at' => '2026-11-01 00:00:00'])->save();
+    $contract = ($this->managed)(['fee_type' => 'fixed', 'fee_value' => '300.000']);
+    $this->travelTo(CarbonImmutable::parse('2026-10-31 20:00', 'Asia/Bahrain')); // the import, evening of T−1
+    OwnerCharge::create(['owner_contract_id' => $contract->id, 'type' => 'opening_balance', 'net' => '500.000', 'tax_amount' => '0.000', 'amount' => '500.000', 'posted_at' => now(), 'created_by' => $this->finance->id]);
+
+    expect(($this->draft)('2026-10'))->toBe(0)
+        ->and(($this->draft)('2026-11'))->toBe(1);
+
+    $november = OwnerStatement::where('owner_contract_id', $contract->id)->sole();
+    expect($november->period_start->toDateString())->toBe('2026-11-01')
+        ->and(OwnerStatementCalculator::compute($november)['entries']->pluck('amount')->all())->toBe([500_000])
+        ->and([$november->fee_amount, $november->fee_tax, $november->closing_balance])->toBe(['300.000', '30.000', '170.000']);
+});
+
+test('a mid-month go-live prorates the fixed fee from the go-live date', function () {
+    CompanySetting::current()->forceFill(['go_live_at' => '2026-11-16 00:00:00'])->save();
+    $contract = ($this->managed)(['fee_type' => 'fixed', 'fee_value' => '300.000']);
+    ($this->draft)('2026-11');
+
+    // 15 days on actual/365: 300 000 × 15 × 12 / 365 = 147 945.2 → 147.945.
+    expect(OwnerStatement::where('owner_contract_id', $contract->id)->sole()->fee_amount)->toBe('147.945');
+});

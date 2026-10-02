@@ -58,6 +58,9 @@ use Throwable;
  */
 final class RunImport
 {
+    /** Opening balances import once: stages may commit separately, so a second balances file would still reconcile. */
+    private bool $openingImported = false;
+
     public function __construct(
         private SaveBuilding $buildings,
         private SaveUnit $units,
@@ -79,6 +82,7 @@ final class RunImport
 
         self::ensureOpen();
         $cutover = self::cutover();
+        $this->openingImported = Invoice::query()->where('type', InvoiceType::Opening)->exists();
 
         $errors = [];
         $counts = [];
@@ -233,6 +237,7 @@ final class RunImport
         if ($ref === '') {
             throw ValidationException::withMessages(['import_ref' => __('Give each agreement a reference (import_ref).')]);
         }
+        Validator::make(['import_ref' => $ref], ['import_ref' => ['string', 'max:40']])->validate();
         // Only the first row supplies the agreement's own columns, so the other rows must agree with it.
         foreach (['customer_id_type', 'customer_id_number', 'start_date', 'end_date', 'frequency', 'billing_day', 'grace_days', 'notice_period_days'] as $column) {
             foreach ($rows as $row) {
@@ -251,9 +256,12 @@ final class RunImport
         $customerId = Customer::query()->where('id_type', $first['customer_id_type'] ?? '')->where('id_number', $first['customer_id_number'] ?? '')->value('id')
             ?? throw ValidationException::withMessages(['customer_id_number' => __('No customer with ID :type :number.', ['type' => $first['customer_id_type'] ?? '', 'number' => $first['customer_id_number'] ?? ''])]);
 
-        $units = array_map(function (array $row) {
+        $units = array_map(function (array $row) use ($ref, $cutover) {
             $unit = Unit::query()->where('building_id', $this->buildingId($row['building_code'] ?? null))->where('code', (string) ($row['unit_code'] ?? ''))->first()
                 ?? throw ValidationException::withMessages(['unit_code' => __('No unit :code in :building.', ['code' => (string) ($row['unit_code'] ?? ''), 'building' => (string) ($row['building_code'] ?? '')])]);
+            if (filled($row['unit_end_date'] ?? null) && (string) $row['unit_end_date'] < $cutover->toDateString()) {
+                throw ValidationException::withMessages(['unit_end_date' => __('Unit :u on :ref ended before cutover: do not import it.', ['u' => $unit->code, 'ref' => $ref])]);
+            }
             $tax = $row['tax_category'] ?? $unit->effectiveTaxCategory()->value;
             $charges = [['type' => 'rent', 'monthly_amount' => $row['rent'] ?? null, 'tax_category' => $tax]];
             foreach (['service_charge', 'parking'] as $type) {
@@ -338,6 +346,9 @@ final class RunImport
      */
     private function customerBalance(User $actor, array $row, CarbonImmutable $cutover): void
     {
+        if ($this->openingImported) {
+            throw ValidationException::withMessages(['customer_id_number' => __('Opening balances were already imported; they can be imported only once.')]);
+        }
         if (str_starts_with((string) ($row['amount'] ?? ''), '-')) {
             throw ValidationException::withMessages(['amount' => __('A credit is not imported: enter it as a payment after go-live, reference "Opening credit".')]);
         }
@@ -349,6 +360,10 @@ final class RunImport
 
         $customer = $this->customerByRow($row);
         [$agreement, $au] = $this->agreementUnitByRow($row, $customer, unitRequired: false);
+        if ($agreement !== null && $au === null) { // the unit decides the owner attribution (§4.6)
+            $aus = $agreement->agreementUnits()->get();
+            $au = $aus->count() === 1 ? $aus->sole() : throw ValidationException::withMessages(['unit_code' => __('Name the unit (building_code, unit_code): agreement :ref has more than one.', ['ref' => $agreement->import_ref])]);
+        }
 
         $invoice = (new Invoice)->forceFill([
             'type' => InvoiceType::Opening,
@@ -460,6 +475,9 @@ final class RunImport
         ])->validate();
         $customer = $this->customerByRow($row);
         [$agreement] = $this->agreementUnitByRow($row, $customer, unitRequired: false);
+        if (Cheque::query()->where('customer_id', $customer->id)->where('cheque_no', $v['cheque_no'])->where('bank_name', $v['bank_name'])->exists()) {
+            throw ValidationException::withMessages(['cheque_no' => __('Cheque :no of :bank was already imported for this customer.', ['no' => $v['cheque_no'], 'bank' => $v['bank_name']])]);
+        }
 
         (new Cheque)->forceFill([
             'direction' => ChequeDirection::Received,
