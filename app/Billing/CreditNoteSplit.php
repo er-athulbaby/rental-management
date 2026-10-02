@@ -22,9 +22,7 @@ final class CreditNoteSplit
         $allocatedAfter = min($allocated, $total - $credited - $amount);
 
         if ($allocatedAfter + $credited + $amount >= $total) {
-            $allocationTaxAfter = $allocatedAfter === $allocated
-                ? LineTax::allocatedTax($line)
-                : LineTax::allocationTarget($line, $allocatedAfter); // what ReverseAllocations will leave
+            $allocationTaxAfter = LineTax::taxAfterDeallocation($line, $allocatedAfter);
             $tax = $lineTax - LineTax::creditedTax($line) - $allocationTaxAfter;
         } else {
             $tax = AllocationTax::between($credited, $credited + $amount, $lineTax, $total);

@@ -52,4 +52,12 @@ final class LineTax
         // absorbed by the next row on the line.
         return $amount > 0 ? max(0, min($amount, $share)) : max($amount, min(0, $share));
     }
+
+    /** The tax the line's allocations carry once they are cut back to $allocatedAfter (the clamp ReverseAllocations applies). */
+    public static function taxAfterDeallocation(InvoiceLine $line, int $allocatedAfter): int
+    {
+        $cut = Fils::fromDecimal((string) $line->allocated) - $allocatedAfter;
+
+        return self::allocatedTax($line) + ($cut > 0 ? self::allocationShare($line, $allocatedAfter, -$cut) : 0);
+    }
 }

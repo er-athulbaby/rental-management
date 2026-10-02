@@ -72,3 +72,11 @@ test('a reversal unwinds the allocations\' tax to zero', function () {
     expect(Fils::fromDecimal((string) $live->sum('amount')))->toBe(600)
         ->and(Fils::fromDecimal((string) $live->sum('tax_amount')))->toBe(54); // ⌊600 × 100 / 1100⌋
 });
+
+test('a settling credit whose de-allocation is clamped still leaves the line with exactly its tax', function () {
+    ($this->pay)('1.000');         // 90 fils
+    ($this->credit)('0.021');      // 1 fil
+    ($this->credit)('0.080');      // settles the line, de-allocates 1 fil; the reversal row is clamped to 0
+
+    expect(($this->taxCarried)())->toBe(100);
+});
