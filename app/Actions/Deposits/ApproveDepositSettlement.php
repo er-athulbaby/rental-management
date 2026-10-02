@@ -31,7 +31,7 @@ use Illuminate\Validation\ValidationException;
 use LogicException;
 
 /**
- * Spec §7.7 on approval, in one transaction. Locks: customer → settlement → named rent lines → (system credit note for
+ * Spec §7.7 on approval, in one transaction. Locks: customer → settlement → named rent lines → (unissued deposit invoices, cancelled) → (system credit note for
  * any unpaid deposit balance: its deposit lines → deposit invoice) → (deductions invoice, new) → invoices → payment; the
  * customer lock serialises the second batch of lines. Credit auto-allocation is suppressed: the deductions invoice issues with
  * autoAllocate false, and the deposit_applied payment is allocated explicitly.
@@ -68,7 +68,20 @@ final class ApproveDepositSettlement
             ->whereKey($settlement->lines->where('type', DeductionType::UnpaidRent)->pluck('invoice_line_id'))
             ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
-        // 0. An unpaid deposit balance on a settled unit is credited, so no later payment can reach it (as TransferDeposits).
+        // 0. Plan ruling 9: a deposit invoice not yet issued (normally held back by a pending owner contract, §4.6) must
+        // not bill a settled unit later. One wholly on settled units is cancelled; a mixed one is refused. Locked after the
+        // rent lines above (§7.2: invoice lines → invoices).
+        $settled = $settlement->units->pluck('agreement_unit_id')->all();
+        $pending = Invoice::query()->where('type', InvoiceType::Deposit)->whereIn('status', [InvoiceStatus::Draft, InvoiceStatus::Scheduled])
+            ->whereHas('lines', fn ($q) => $q->whereIn('agreement_unit_id', $settled))->orderBy('id')->lockForUpdate()->with('lines')->get();
+        foreach ($pending as $invoice) {
+            if ($invoice->lines->contains(fn ($l) => ! in_array($l->agreement_unit_id, $settled, true))) {
+                throw ValidationException::withMessages(['approval' => __('Issue deposit invoice :n for the other units first (it is held back), then approve this settlement.', ['n' => $invoice->label()])]);
+            }
+            $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
+        }
+
+        // An unpaid deposit balance on a settled unit is credited, so no later payment can reach it (as TransferDeposits).
         $number = ($this->next)(NumberSequenceKey::DepositSettlement);
         $unpaid = InvoiceLine::query()->whereIn('agreement_unit_id', $settlement->units->pluck('agreement_unit_id'))
             ->where('charge_type', InvoiceChargeType::Deposit)

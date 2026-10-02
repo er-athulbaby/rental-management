@@ -9,12 +9,15 @@ use App\Actions\Payments\RecordPayment;
 use App\Billing\CustomerCredit;
 use App\Enums\RoleName;
 use App\Integrity\IntegrityCheck;
+use App\Models\Agreement;
+use App\Models\AgreementUnit;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\DepositMovement;
 use App\Models\Invoice;
 use App\Models\Unit;
 use App\Models\User;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -153,4 +156,46 @@ test('approval closes an unpaid deposit balance with a system credit note, so la
         ->and(DepositMovement::where('agreement_unit_id', $au->id)->where('type', 'received')->sum('amount'))->toEqual('300.000')
         ->and(CustomerCredit::fils($customer->id))->toBe(50_000)
         ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+/** A deposit invoice held back (scheduled, never issued) with one 100.000 line per agreement unit. */
+function scheduledDepositInvoice(Customer $customer, Agreement $agreement, AgreementUnit ...$aus): Invoice
+{
+    $invoice = (new Invoice)->forceFill([
+        'type' => 'deposit', 'customer_id' => $customer->id, 'agreement_id' => $agreement->id, 'issue_date' => '2026-10-05', 'due_date' => '2026-10-05',
+        'status' => 'draft', 'subtotal' => '0.000', 'tax_total' => '0.000', 'total' => '0.000',
+    ]);
+    $invoice->save();
+    foreach ($aus as $au) {
+        $invoice->lines()->create(['agreement_unit_id' => $au->id, 'unit_id' => $au->unit_id, 'charge_type' => 'deposit', 'description' => 'Deposit',
+            'net' => '100.000', 'tax_category' => 'out_of_scope', 'tax_rate' => '0.00', 'tax_amount' => '0.000', 'total' => '100.000']);
+    }
+    $total = Fils::toDecimal(100_000 * count($aus));
+    $invoice->forceFill(['subtotal' => $total, 'total' => $total, 'status' => 'scheduled'])->save();
+
+    return $invoice;
+}
+
+test('plan ruling 9: approval cancels a held-back deposit invoice wholly on the settled units, with no credit note', function () {
+    $held = scheduledDepositInvoice($this->customer, $this->agreement, $this->au);
+
+    app(DecideApproval::class)->handle($this->management, app(SubmitDepositSettlement::class)->handle($this->finance, $this->settlement->fresh()), true);
+
+    expect($held->fresh()->status->value)->toBe('cancelled')
+        ->and($this->settlement->fresh()->status->value)->toBe('approved')
+        ->and(Invoice::where('type', 'credit_note')->where('related_invoice_id', $held->id)->exists())->toBeFalse();
+});
+
+test('plan ruling 9: a held-back deposit invoice that also covers a unit not being settled blocks the approval', function () {
+    $customer = Customer::factory()->create();
+    $agreement = activeAgreement(['customer_id' => $customer->id, 'start_date' => '2025-10-01', 'end_date' => '2026-09-30'], Unit::factory()->count(2)->create()->all());
+    [$settled, $stays] = $agreement->agreementUnits()->orderBy('id')->get()->all();
+    $held = scheduledDepositInvoice($customer, $agreement, $settled, $stays);
+    $settlement = DB::transaction(fn () => app(CreateDepositSettlement::class)->handle($agreement, [$settled->id], $this->finance));
+    $approval = app(SubmitDepositSettlement::class)->handle($this->finance, $settlement);
+
+    expect(fn () => app(DecideApproval::class)->handle($this->management, $approval, true))
+        ->toThrow(ValidationException::class, 'Issue deposit invoice')
+        ->and($held->fresh()->status->value)->toBe('scheduled')
+        ->and($settlement->fresh()->status->value)->toBe('pending_approval');
 });
