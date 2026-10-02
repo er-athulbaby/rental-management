@@ -34,8 +34,9 @@ class Dashboard extends Component
             $tiles[] = ['label' => __('Occupancy'), 'value' => $units > 0 ? number_format(100 * $occupied / $units, 1).'%' : '—', 'url' => route('reports.occupancy')];
         }
         if ($financial) {
-            // Spec §10 defines no rent-due report, so this tile links to the invoice list.
-            $tiles[] = ['label' => __('Rent due this month'), 'url' => route('invoices.index'), 'value' => $money((string) (Queries::rentDue($user, $monthStart, $monthEnd)->sum('total') ?: '0'))];
+            // Spec §10 defines no rent-due report, so this tile links to the invoice list. Net (subtotal), not total: VAT is
+            // only charged on issue, so scheduled invoices carry none yet and summing totals would mix inclusive and exclusive amounts.
+            $tiles[] = ['label' => __('Rent due this month'), 'url' => route('invoices.index'), 'value' => $money((string) (Queries::rentDue($user, $monthStart, $monthEnd)->sum('subtotal') ?: '0'))];
             $tiles[] = ['label' => __('Collected this month'), 'url' => route('reports.collections', ['from' => $monthStart, 'to' => $today->toDateString()]),
                 'value' => $money((string) (Queries::collections($user, $monthStart, $today->toDateString())->where('method', '!=', PaymentMethod::DepositApplied)->sum('amount') ?: '0'))];
             $tiles[] = ['label' => __('Overdue total'), 'url' => route('reports.ageing'), 'value' => $money((string) (Queries::overdueInvoices($user)->sum('balance') ?: '0'))];

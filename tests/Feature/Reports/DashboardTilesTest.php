@@ -48,3 +48,13 @@ test('each tile needs its report\'s permission', function () {
 
     Livewire::actingAs(matrixUser(RoleName::Management, $this->building))->test(Dashboard::class)->assertSee('Pending approvals')->assertSee('50.0%');
 });
+
+test('rent due sums net amounts: issued VAT-inclusive totals are not mixed with scheduled ones, which carry no VAT yet', function () {
+    CompanySetting::current()->forceFill(['vat_registered' => true, 'vat_rate' => '10.00'])->save();
+    $agreement = activeAgreement(['customer_id' => $this->customer->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [Unit::factory()->for($this->building)->create()]);
+    $vat = issuedInvoice($this->customer, [['net' => '100.000', 'tax' => 'standard']], '2026-06-15', $agreement);
+    expect($vat->total)->not->toBe($vat->subtotal); // VAT was charged on issue
+
+    $tiles = collect(Dashboard::tiles(matrixUser(RoleName::Management, $this->building)))->pluck('value', 'label');
+    expect($tiles['Rent due this month'])->toBe('500.000');
+});

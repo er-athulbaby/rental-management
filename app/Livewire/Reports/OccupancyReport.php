@@ -42,16 +42,16 @@ class OccupancyReport extends Component
     /** @return list<array<string, string|int|null>> */
     protected function rows(): array
     {
-        $occupied = Queries::occupiedUnitIds($this->actor(), $this->to)->pluck('unit_id')->all();
+        $occupied = array_flip(Queries::occupiedUnitIds($this->actor(), $this->to)->pluck('unit_id')->all());
 
         return array_values(Building::visibleTo($this->actor())->when($this->building, fn ($q, $b) => $q->whereKey($b))->orderBy('code')
             ->with(['units:id,building_id,blocked'])->get()
             ->map(function (Building $b) use ($occupied) {
                 $units = $b->units->count();
                 $blocked = $b->units->where('blocked', true)->count();
-                $taken = $b->units->whereIn('id', $occupied)->count();
+                $taken = $b->units->filter(fn ($u) => isset($occupied[$u->id]))->count();
                 $available = $units - $blocked;
-                $takenAvailable = $b->units->where('blocked', false)->whereIn('id', $occupied)->count(); // a blocked unit can't count towards the %
+                $takenAvailable = $b->units->filter(fn ($u) => ! $u->blocked && isset($occupied[$u->id]))->count(); // a blocked unit can't count towards the %
 
                 return [
                     'building' => "{$b->code} — {$b->name}",
