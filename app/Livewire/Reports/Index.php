@@ -29,6 +29,8 @@ class Index extends Component
                 ['route' => 'owner-statements.index', 'label' => __('Owner statements')],
                 ['route' => 'reports.outstanding', 'label' => __('Outstanding by customer')],
                 ['route' => 'reports.ageing', 'label' => __('Overdue ageing')],
+                ['route' => 'reports.collections', 'label' => __('Collections by date and method')],
+                ['route' => 'reports.deposits', 'label' => __('Deposits held')],
             ],
         ];
     }
