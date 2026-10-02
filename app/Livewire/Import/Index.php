@@ -73,6 +73,10 @@ class Index extends Component
             $closed = collect($e->errors())->flatten()->first();
         }
 
-        return view('livewire.import.index', ['kinds' => ImportKind::cases(), 'closed' => $closed]);
+        return view('livewire.import.index', [
+            'kinds' => ImportKind::cases(),
+            'closed' => $closed,
+            'cutover' => $closed === null ? rescue(fn () => RunImport::cutover(), null, false) : null,
+        ]);
     }
 }

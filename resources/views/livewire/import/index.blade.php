@@ -5,6 +5,14 @@
     @if ($closed)
         <flux:callout variant="danger" icon="lock-closed" :heading="$closed" />
     @else
+        @if ($cutover)
+            <flux:callout icon="calendar" :heading="__('Cutover date: :d', ['d' => $cutover->format('d/m/Y')])">
+                {{ __('Balances, deposits and cheques are as at this date. Schedules start with the first period on or after it.') }}
+            </flux:callout>
+        @else
+            <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Set the go-live date first (php artisan rms:setting go_live_at YYYY-MM-DD).')" />
+        @endif
+
         <flux:error name="import" />
 
         <div class="space-y-4">

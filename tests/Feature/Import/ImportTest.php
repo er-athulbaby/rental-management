@@ -38,7 +38,7 @@ function importFile(ImportKind $kind, array $rows): string
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
-    CompanySetting::factory()->create();
+    CompanySetting::factory()->create(['go_live_at' => '2026-11-01 00:00:00']);
     $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Asia/Bahrain'));
     app(EnsureNumberSequences::class)(2026);
     $this->vendor = User::factory()->withTwoFactor()->create()->assignRole(RoleName::VendorSupport);
@@ -55,8 +55,10 @@ beforeEach(function () {
             ['type' => 'person', 'name_en' => 'Ali Hassan', 'id_type' => 'cpr', 'id_number' => '080101234', 'phone' => '+97333000000', 'iban' => 'BH67BMAG00001299123456', 'bank_name' => 'NBB', 'account_name' => 'Ali Hassan'],
         ]),
         'owner_contracts' => importFile(ImportKind::OwnerContracts, [
-            ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'units' => 'ALL', 'type' => 'managed',
+            ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'units' => '101', 'type' => 'managed',
                 'start_date' => '01/01/2026', 'end_date' => '2026-12-31', 'fee_type' => 'percent_collected', 'fee_value' => '7', 'deposits_held_by' => 'company'],
+            ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'units' => '102', 'type' => 'leased',
+                'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'rent_amount' => '300.000', 'payment_frequency' => 'monthly'],
         ]),
     ];
 });
@@ -65,7 +67,7 @@ test('a dry run validates every file and saves nothing', function () {
     $result = app(RunImport::class)->handle($this->vendor, $this->files, commit: false);
 
     expect($result->errors)->toBe([])
-        ->and($result->counts)->toBe(['buildings' => 1, 'units' => 2, 'owners' => 1, 'owner_contracts' => 1])
+        ->and($result->counts)->toBe(['buildings' => 1, 'units' => 2, 'owners' => 1, 'owner_contracts' => 2])
         ->and($result->committed)->toBeFalse()
         ->and(Building::count() + Unit::count() + Owner::count() + OwnerContract::count())->toBe(0);
 });
@@ -80,12 +82,12 @@ test('a clean import saves everything and activates contracts with an Imported b
         ->and($owner->iban)->toBe('BH67BMAG00001299123456')
         ->and(Unit::where('code', '102')->sole()->blocked)->toBeTrue();
 
-    $contract = OwnerContract::sole();
+    $contract = OwnerContract::where('type', 'managed')->sole();
     $approval = $contract->approvals()->sole();
     expect($contract->status)->toBe(OwnerContractStatus::Active)
         ->and($contract->number)->toBe('OC-2026-000001')
         ->and($contract->start_date->toDateString())->toBe('2026-01-01')
-        ->and($contract->units()->count())->toBe(2)
+        ->and($contract->units()->count())->toBe(1)
         ->and($approval->status)->toBe(ApprovalStatus::Approved)
         ->and($approval->comment)->toBe('Imported by '.$this->vendor->name);
 });
@@ -168,4 +170,23 @@ test('a bogus file key is rejected before anything is stored', function () {
         ->assertHasErrors('files');
 
     expect(Storage::disk('local')->files('imports'))->toBe([]);
+});
+
+test('imports need the go-live date: it is the cutover date', function () {
+    CompanySetting::current()->forceFill(['go_live_at' => null])->save();
+
+    expect(fn () => app(RunImport::class)->handle($this->vendor, $this->files, commit: false))
+        ->toThrow(ValidationException::class, 'Set the go-live date first');
+});
+
+test('head-lease payables start with the first period on or after cutover', function () {
+    app(RunImport::class)->handle($this->vendor, $this->files, commit: true);
+
+    $leased = OwnerContract::where('type', 'leased')->sole();
+    expect($leased->payables()->orderBy('period_start')->pluck('period_start')->map->toDateString()->all())
+        ->toBe(['2026-11-01', '2026-12-01']);
+});
+
+test('the import screen shows the cutover date', function () {
+    Livewire::actingAs($this->vendor)->test(Index::class)->assertSee('Cutover date: 01/11/2026');
 });

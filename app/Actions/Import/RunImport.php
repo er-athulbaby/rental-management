@@ -50,6 +50,7 @@ final class RunImport
         }
 
         self::ensureOpen();
+        $cutover = self::cutover();
 
         $errors = [];
         $counts = [];
@@ -86,7 +87,7 @@ final class RunImport
                 foreach ($reader->getRows() as $index => $row) {
                     try {
                         // A savepoint per row: a failed row leaves nothing behind for later rows to trip on.
-                        DB::transaction(fn () => $this->importRow($actor, $kind, $this->normalise($kind, $row)));
+                        DB::transaction(fn () => $this->importRow($actor, $kind, $this->normalise($kind, $row), $cutover));
                         $passed++;
                     } catch (ValidationException $e) {
                         $errors[$kind->value][(int) $index + 2] = array_values(Arr::flatten($e->errors()));
@@ -125,8 +126,17 @@ final class RunImport
         }
     }
 
+    /** Plan ruling 1: imports are as at the go-live day (spec §11). */
+    public static function cutover(): CarbonImmutable
+    {
+        $goLive = CompanySetting::current()->go_live_at
+            ?? throw ValidationException::withMessages(['import' => __('Set the go-live date first (php artisan rms:setting go_live_at YYYY-MM-DD): imports are as at that date.')]);
+
+        return CarbonImmutable::instance($goLive)->timezone('Asia/Bahrain')->startOfDay();
+    }
+
     /** @param  array<string, mixed>  $row */
-    private function importRow(User $actor, ImportKind $kind, array $row): void
+    private function importRow(User $actor, ImportKind $kind, array $row, CarbonImmutable $cutover): void
     {
         match ($kind) {
             ImportKind::Buildings => $this->buildings->handle($actor, null, $row),
@@ -136,13 +146,13 @@ final class RunImport
                 'blocked' => in_array(strtolower((string) ($row['blocked'] ?? '')), ['yes', 'y', 'true', '1'], true),
             ]),
             ImportKind::Owners => $this->owners->handle($actor, null, $row, viaImport: true),
-            ImportKind::OwnerContracts => $this->ownerContract($actor, $row),
+            ImportKind::OwnerContracts => $this->ownerContract($actor, $row, $cutover),
         };
     }
 
     /** Imported contracts are created active, with an approval recorded as "Imported by {user}" (spec §11). */
     /** @param  array<string, mixed>  $row */
-    private function ownerContract(User $actor, array $row): void
+    private function ownerContract(User $actor, array $row, CarbonImmutable $cutover): void
     {
         $buildingId = $this->buildingId($row['building_code'] ?? null);
 
@@ -175,8 +185,7 @@ final class RunImport
             'ip' => request()->ip(),
         ]);
 
-        // ponytail: today stands in for the cutover date (spec §11); M5 replaces it with the formal cutover date.
-        $this->activate->handle($contract, CarbonImmutable::today('Asia/Bahrain'));
+        $this->activate->handle($contract, $cutover);
     }
 
     private function buildingId(mixed $code): int
