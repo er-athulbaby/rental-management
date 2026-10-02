@@ -99,7 +99,6 @@ final class RecordExpense
                 'posted_at' => now(),
                 'recorded_by' => $actor->id,
             ])->save();
-            // ponytail: M4 posts owner-charged expenses to the owner ledger (spec §7.9).
 
             if ($ownerApproval) {
                 $this->documents->handle($actor, $expense, $ownerApproval, DocumentCategory::OwnerApproval);
