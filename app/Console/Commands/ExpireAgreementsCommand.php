@@ -13,8 +13,9 @@ class ExpireAgreementsCommand extends Command
 
     public function handle(ExpireAgreements $expire): int
     {
-        $this->info(sprintf('%d agreement(s) expired, closed, terminated or renewed.', $expire()));
+        $changed = $expire();
+        $this->info(sprintf('%d agreement(s) expired, closed, terminated or renewed; %d failed.', $changed, $expire->failed));
 
-        return self::SUCCESS;
+        return $expire->failed > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

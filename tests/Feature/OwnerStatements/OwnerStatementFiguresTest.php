@@ -114,7 +114,7 @@ test('drafts: managed contracts active in the month or with new entries; once pe
 
     expect(($this->draft)('2026-03'))->toBe(2)
         ->and(OwnerStatement::pluck('owner_contract_id')->sort()->values()->all())->toBe([$active->id, $endedBusy->id])
-        ->and(OwnerStatement::where('owner_contract_id', $endedBusy->id)->value('created_by'))->toBe($endedBusy->created_by) // plan ruling 8
+        ->and(OwnerStatement::where('owner_contract_id', $endedBusy->id)->value('created_by'))->toBe(User::system()->id)
         ->and(app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-03-01')))->toBe(['created' => 0, 'failed' => 0])
         ->and(OwnerStatement::where('owner_contract_id', $endedQuiet->id)->exists())->toBeFalse()
         ->and(scheduledEvent('rms:owner-statements:draft')->expression)->toBe('0 4 1 * *');

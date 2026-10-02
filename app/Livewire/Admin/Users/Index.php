@@ -30,6 +30,7 @@ class Index extends Component
         $users = User::query()
             ->with('roles')
             ->withCount('buildings')
+            ->where('is_system', false)
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('name', 'like', '%'.$this->search.'%')
                 ->orWhere('email', 'like', '%'.$this->search.'%')))

@@ -39,6 +39,8 @@ class Form extends Component
 
     public function mount(?User $user = null): void
     {
+        abort_if($user?->is_system === true, 404);
+
         if ($user?->exists) {
             $this->userId = $user->id;
             $this->name = $user->name;

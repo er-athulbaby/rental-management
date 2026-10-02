@@ -9,6 +9,7 @@ use App\Enums\OwnerContractType;
 use App\Enums\OwnerStatementStatus;
 use App\Models\OwnerContract;
 use App\Models\OwnerStatement;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -71,7 +72,7 @@ final class DraftOwnerStatements
             'period_end' => $end->toDateString(),
             'cutoff_at' => $cutoff,
             'status' => OwnerStatementStatus::Draft,
-            'created_by' => $contract->created_by, // plan ruling 8, until M5 adds a system user
+            'created_by' => User::system()->id, // spec §8.3: no person created a nightly draft
         ]);
         $statement->setRelation('contract', $contract);
         OwnerStatementCalculator::apply($statement);

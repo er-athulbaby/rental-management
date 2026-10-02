@@ -13,6 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Activitylog\Models\Concerns\HasActivity;
@@ -25,6 +26,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property string $password
  * @property bool $active
+ * @property bool $is_system
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -63,7 +65,24 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'active' => 'boolean',
+            'is_system' => 'boolean',
         ];
+    }
+
+    /**
+     * Plan ruling 6: the creator of what the nightly jobs create. Inactive, so it can never sign in
+     * (FortifyServiceProvider checks `active`); created on first use.
+     */
+    public static function system(): self
+    {
+        return self::query()->where('is_system', true)->first()
+            ?? tap((new self)->forceFill([
+                'name' => 'System',
+                'email' => 'system@rms.invalid',
+                'password' => Hash::make(Str::random(64)),
+                'active' => false,
+                'is_system' => true,
+            ]))->save();
     }
 
     /** Spec §8.6: holders of a sensitive permission must use 2FA. Follows roles granted later. */

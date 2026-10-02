@@ -11,6 +11,7 @@ use App\Models\AgreementUnit;
 use App\Models\DepositSettlementUnit;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * The 02:00 job (spec §12) and the closing check (spec §5.4), which RecordMoveOut also runs. Idempotent.
@@ -20,14 +21,23 @@ final class ExpireAgreements
 {
     public function __construct(private CreateDepositSettlement $settlement) {}
 
+    /** Records that failed in the last run; the command fails when this is above 0 (spec §12). */
+    public int $failed = 0;
+
     public function __invoke(): int
     {
         $today = now('Asia/Bahrain')->toDateString();
+        $this->failed = 0;
 
         $changed = 0;
         $due = Agreement::query()->whereIn('status', [AgreementStatus::Active, AgreementStatus::Expired])->where('end_date', '<', $today)->orderBy('id')->pluck('id');
         foreach ($due as $id) {
-            $changed += DB::transaction(fn () => $this->checkOne($id) !== null ? 1 : 0, attempts: 3);
+            try {
+                $changed += DB::transaction(fn () => $this->checkOne($id) !== null ? 1 : 0, attempts: 3);
+            } catch (Throwable $e) {
+                $this->failed++;
+                report($e); // one agreement must not hold back the rest
+            }
         }
 
         // Units whose occupancy ended before today and have no settlement yet (spec §5.9).
@@ -38,11 +48,15 @@ final class ExpireAgreements
             ->whereHas('agreement', fn ($q) => $q->whereNotIn('status', [AgreementStatus::Draft, AgreementStatus::PendingApproval]))
             ->get()->groupBy('agreement_id');
         foreach ($ended as $agreementId => $units) {
-            DB::transaction(function () use ($agreementId, $units) {
-                $agreement = Agreement::query()->lockForUpdate()->findOrFail($agreementId);
-                // ponytail: the agreement's creator stands in as the settlement's creator for the nightly job; a system user arrives with M5's jobs.
-                $this->settlement->handle($agreement, array_values($units->map(fn (AgreementUnit $au): int => $au->id)->all()), User::query()->findOrFail($agreement->created_by));
-            }, attempts: 3);
+            try {
+                DB::transaction(function () use ($agreementId, $units) {
+                    $agreement = Agreement::query()->lockForUpdate()->findOrFail($agreementId);
+                    $this->settlement->handle($agreement, array_values($units->map(fn (AgreementUnit $au): int => $au->id)->all()), User::system());
+                }, attempts: 3);
+            } catch (Throwable $e) {
+                $this->failed++;
+                report($e);
+            }
         }
 
         return $changed;
