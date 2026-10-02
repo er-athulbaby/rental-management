@@ -9,12 +9,10 @@ One install per company (spec D2). Times are Asia/Bahrain. Vendor Support runs t
 3. **Agree the cutover date** with the client. Everything is as at the start of that day:
    - scheduled rent and head-lease payments start with the first period that begins on or after it;
    - the period containing it was billed in the old system, and its unpaid part is in the opening balance.
-4. **Freeze the old system's figures** at the close of the day before cutover. Export from it:
-   - each customer's balance (per agreement unit where the client tracks it);
-   - each deposit held;
-   - each cheque still held;
-   - each managed owner's balance.
-   Keep the totals: they are checked against the import's totals.
+4. **What to import.** The files hold the position at the start of the cutover day:
+   - import only the agreement running at cutover. A renewal in the old system that starts after cutover is not imported: enter it as a renewal in the app after go-live;
+   - agreement units that ended before cutover are not imported (the import refuses them);
+   - post-dated cheques dated before cutover but still not deposited are imported as held, and deposited as usual after go-live.
 5. **Security review** (sign each line):
    - `APP_DEBUG=false`, `APP_ENV=production`, HTTPS only, HSTS on.
    - Every user with Finance, Management, Admin or Vendor Support has two-factor on (enforced at sign-in).
@@ -28,18 +26,30 @@ One install per company (spec D2). Times are Asia/Bahrain. Vendor Support runs t
    - Finance: payments, cheques, payments out, credit notes, settlements, owner statements, remittances.
    - Management: the approvals screen and the reports.
 
-## Cutover day
+## Evening of T−1 (must finish before 00:00)
 
-1. `php artisan rms:setting go_live_at <cutover date>`. Set it **the day before** cutover: imports close once that day starts.
-2. Upload the full file set and run a **dry run**. Fix and repeat until it is clean.
-3. Compare the dry run's totals with the old system's totals from step 4 above:
+Imports close at 00:00 on the cutover date, so everything below happens on the evening before it.
+
+1. `php artisan rms:setting go_live_at <cutover date>`, if it is not set already.
+2. **Freeze the old system** at the close of business and export from it:
+   - each customer's balance (per agreement unit where the client tracks it);
+   - each deposit held;
+   - each cheque still held;
+   - each managed owner's balance.
+   Keep the totals: they are checked against the import's totals.
+3. Upload the full file set and run a **dry run**. Fix and repeat until it is clean.
+4. **Reconcile.** Compare the dry run's totals with the old system's totals from step 2:
    - customer balances;
    - deposits held;
    - cheques;
    - owner balances.
    They must match to the fil. Investigate any difference before importing.
-4. **Import.** It runs in one transaction; nothing is saved unless every row of every file passes.
-5. Spot-check with the client:
+5. **Import** the full file set once. Each run is one transaction; nothing is saved unless every row of every file passes.
+6. **Fallback.** If the import cannot be committed before 00:00, move the date before anything is committed: `php artisan rms:setting go_live_at <later date>`, and repeat this evening's steps the day before the new date. Never move it after a commit: the import is as at its date.
+
+## Cutover day
+
+1. Spot-check with the client:
    - three customer statements;
    - one multi-unit agreement's schedule;
    - one managed owner's ledger;
@@ -50,7 +60,7 @@ One install per company (spec D2). Times are Asia/Bahrain. Vendor Support runs t
 - Day 1, 01:00: invoices due are issued; check the run's log and heartbeat.
 - Day 1, 02:30: the integrity check reports nothing.
 - **UAT sign-off.** The client walks through the spec §14 flows on production data, as listed in the UAT checklist below, and signs.
-- 1st of the next month, 04:00: the first owner statements are drafted. Finance reviews them before submitting.
+- The first owner statement is for the go-live month. It is drafted at 04:00 on the 1st of the month after go-live; no statement is drafted for earlier months (the opening owner balance carries them). Finance reviews it before submitting.
 
 ## UAT checklist (spec §14)
 
