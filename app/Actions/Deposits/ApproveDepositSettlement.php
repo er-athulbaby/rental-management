@@ -8,6 +8,8 @@ use App\Actions\Billing\IssueInvoice;
 use App\Actions\NextDocumentNumber;
 use App\Actions\Payments\ApplyToInvoices;
 use App\Actions\Payments\PostPayment;
+use App\Enums\ChequeDirection;
+use App\Enums\ChequeStatus;
 use App\Enums\DeductionType;
 use App\Enums\DepositMovementType;
 use App\Enums\DepositSettlementStatus;
@@ -18,6 +20,7 @@ use App\Enums\NumberSequenceKey;
 use App\Enums\PaymentMethod;
 use App\Models\Agreement;
 use App\Models\AgreementUnit;
+use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\DepositMovement;
 use App\Models\DepositSettlement;
@@ -31,7 +34,7 @@ use Illuminate\Validation\ValidationException;
 use LogicException;
 
 /**
- * Spec §7.7 on approval, in one transaction. Locks: customer → settlement → named rent lines → (unissued deposit invoices, cancelled) → (system credit note for
+ * Spec §7.7 on approval, in one transaction. Locks: customer → settlement → held cheques on unissued deposit invoices → named rent lines → (unissued deposit invoices, cancelled) → (system credit note for
  * any unpaid deposit balance: its deposit lines → deposit invoice) → (deductions invoice, new) → invoices → payment; the
  * customer lock serialises the second batch of lines. Credit auto-allocation is suppressed: the deductions invoice issues with
  * autoAllocate false, and the deposit_applied payment is allocated explicitly.
@@ -63,29 +66,38 @@ final class ApproveDepositSettlement
             throw ValidationException::withMessages(['approval' => __('This settlement is no longer waiting for approval.')]);
         }
 
+        // Plan ruling 9: a deposit invoice not yet issued (normally held back by a pending owner contract, §4.6) must not bill
+        // a settled unit later. Its held cheques are locked first, before any invoice line or invoice (as ClearCheque and
+        // RebillAgreement: cheques → invoices).
+        $settled = $settlement->units->pluck('agreement_unit_id')->all();
+        $heldBackIds = Invoice::query()->where('type', InvoiceType::Deposit)->whereIn('status', [InvoiceStatus::Draft, InvoiceStatus::Scheduled])
+            ->whereHas('lines', fn ($q) => $q->whereIn('agreement_unit_id', $settled))->orderBy('id')->pluck('id');
+        $heldCheques = Cheque::query()->where('direction', ChequeDirection::Received)->where('status', ChequeStatus::Held)
+            ->whereIn('invoice_id', $heldBackIds)->orderBy('id')->lockForUpdate()->get();
+
         // Lock the named unpaid_rent lines (ascending) before planning; the caps come from these rows.
         $rentLines = InvoiceLine::query()
             ->whereKey($settlement->lines->where('type', DeductionType::UnpaidRent)->pluck('invoice_line_id'))
             ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
-        // 0. Plan ruling 9: a deposit invoice not yet issued (normally held back by a pending owner contract, §4.6) must
-        // not bill a settled unit later. One wholly on settled units is cancelled; a mixed one is refused. Locked after the
-        // rent lines above (§7.2: invoice lines → invoices).
-        $settled = $settlement->units->pluck('agreement_unit_id')->all();
-        $pending = Invoice::query()->where('type', InvoiceType::Deposit)->whereIn('status', [InvoiceStatus::Draft, InvoiceStatus::Scheduled])
-            ->whereHas('lines', fn ($q) => $q->whereIn('agreement_unit_id', $settled))->orderBy('id')->lockForUpdate()->with('lines')->get();
-        foreach ($pending as $invoice) {
+        // 0. A held-back deposit invoice wholly on settled units is cancelled, and its held cheques are left to return
+        // (as RebillAgreement); a mixed one is refused. Locked after the rent lines above (§7.2: invoice lines → invoices).
+        $heldBack = Invoice::query()->whereKey($heldBackIds)->orderBy('id')->lockForUpdate()->with('lines')->get();
+        foreach ($heldBack as $invoice) {
             if ($invoice->lines->contains(fn ($l) => ! in_array($l->agreement_unit_id, $settled, true))) {
-                throw ValidationException::withMessages(['approval' => __('Issue deposit invoice :n for the other units first (it is held back), then approve this settlement.', ['n' => $invoice->label()])]);
+                throw ValidationException::withMessages(['approval' => __('Deposit invoice :n also covers other units and is held back by a pending owner contract: decide that contract first, then approve this settlement.', ['n' => $invoice->label()])]);
             }
             $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
+        }
+        foreach ($heldCheques as $cheque) {
+            $cheque->forceFill(['invoice_id' => null, 'to_return' => true])->save();
         }
 
         // An unpaid deposit balance on a settled unit is credited, so no later payment can reach it (as TransferDeposits).
         $number = ($this->next)(NumberSequenceKey::DepositSettlement);
         $unpaid = InvoiceLine::query()->whereIn('agreement_unit_id', $settlement->units->pluck('agreement_unit_id'))
             ->where('charge_type', InvoiceChargeType::Deposit)
-            ->whereHas('invoice', fn ($q) => $q->where('status', InvoiceStatus::Issued))->orderBy('id')->get()
+            ->whereHas('invoice', fn ($q) => $q->where('status', InvoiceStatus::Issued))->orderBy('id')->lockForUpdate()->get()
             ->filter(fn (InvoiceLine $l) => $l->balanceFils() > 0);
         foreach ($unpaid->groupBy('invoice_id') as $invoiceId => $lines) {
             $cn = $this->buildCreditNote->handle(Invoice::query()->findOrFail($invoiceId), array_values($lines->map(fn (InvoiceLine $l) => [$l, $l->balanceFils()])->all()),

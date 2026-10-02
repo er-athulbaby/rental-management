@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Approvals\DecideApproval;
+use App\Actions\Cheques\RecordCheques;
 use App\Actions\Deposits\CreateDepositSettlement;
 use App\Actions\Deposits\SaveSettlementDeductions;
 use App\Actions\Deposits\SubmitDepositSettlement;
@@ -178,12 +179,17 @@ function scheduledDepositInvoice(Customer $customer, Agreement $agreement, Agree
 
 test('plan ruling 9: approval cancels a held-back deposit invoice wholly on the settled units, with no credit note', function () {
     $held = scheduledDepositInvoice($this->customer, $this->agreement, $this->au);
+    // The deposit cheque collected at signing, matched to the held-back invoice.
+    $cheque = app(RecordCheques::class)->handle($this->finance, $this->customer, $this->agreement, [['cheque_no' => '1', 'bank_name' => 'NBB', 'cheque_date' => '2026-10-05', 'amount' => '100', 'invoice_id' => $held->id]])->sole();
 
     app(DecideApproval::class)->handle($this->management, app(SubmitDepositSettlement::class)->handle($this->finance, $this->settlement->fresh()), true);
 
     expect($held->fresh()->status->value)->toBe('cancelled')
         ->and($this->settlement->fresh()->status->value)->toBe('approved')
-        ->and(Invoice::where('type', 'credit_note')->where('related_invoice_id', $held->id)->exists())->toBeFalse();
+        ->and(Invoice::where('type', 'credit_note')->where('related_invoice_id', $held->id)->exists())->toBeFalse()
+        ->and($cheque->fresh()->invoice_id)->toBeNull()
+        ->and($cheque->fresh()->to_return)->toBeTrue()
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
 });
 
 test('plan ruling 9: a held-back deposit invoice that also covers a unit not being settled blocks the approval', function () {
@@ -195,7 +201,7 @@ test('plan ruling 9: a held-back deposit invoice that also covers a unit not bei
     $approval = app(SubmitDepositSettlement::class)->handle($this->finance, $settlement);
 
     expect(fn () => app(DecideApproval::class)->handle($this->management, $approval, true))
-        ->toThrow(ValidationException::class, 'Issue deposit invoice')
+        ->toThrow(ValidationException::class, 'also covers other units and is held back by a pending owner contract: decide that contract first')
         ->and($held->fresh()->status->value)->toBe('scheduled')
         ->and($settlement->fresh()->status->value)->toBe('pending_approval');
 });
