@@ -27,6 +27,8 @@ class Index extends Component
                 ['route' => 'reports.building-profitability', 'label' => __('Building profitability')],
                 ['route' => 'owner-payables.index', 'label' => __('Head-lease payments due')],
                 ['route' => 'owner-statements.index', 'label' => __('Owner statements')],
+                ['route' => 'reports.outstanding', 'label' => __('Outstanding by customer')],
+                ['route' => 'reports.ageing', 'label' => __('Overdue ageing')],
             ],
         ];
     }

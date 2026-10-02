@@ -80,6 +80,8 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('reports/id-documents', Reports\IdDocumentsReport::class)->middleware('can:reports.operational')->name('reports.id-documents');
     Route::livewire('reports/cheques', Reports\ChequesReport::class)->middleware('can:reports.operational')->name('reports.cheques');
     Route::livewire('reports/building-profitability', Reports\BuildingProfitabilityReport::class)->middleware('can:reports.financial')->name('reports.building-profitability');
+    Route::livewire('reports/outstanding', Reports\OutstandingReport::class)->middleware('can:reports.financial')->name('reports.outstanding');
+    Route::livewire('reports/ageing', Reports\AgeingReport::class)->middleware('can:reports.financial')->name('reports.ageing');
     Route::livewire('owner-statements', OwnerStatements\Index::class)->middleware('can:finance.view')->name('owner-statements.index');
     Route::livewire('owner-statements/{statement}', OwnerStatements\Show::class)->middleware('can:finance.view')->name('owner-statements.show');
     Route::get('owner-statements/{statement}/pdf', OwnerStatementPdfController::class)->middleware('can:finance.view')->name('owner-statements.pdf');

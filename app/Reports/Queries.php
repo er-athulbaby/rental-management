@@ -6,6 +6,9 @@ use App\Enums\AgreementStatus;
 use App\Enums\ChequeDirection;
 use App\Enums\ChequeStatus;
 use App\Enums\DocumentCategory;
+use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
+use App\Enums\PaymentStatus;
 use App\Enums\PermissionName;
 use App\Models\Agreement;
 use App\Models\AgreementAmendment;
@@ -15,7 +18,9 @@ use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Invoice;
 use App\Models\Owner;
+use App\Models\Payment;
 use App\Models\Unit;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -162,6 +167,37 @@ final class Queries
     {
         return Cheque::query()->visibleTo($user)->where('direction', ChequeDirection::Received)
             ->where('status', ChequeStatus::Held)->where('to_return', true);
+    }
+
+    /**
+     * Issued invoices with a balance (credit notes never carry one, spec §7.10).
+     *
+     * @return Builder<Invoice>
+     */
+    public static function openInvoices(User $user, ?int $buildingId = null): Builder
+    {
+        return Invoice::query()->visibleTo($user)->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)
+            ->where('balance', '>', 0)
+            ->when($buildingId, fn (Builder $q, int $b) => $q->whereHas('lines', fn (Builder $l) => $l->whereIn('unit_id', Unit::query()->where('building_id', $b)->select('id'))));
+    }
+
+    /**
+     * Open invoices past their grace date (spec §10 ageing; §2 overdue = due date + grace days).
+     *
+     * @return Builder<Invoice>
+     */
+    public static function overdueInvoices(User $user, ?int $buildingId = null): Builder
+    {
+        return self::openInvoices($user, $buildingId)->where('grace_until', '<', now('Asia/Bahrain')->toDateString());
+    }
+
+    /** @return Builder<Payment> */
+    public static function collections(User $user, string $from, string $to, ?int $buildingId = null): Builder
+    {
+        return Payment::query()->where('status', PaymentStatus::Confirmed)->whereBetween('received_on', [$from, $to])
+            ->whereIn('customer_id', Customer::query()->visibleTo($user)->select('id'))
+            ->when($buildingId, fn (Builder $q, int $b) => $q->whereIn('customer_id', Agreement::query()
+                ->whereHas('agreementUnits.unit', fn (Builder $u) => $u->where('building_id', $b))->select('customer_id')));
     }
 
     /**
