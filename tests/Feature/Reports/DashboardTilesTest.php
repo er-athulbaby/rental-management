@@ -25,6 +25,8 @@ beforeEach(function () {
     $this->customer = Customer::factory()->create();
     $agreement = activeAgreement(['customer_id' => $this->customer->id, 'start_date' => '2026-01-01', 'end_date' => '2026-07-15'], [$u1]); // expires in 35 days
     issuedInvoice($this->customer, [['net' => '400.000']], '2026-06-01', $agreement);  // a rent invoice due this month, overdue (grace 06-06)
+    (new Cheque)->forceFill(['direction' => 'received', 'customer_id' => $this->customer->id, 'cheque_no' => 'C0', 'bank_name' => 'NBB', 'cheque_date' => '2026-06-05',
+        'amount' => '400.000', 'status' => 'held', 'created_by' => User::factory()->create()->id])->save(); // held, dated last week: overdue, not "this week"
     (new Cheque)->forceFill(['direction' => 'received', 'customer_id' => $this->customer->id, 'cheque_no' => 'C1', 'bank_name' => 'NBB', 'cheque_date' => '2026-06-12',
         'amount' => '400.000', 'status' => 'held', 'created_by' => User::factory()->create()->id])->save();
 });

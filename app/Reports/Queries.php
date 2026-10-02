@@ -137,15 +137,22 @@ final class Queries
         return now('Asia/Bahrain')->endOfWeek(CarbonInterface::SUNDAY)->toDateString();
     }
 
+    /** Plan ruling 3: the Monday of the week that contains today. */
+    public static function weekStart(): string
+    {
+        return now('Asia/Bahrain')->startOfWeek(CarbonInterface::MONDAY)->toDateString();
+    }
+
     /**
      * Held received cheques due for deposit by $until.
      *
      * @return Builder<Cheque>
      */
-    public static function chequesToDeposit(User $user, string $until): Builder
+    public static function chequesToDeposit(User $user, string $until, ?string $from = null): Builder
     {
         return Cheque::query()->visibleTo($user)->where('direction', ChequeDirection::Received)
-            ->where('status', ChequeStatus::Held)->where('cheque_date', '<=', $until);
+            ->where('status', ChequeStatus::Held)->where('cheque_date', '<=', $until)
+            ->when($from, fn (Builder $q, string $f) => $q->where('cheque_date', '>=', $f));
     }
 
     /**
@@ -167,6 +174,17 @@ final class Queries
     {
         return Cheque::query()->visibleTo($user)->where('direction', ChequeDirection::Received)
             ->where('status', ChequeStatus::Held)->where('to_return', true);
+    }
+
+    /**
+     * Rent invoices (issued or scheduled) falling due in the range.
+     *
+     * @return Builder<Invoice>
+     */
+    public static function rentDue(User $user, string $from, string $to): Builder
+    {
+        return Invoice::query()->visibleTo($user)->where('type', InvoiceType::Rent)
+            ->whereIn('status', [InvoiceStatus::Issued, InvoiceStatus::Scheduled])->whereBetween('due_date', [$from, $to]);
     }
 
     /**

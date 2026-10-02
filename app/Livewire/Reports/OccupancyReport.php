@@ -51,14 +51,15 @@ class OccupancyReport extends Component
                 $blocked = $b->units->where('blocked', true)->count();
                 $taken = $b->units->whereIn('id', $occupied)->count();
                 $available = $units - $blocked;
+                $takenAvailable = $b->units->where('blocked', false)->whereIn('id', $occupied)->count(); // a blocked unit can't count towards the %
 
                 return [
                     'building' => "{$b->code} — {$b->name}",
                     'units' => $units,
                     'blocked' => $blocked,
                     'occupied' => $taken,
-                    'vacant' => max(0, $available - $taken),
-                    'occupancy' => $available > 0 ? number_format(100 * $taken / $available, 1).'%' : '—',
+                    'vacant' => $available - $takenAvailable,
+                    'occupancy' => $available > 0 ? number_format(100 * $takenAvailable / $available, 1).'%' : '—',
                 ];
             })->all());
     }

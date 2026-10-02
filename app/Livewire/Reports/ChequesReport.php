@@ -61,7 +61,7 @@ class ChequesReport extends Component
     {
         $user = $this->actor();
         $query = match ($this->kind) {
-            'week' => Queries::chequesToDeposit($user, Queries::weekEnd()),
+            'week' => Queries::chequesToDeposit($user, Queries::weekEnd(), Queries::weekStart()),
             'bounced' => Queries::bouncedCheques($user),
             'return' => Queries::chequesToReturn($user),
             default => Queries::chequesToDeposit($user, now('Asia/Bahrain')->toDateString()),

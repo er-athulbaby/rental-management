@@ -39,6 +39,15 @@ test('occupancy counts occupied units over units that are not blocked, per build
     expect(reportRowText($html, $this->mine->code))->toBe("{$this->mine->code} — {$this->mine->name} 4 1 3 0 100.0%"); // units, blocked, occupied (the overstay holds its unit), vacant, %
 });
 
+test('a blocked unit that is still occupied never pushes occupancy past 100%', function () {
+    $blocked = Unit::query()->where('building_id', $this->mine->id)->where('blocked', true)->firstOrFail();
+    activeAgreement(['customer_id' => Customer::factory()->create()->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$blocked]);
+
+    $html = Livewire::actingAs($this->leasing)->test(OccupancyReport::class)->html();
+
+    expect(reportRowText($html, $this->mine->code))->toBe("{$this->mine->code} — {$this->mine->name} 4 1 4 0 100.0%"); // Occupied shows all 4; the % uses the 3 not blocked
+});
+
 test('agreements expiring within the chosen window, in scope', function () {
     Livewire::actingAs($this->leasing)->test(ExpiringAgreementsReport::class)
         ->assertSee($this->soon->number)->assertDontSee($this->later->number)->assertDontSee($this->hidden->number)

@@ -7,7 +7,7 @@ use App\Enums\InvoiceType;
 use App\Enums\OwnerChargeType;
 use App\Enums\TaxCategory;
 use App\Livewire\Reports\Concerns\ReportPage;
-use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\OwnerContract;
 use App\Models\Unit;
 use App\Support\Fils;
@@ -47,7 +47,7 @@ class VatSummaryReport extends Component
         $lines = fn (bool $credit) => DB::table('invoice_lines as l')->join('invoices as i', 'i.id', '=', 'l.invoice_id')
             ->where('i.status', InvoiceStatus::Issued->value)->where('i.type', $credit ? '=' : '<>', InvoiceType::CreditNote->value)
             ->whereBetween('i.issue_date', [$this->from, $this->to])
-            ->whereIn('i.customer_id', Customer::query()->visibleTo($this->actor())->select('id'))
+            ->whereIn('i.id', Invoice::query()->visibleTo($this->actor())->select('id'))
             ->when($this->building, fn ($q, $b) => $q->whereIn('l.unit_id', Unit::query()->where('building_id', $b)->select('id')))
             ->groupBy('l.tax_category')->selectRaw('l.tax_category AS category, SUM(l.net) AS net, SUM(l.tax_amount) AS vat')->get();
 

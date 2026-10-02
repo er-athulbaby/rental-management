@@ -26,6 +26,7 @@ beforeEach(function () {
     ]))->save();
     $cheque('T-TODAY', '2026-06-10', 'held');
     $cheque('T-WEEK', '2026-06-14', 'held');
+    $cheque('T-LASTWEEK', '2026-06-05', 'held');
     $cheque('T-LATER', '2026-07-01', 'held');
     $cheque('T-BOUNCED', '2026-05-01', 'bounced');
     $cheque('T-RETURN', '2026-08-01', 'held', toReturn: true);
@@ -36,7 +37,8 @@ beforeEach(function () {
 test('cheques to deposit today and this week (Monday to Sunday)', function () {
     $page = Livewire::actingAs($this->finance)->test(ChequesReport::class);
     $page->assertSee('T-TODAY')->assertDontSee('T-WEEK')->assertDontSee('T-LATER'); // default: today
-    $page->set('kind', 'week')->assertSee('T-TODAY')->assertSee('T-WEEK')->assertDontSee('T-LATER');
+    $page->set('kind', 'week')->assertSee('T-TODAY')->assertSee('T-WEEK')->assertDontSee('T-LATER')->assertDontSee('T-LASTWEEK'); // a held cheque dated last week is overdue (today), not this week
+    $page->set('kind', 'today')->assertSee('T-LASTWEEK');
 });
 
 test('bounced cheques awaiting action, and held cheques flagged to return', function () {

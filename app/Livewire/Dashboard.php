@@ -2,11 +2,8 @@
 
 namespace App\Livewire;
 
-use App\Enums\InvoiceStatus;
-use App\Enums\InvoiceType;
 use App\Enums\PaymentMethod;
 use App\Livewire\Concerns\WithActor;
-use App\Models\Invoice;
 use App\Models\Unit;
 use App\Models\User;
 use App\Reports\Queries;
@@ -37,15 +34,14 @@ class Dashboard extends Component
             $tiles[] = ['label' => __('Occupancy'), 'value' => $units > 0 ? number_format(100 * $occupied / $units, 1).'%' : '—', 'url' => route('reports.occupancy')];
         }
         if ($financial) {
-            $tiles[] = ['label' => __('Rent due this month'), 'url' => route('reports.outstanding'), 'value' => $money((string) (Invoice::query()->visibleTo($user)
-                ->where('type', InvoiceType::Rent)->whereIn('status', [InvoiceStatus::Issued, InvoiceStatus::Scheduled])
-                ->whereBetween('due_date', [$monthStart, $monthEnd])->sum('total') ?: '0'))];
+            // Spec §10 defines no rent-due report, so this tile links to the invoice list.
+            $tiles[] = ['label' => __('Rent due this month'), 'url' => route('invoices.index'), 'value' => $money((string) (Queries::rentDue($user, $monthStart, $monthEnd)->sum('total') ?: '0'))];
             $tiles[] = ['label' => __('Collected this month'), 'url' => route('reports.collections', ['from' => $monthStart, 'to' => $today->toDateString()]),
-                'value' => $money((string) (Queries::collections($user, $monthStart, $monthEnd)->where('method', '!=', PaymentMethod::DepositApplied)->sum('amount') ?: '0'))];
+                'value' => $money((string) (Queries::collections($user, $monthStart, $today->toDateString())->where('method', '!=', PaymentMethod::DepositApplied)->sum('amount') ?: '0'))];
             $tiles[] = ['label' => __('Overdue total'), 'url' => route('reports.ageing'), 'value' => $money((string) (Queries::overdueInvoices($user)->sum('balance') ?: '0'))];
         }
         if ($cheques) {
-            $tiles[] = ['label' => __('Cheques to deposit this week'), 'url' => route('reports.cheques', ['kind' => 'week']), 'value' => (string) Queries::chequesToDeposit($user, Queries::weekEnd())->count()];
+            $tiles[] = ['label' => __('Cheques to deposit this week'), 'url' => route('reports.cheques', ['kind' => 'week']), 'value' => (string) Queries::chequesToDeposit($user, Queries::weekEnd(), Queries::weekStart())->count()];
             $tiles[] = ['label' => __('Open bounced cheques'), 'url' => route('reports.cheques', ['kind' => 'bounced']), 'value' => (string) Queries::bouncedCheques($user)->count()];
         }
         if ($operational) {
