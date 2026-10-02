@@ -31,3 +31,12 @@ Schedule::command('rms:integrity-check')->dailyAt('02:30')->withoutOverlapping(1
 
 Schedule::command('rms:owner-statements:draft')->monthlyOn(1, '04:00')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.owner_statements')), (string) $url);
+
+Schedule::command('rms:digests finance')->dailyAt('07:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.digests_finance')), (string) $url);
+
+Schedule::command('rms:digests management')->dailyAt('07:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.digests_management')), (string) $url);
+
+Schedule::command('rms:digests documents')->weeklyOn(1, '07:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.digests_documents')), (string) $url);

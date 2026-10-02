@@ -47,6 +47,9 @@ return [
             'agreements_expire' => env('HEARTBEAT_AGREEMENTS_EXPIRE'),
             'integrity_check' => env('HEARTBEAT_INTEGRITY_CHECK'),
             'owner_statements' => env('HEARTBEAT_OWNER_STATEMENTS'),
+            'digests_finance' => env('HEARTBEAT_DIGESTS_FINANCE'),
+            'digests_management' => env('HEARTBEAT_DIGESTS_MANAGEMENT'),
+            'digests_documents' => env('HEARTBEAT_DIGESTS_DOCUMENTS'),
         ],
     ],
 
