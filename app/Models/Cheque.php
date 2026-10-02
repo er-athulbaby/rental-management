@@ -27,6 +27,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property CarbonImmutable $cheque_date
  * @property string $amount
  * @property ChequeStatus $status
+ * @property bool $to_return
  * @property CarbonImmutable|null $deposited_on
  * @property CarbonImmutable|null $cleared_on
  * @property CarbonImmutable|null $bounced_on
@@ -46,6 +47,7 @@ class Cheque extends Model
         return [
             'direction' => ChequeDirection::class,
             'status' => ChequeStatus::class,
+            'to_return' => 'boolean',
             'cheque_date' => 'immutable_date',
             'deposited_on' => 'immutable_date',
             'cleared_on' => 'immutable_date',
@@ -57,7 +59,7 @@ class Cheque extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['status', 'invoice_id', 'cheque_no', 'bank_name', 'cheque_date', 'amount', 'deposited_on', 'cleared_on', 'bounced_on', 'bounce_reason', 'returned_on', 'payment_id', 'disbursement_id', 'replaced_by_cheque_id'])
+        return LogOptions::defaults()->logOnly(['status', 'to_return', 'invoice_id', 'cheque_no', 'bank_name', 'cheque_date', 'amount', 'deposited_on', 'cleared_on', 'bounced_on', 'bounce_reason', 'returned_on', 'payment_id', 'disbursement_id', 'replaced_by_cheque_id'])
             ->logOnlyDirty()->dontLogEmptyChanges();
     }
 

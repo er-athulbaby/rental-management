@@ -13,6 +13,7 @@ use App\Billing\CustomerCredit;
 use App\Enums\RoleName;
 use App\Integrity\IntegrityCheck;
 use App\Models\Agreement;
+use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -65,6 +66,7 @@ test('releasing a unit mid-November: later scheduled invoices go, November is cr
         ->and($december->fresh()->status->value)->toBe('cancelled')
         ->and($cheque->fresh()->invoice_id)->toBeNull()
         ->and($result->chequesToReturn)->toBe([$cheque->id]);
+    expect(Cheque::find($cheque->id)->to_return)->toBeTrue();
 
     $cn = Invoice::findOrFail($result->creditNoteIds[0]);
     expect($result->creditNoteIds)->toHaveCount(1)

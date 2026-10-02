@@ -21,6 +21,7 @@ class Index extends Component
                 ['route' => 'reports.overstays', 'label' => __('Overstays: expired, not closed')],
                 ['route' => 'reports.approvals', 'label' => __('Pending approvals')],
                 ['route' => 'reports.id-documents', 'label' => __('ID documents expiring')],
+                ['route' => 'reports.cheques', 'label' => __('Cheques')],
             ],
             'financial' => [
                 ['route' => 'reports.building-profitability', 'label' => __('Building profitability')],
@@ -33,8 +34,10 @@ class Index extends Component
     public function render(): View
     {
         $user = $this->actor();
+        $cheques = $user->can('cheques.manage') || $user->can('finance.view'); // spec §10: the cheque reports also need one of these
+        $operational = array_values(array_filter(self::catalogue()['operational'], fn (array $r) => $r['route'] !== 'reports.cheques' || $cheques));
         $groups = array_filter([
-            __('Operational') => $user->can('reports.operational') ? self::catalogue()['operational'] : [],
+            __('Operational') => $user->can('reports.operational') ? $operational : [],
             __('Financial') => $user->can('reports.financial') ? self::catalogue()['financial'] : [],
         ]);
 

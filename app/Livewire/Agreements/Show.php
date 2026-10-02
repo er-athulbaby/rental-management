@@ -8,8 +8,6 @@ use App\Actions\Agreements\RecordNotice;
 use App\Actions\Agreements\RenewAgreement;
 use App\Actions\Agreements\SubmitAgreement;
 use App\Enums\AmendmentStatus;
-use App\Enums\ChequeDirection;
-use App\Enums\ChequeStatus;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\AgreementAmendment;
@@ -17,6 +15,7 @@ use App\Models\AgreementUnit;
 use App\Models\Cheque;
 use App\Models\DepositSettlement;
 use App\Models\Invoice;
+use App\Reports\Queries;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -161,10 +160,9 @@ class Show extends Component
             'settlements' => $this->actor()->can('viewAny', DepositSettlement::class)
                 ? DepositSettlement::query()->where('agreement_id', $agreement->id)->latest('id')->get()
                 : collect(),
-            // Received cheques that re-billing left without an invoice: to hand back to the customer (spec §6.3).
+            // Held cheques that re-billing left without an invoice: to hand back to the customer (spec §6.3, plan ruling 5).
             'chequesToReturn' => $this->actor()->can('viewAny', Cheque::class)
-                ? Cheque::query()->visibleTo($this->actor())->where('agreement_id', $agreement->id)->where('direction', ChequeDirection::Received)
-                    ->whereIn('status', [ChequeStatus::Held, ChequeStatus::Deposited])->whereNull('invoice_id')->orderBy('cheque_date')->orderBy('id')->get()
+                ? Queries::chequesToReturn($this->actor())->where('agreement_id', $agreement->id)->orderBy('cheque_date')->orderBy('id')->get()
                 : collect(),
             'approvals' => $agreement->approvals()->with(['requester:id,name', 'decider:id,name'])->latest('id')->get(),
         ])->title($agreement->label());

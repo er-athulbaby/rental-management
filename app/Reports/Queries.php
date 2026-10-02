@@ -3,18 +3,22 @@
 namespace App\Reports;
 
 use App\Enums\AgreementStatus;
+use App\Enums\ChequeDirection;
+use App\Enums\ChequeStatus;
 use App\Enums\DocumentCategory;
 use App\Enums\PermissionName;
 use App\Models\Agreement;
 use App\Models\AgreementAmendment;
 use App\Models\AgreementUnit;
 use App\Models\Approval;
+use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Owner;
 use App\Models\Unit;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
@@ -120,6 +124,44 @@ final class Queries
                 }
             })
             ->orderBy('expires_on')->orderBy('id')->get();
+    }
+
+    /** Plan ruling 3: the Sunday ending the Monday–Sunday week that contains today. */
+    public static function weekEnd(): string
+    {
+        return now('Asia/Bahrain')->endOfWeek(CarbonInterface::SUNDAY)->toDateString();
+    }
+
+    /**
+     * Held received cheques due for deposit by $until.
+     *
+     * @return Builder<Cheque>
+     */
+    public static function chequesToDeposit(User $user, string $until): Builder
+    {
+        return Cheque::query()->visibleTo($user)->where('direction', ChequeDirection::Received)
+            ->where('status', ChequeStatus::Held)->where('cheque_date', '<=', $until);
+    }
+
+    /**
+     * Plan ruling 4.
+     *
+     * @return Builder<Cheque>
+     */
+    public static function bouncedCheques(User $user): Builder
+    {
+        return Cheque::query()->visibleTo($user)->where('direction', ChequeDirection::Received)->where('status', ChequeStatus::Bounced);
+    }
+
+    /**
+     * Plan ruling 5: held cheques re-billing left without an invoice.
+     *
+     * @return Builder<Cheque>
+     */
+    public static function chequesToReturn(User $user): Builder
+    {
+        return Cheque::query()->visibleTo($user)->where('direction', ChequeDirection::Received)
+            ->where('status', ChequeStatus::Held)->where('to_return', true);
     }
 
     /**

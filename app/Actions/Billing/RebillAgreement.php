@@ -68,7 +68,7 @@ final class RebillAgreement
                 $replaced++;
             }
             foreach ($cheques->where('invoice_id', $old->id) as $cheque) {
-                $cheque->forceFill(['invoice_id' => $new?->id])->save();
+                $cheque->forceFill(['invoice_id' => $new?->id, 'to_return' => $new === null])->save();
                 if ($new === null) {
                     $toReturn[] = $cheque->id;
                 }
