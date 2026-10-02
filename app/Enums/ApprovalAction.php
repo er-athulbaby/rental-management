@@ -9,6 +9,7 @@ use App\Approvals\CreditNote as CreditNoteHandler;
 use App\Approvals\DepositSettlementApproval;
 use App\Approvals\OwnerContractActivation;
 use App\Approvals\OwnerContractTermination;
+use App\Approvals\OwnerStatementFinalisation;
 use App\Approvals\PaymentOut as PaymentOutHandler;
 use App\Approvals\PaymentOutReversal as PaymentOutReversalHandler;
 use App\Approvals\PaymentReversal;
@@ -26,6 +27,7 @@ enum ApprovalAction: string
     case DepositSettlement = 'deposit_settlement.approve';
     case AgreementAmendment = 'agreement.amend';
     case AgreementTermination = 'agreement.terminate';
+    case OwnerStatementFinalisation = 'owner_statement.finalise';
 
     public function label(): string
     {
@@ -40,6 +42,7 @@ enum ApprovalAction: string
             self::DepositSettlement => __('Deposit settlement'),
             self::AgreementAmendment => __('Agreement amendment'),
             self::AgreementTermination => __('Early termination'),
+            self::OwnerStatementFinalisation => __('Owner statement finalisation'),
         };
     }
 
@@ -56,6 +59,7 @@ enum ApprovalAction: string
             self::PaymentOutReversal => PaymentOutReversalHandler::class,
             self::DepositSettlement => DepositSettlementApproval::class,
             self::AgreementAmendment, self::AgreementTermination => AgreementAmendmentApproval::class,
+            self::OwnerStatementFinalisation => OwnerStatementFinalisation::class,
         };
     }
 }

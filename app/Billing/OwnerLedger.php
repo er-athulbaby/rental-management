@@ -2,8 +2,8 @@
 
 namespace App\Billing;
 
-use App\Enums\DepositsHeldBy;
 use App\Enums\DepositMovementType;
+use App\Enums\DepositsHeldBy;
 use App\Models\OwnerContract;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
@@ -31,6 +31,25 @@ final class OwnerLedger
     public static function balance(OwnerContract $contract, ?CarbonImmutable $upTo = null): int
     {
         return (int) self::entries($contract, null, $upTo)->sum('amount');
+    }
+
+    public static function kindLabel(string $kind): string
+    {
+        return match ($kind) {
+            'collection' => __('Rent collected (net of VAT)'),
+            'collection_reversal' => __('Collection reversed'),
+            'deposit_received' => __('Deposit received'),
+            'deposit_applied' => __('Deposit applied'),
+            'deposit_refunded' => __('Deposit refunded'),
+            'deposit_transfer_in', 'deposit_transfer_out' => __('Deposit transferred'),
+            'management_fee' => __('Management fee'),
+            'opening_balance' => __('Opening balance'),
+            'expense' => __('Expense'),
+            'expense_reversal' => __('Expense reversed'),
+            'remittance' => __('Paid to you'),
+            'remittance_reversal' => __('Payment to you reversed'),
+            default => str($kind)->headline()->toString(),
+        };
     }
 
     /** @return Collection<int, array{posted_at: CarbonImmutable, date: string, kind: string, reference: string, amount: int}> */

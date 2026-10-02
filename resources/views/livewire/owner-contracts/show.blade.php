@@ -5,6 +5,9 @@
             <flux:badge>{{ $contract->status->label() }}</flux:badge>
         </div>
         <div class="flex flex-wrap gap-2">
+            @if ($contract->type === \App\Enums\OwnerContractType::Managed && auth()->user()->can('finance.view'))
+                <flux:button size="sm" :href="route('owner-statements.index', ['contract' => $contract->id])" wire:navigate>{{ __('Statements') }}</flux:button>
+            @endif
             @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Draft)
                 <flux:button :href="route('owner-contracts.edit', $contract)" wire:navigate>{{ __('Edit') }}</flux:button>
             @endif

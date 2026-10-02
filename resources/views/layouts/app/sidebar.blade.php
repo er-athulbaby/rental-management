@@ -37,6 +37,7 @@
                         <flux:sidebar.item icon="banknotes" :href="route('cheques.index')" :current="request()->routeIs('cheques.*')" wire:navigate>{{ __('Cheques') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="arrow-up-right" :href="route('disbursements.index')" :current="request()->routeIs('disbursements.*')" wire:navigate>{{ __('Payments out') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="calendar-days" :href="route('owner-payables.index')" :current="request()->routeIs('owner-payables.*')" wire:navigate>{{ __('Head-lease due') }}</flux:sidebar.item>
+                        <flux:sidebar.item icon="document-chart-bar" :href="route('owner-statements.index')" :current="request()->routeIs('owner-statements.*')" wire:navigate>{{ __('Owner statements') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="shield-check" :href="route('deposit-settlements.index')" :current="request()->routeIs('deposit-settlements.*')" wire:navigate>{{ __('Deposit settlements') }}</flux:sidebar.item>
                     </flux:sidebar.group>
                 @endcan
