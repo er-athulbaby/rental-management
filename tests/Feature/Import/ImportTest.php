@@ -9,8 +9,10 @@ use App\Enums\RoleName;
 use App\Livewire\Import\Index;
 use App\Models\Agreement;
 use App\Models\Building;
+use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\DepositMovement;
 use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -367,4 +369,46 @@ test('a balance naming a unit but no agreement is refused rather than losing the
     $result = app(RunImport::class)->handle($this->vendor, $files, commit: false);
 
     expect($result->errors['customer_balances'][2][0])->toBe('Name the agreement (agreement_ref) for this unit.');
+});
+
+test('deposits held become opening movements stamped on the cutover date; held cheques are recorded held', function () {
+    Storage::fake('local');
+    $files = [...agreementFiles($this->files),
+        'deposits_held' => importFile(ImportKind::DepositsHeld, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'building_code' => 'MT', 'unit_code' => '101', 'amount' => '450.000'],
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'building_code' => 'MT', 'unit_code' => '103', 'amount' => '500.000'],
+        ]),
+        'cheques' => importFile(ImportKind::Cheques, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'cheque_no' => '000123', 'bank_name' => 'NBB', 'cheque_date' => '01/11/2026', 'amount' => '450.000'],
+        ]),
+    ];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: true);
+
+    expect($result->errors)->toBe([])->and($result->totals)->toMatchArray(['deposits_held' => '950.000', 'cheques' => '450.000']);
+    $agreement = Agreement::where('import_ref', 'L-001')->sole();
+    $byUnit = DepositMovement::where('type', 'opening')->get()->keyBy(fn ($m) => $m->agreementUnit->unit->code);
+    expect([$byUnit['101']->amount, $byUnit['101']->owner_contract_id])->toBe(['450.000', OwnerContract::where('type', 'managed')->value('id')])
+        ->and($byUnit['103']->owner_contract_id)->toBeNull(); // 103 is owned: no contract covers it
+
+    $cheque = Cheque::sole();
+    expect([$cheque->status->value, $cheque->direction->value, $cheque->cheque_no, $cheque->cheque_date->toDateString(), $cheque->agreement_id])
+        ->toBe(['held', 'received', '000123', '2026-11-01', $agreement->id]);
+});
+
+test('a second deposit for a unit, or a cheque number typed as a number, is refused', function () {
+    $files = [...agreementFiles($this->files),
+        'deposits_held' => importFile(ImportKind::DepositsHeld, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'building_code' => 'MT', 'unit_code' => '101', 'amount' => '450.000'],
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'building_code' => 'MT', 'unit_code' => '101', 'amount' => '10.000'],
+        ]),
+        'cheques' => importFile(ImportKind::Cheques, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'cheque_no' => 123, 'bank_name' => 'NBB', 'cheque_date' => '2026-11-01', 'amount' => '450.000'],
+        ]),
+    ];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: false);
+
+    expect(array_keys($result->errors['deposits_held']))->toBe([3])
+        ->and($result->errors['cheques'][2][0])->toContain('formatted as Text');
 });

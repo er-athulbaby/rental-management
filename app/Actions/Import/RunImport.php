@@ -15,6 +15,9 @@ use App\Audit\Audit;
 use App\Enums\AgreementStatus;
 use App\Enums\ApprovalAction;
 use App\Enums\ApprovalStatus;
+use App\Enums\ChequeDirection;
+use App\Enums\ChequeStatus;
+use App\Enums\DepositMovementType;
 use App\Enums\ImportKind;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
@@ -27,8 +30,10 @@ use App\Models\Agreement;
 use App\Models\AgreementUnit;
 use App\Models\Approval;
 use App\Models\Building;
+use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\DepositMovement;
 use App\Models\Invoice;
 use App\Models\Owner;
 use App\Models\OwnerCharge;
@@ -43,6 +48,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Throwable;
 
@@ -208,6 +214,8 @@ final class RunImport
             ImportKind::Customers => $this->customers->handle($actor, null, $row),
             ImportKind::Agreements => $this->agreement($actor, $rows, $cutover),
             ImportKind::CustomerBalances => $this->customerBalance($actor, $row, $cutover),
+            ImportKind::DepositsHeld => $this->depositHeld($actor, $rows[0], $cutover),
+            ImportKind::Cheques => $this->cheque($actor, $rows[0]),
             ImportKind::OwnerBalances => $this->ownerBalance($actor, $row, $cutover),
         };
     }
@@ -407,6 +415,65 @@ final class RunImport
             'posted_at' => now(),
             'created_by' => $actor->id,
         ]);
+    }
+
+    /**
+     * Spec §11, §7.6: the deposit each agreement unit holds at cutover.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function depositHeld(User $actor, array $row, CarbonImmutable $cutover): void
+    {
+        $v = Validator::make($row, ['amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/']])->validate();
+        $au = $this->agreementUnitByRow($row, $this->customerByRow($row), unitRequired: true)[1]
+            ?? throw new LogicException('unitRequired always yields a unit');
+        if (DepositMovement::query()->where('agreement_unit_id', $au->id)->exists()) {
+            throw ValidationException::withMessages(['unit_code' => __('Unit :u on :ref already has its deposit.', ['u' => (string) $row['unit_code'], 'ref' => (string) $row['agreement_ref']])]);
+        }
+
+        DepositMovement::create([
+            'agreement_unit_id' => $au->id,
+            // Spec §7.6: an opening movement is stamped by the §4.6 rule on the cutover date, and never recomputed.
+            'owner_contract_id' => OwnerContract::query()->effectiveOn($cutover)->whereHas('units', fn ($q) => $q->whereKey($au->unit_id))->value('owner_contracts.id'),
+            'type' => DepositMovementType::Opening,
+            'amount' => Fils::toDecimal(Fils::fromDecimal((string) $v['amount'])),
+            'source_type' => 'import',
+            'source_id' => $au->agreement_id,
+            'posted_at' => now(),
+        ]);
+    }
+
+    /**
+     * Spec §7.4: a post-dated cheque still held at cutover (plan ruling 2: RecordCheques' rules, the import's authority).
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function cheque(User $actor, array $row): void
+    {
+        $v = Validator::make($row, [
+            'cheque_no' => ['required', 'string', 'max:30'],
+            'bank_name' => ['required', 'string', 'max:100'],
+            'account_holder' => ['nullable', 'string', 'max:150'],
+            'cheque_date' => ['required', 'date_format:Y-m-d'],
+            'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ])->validate();
+        $customer = $this->customerByRow($row);
+        [$agreement] = $this->agreementUnitByRow($row, $customer, unitRequired: false);
+
+        (new Cheque)->forceFill([
+            'direction' => ChequeDirection::Received,
+            'customer_id' => $customer->id,
+            'agreement_id' => $agreement?->id,
+            'cheque_no' => $v['cheque_no'],
+            'bank_name' => $v['bank_name'],
+            'account_holder' => $v['account_holder'] ?? null,
+            'cheque_date' => $v['cheque_date'],
+            'amount' => Fils::toDecimal(Fils::fromDecimal((string) $v['amount'])),
+            'notes' => $v['notes'] ?? null,
+            'status' => ChequeStatus::Held,
+            'created_by' => $actor->id,
+        ])->save();
     }
 
     /** @param  array<string, mixed>  $row */

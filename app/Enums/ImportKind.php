@@ -12,6 +12,8 @@ enum ImportKind: string
     case Customers = 'customers';
     case Agreements = 'agreements';
     case CustomerBalances = 'customer_balances';
+    case DepositsHeld = 'deposits_held';
+    case Cheques = 'cheques';
     case OwnerBalances = 'owner_balances';
 
     /** @return list<string> */
@@ -30,6 +32,8 @@ enum ImportKind: string
                 'notice_period_days', 'building_code', 'unit_code', 'unit_start_date', 'unit_end_date', 'deposit_amount', 'rent', 'service_charge', 'parking',
                 'other', 'other_description', 'tax_category'],
             self::CustomerBalances => ['customer_id_type', 'customer_id_number', 'agreement_ref', 'building_code', 'unit_code', 'amount', 'description'],
+            self::DepositsHeld => ['customer_id_type', 'customer_id_number', 'agreement_ref', 'building_code', 'unit_code', 'amount'],
+            self::Cheques => ['customer_id_type', 'customer_id_number', 'agreement_ref', 'cheque_no', 'bank_name', 'account_holder', 'cheque_date', 'amount', 'notes'],
             self::OwnerBalances => ['owner_id_type', 'owner_id_number', 'building_code', 'amount'],
         };
     }
@@ -38,7 +42,7 @@ enum ImportKind: string
     public function moneyColumn(): ?string
     {
         return match ($this) {
-            self::CustomerBalances, self::OwnerBalances => 'amount',
+            self::CustomerBalances, self::DepositsHeld, self::Cheques, self::OwnerBalances => 'amount',
             default => null,
         };
     }
@@ -59,6 +63,8 @@ enum ImportKind: string
             self::Customers => ['id_number', 'mobile', 'emergency_contact_phone'],
             self::Agreements => ['customer_id_number', 'deposit_amount', 'rent', 'service_charge', 'parking', 'other'],
             self::CustomerBalances => ['customer_id_number', 'amount'],
+            self::DepositsHeld => ['customer_id_number', 'amount'],
+            self::Cheques => ['customer_id_number', 'cheque_no', 'amount'],
             self::OwnerBalances => ['owner_id_number', 'amount'],
         };
     }
