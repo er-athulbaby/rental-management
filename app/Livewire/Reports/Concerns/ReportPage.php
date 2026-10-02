@@ -64,7 +64,8 @@ trait ReportPage
         $this->from = $this->from ?: $today->startOfMonth()->toDateString();
     }
 
-    public function updated(): void
+    /** A trait hook (Livewire calls updated{TraitName}), so a report's own updated() can't replace filter validation. */
+    public function updatedReportPage(): void
     {
         $this->validate($this->filterRules());
     }
@@ -94,18 +95,26 @@ trait ReportPage
         abort_unless($this->permission(), 403);
         $this->validate($this->filterRules());
         $report = Str::snake(Str::beforeLast(class_basename(static::class), 'Report'));
-        Audit::log('report.exported', properties: ['report' => $report, 'building' => $this->building, 'from' => $this->from, 'to' => $this->to,
+        $dates = match ($this->dateMode()) {
+            'range' => ['from' => $this->from, 'to' => $this->to],
+            'single' => ['to' => $this->to],
+            default => [],
+        };
+        Audit::log('report.exported', properties: ['report' => $report, 'building' => $this->building, ...$dates,
             ...array_intersect_key($this->all(), $this->options())], causer: $this->actor());
 
         $path = sys_get_temp_dir().'/rms-'.$report.'-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
         $columns = $this->columns();
+        $writer->addHeader(array_values($columns));
         foreach ($this->rows() as $row) {
-            $writer->addRow(array_combine(array_values($columns), array_map(fn (string $key) => $row[$key] ?? '', array_keys($columns))));
+            $writer->addRow(array_map(fn (string $key) => $row[$key] ?? '', array_keys($columns)));
         }
         $writer->close();
 
-        return response()->download($path, "{$report}-{$this->to}.xlsx")->deleteFileAfterSend();
+        $date = $dates === [] ? now('Asia/Bahrain')->toDateString() : $this->to;
+
+        return response()->download($path, "{$report}-{$date}.xlsx")->deleteFileAfterSend();
     }
 
     public function render(): View

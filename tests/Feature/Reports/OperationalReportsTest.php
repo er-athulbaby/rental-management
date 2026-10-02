@@ -14,14 +14,6 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
-/** A report table row's cell text, so digits in codes, names or dates elsewhere on the page can't satisfy an assertion. */
-function reportRowText(string $html, string $needle): string
-{
-    $row = collect(explode('</tr>', $html))->first(fn (string $tr) => str_contains($tr, '<td') && str_contains($tr, $needle));
-
-    return (string) preg_replace('/\s+/', ' ', trim(html_entity_decode(strip_tags((string) $row), ENT_QUOTES)));
-}
-
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     CompanySetting::factory()->create();
@@ -63,9 +55,26 @@ test('overstays are expired agreements still holding a unit', function () {
 
 test('a report exports to Excel, audited; a bad date shows an error, not a crash', function () {
     Livewire::actingAs($this->leasing)->test(ExpiringAgreementsReport::class)->call('export')->assertFileDownloaded();
-    expect(Activity::where('event', 'report.exported')->where('properties->report', 'expiring_agreements')->count())->toBe(1);
+    $audit = Activity::where('event', 'report.exported')->where('properties->report', 'expiring_agreements')->sole();
+    expect($audit->properties->only(['report', 'building', 'from', 'to', 'window'])->all())
+        ->toEqual(['report' => 'expiring_agreements', 'building' => null, 'window' => '30']); // no date filter, so no dates audited
 
     Livewire::actingAs($this->leasing)->test(OccupancyReport::class)->set('to', 'not-a-date')->assertHasErrors('to')->assertOk();
+});
+
+test('the building filter narrows the occupancy report to the chosen building', function () {
+    $this->leasing->buildings()->attach($this->theirs->id);
+    $page = Livewire::actingAs($this->leasing)->test(OccupancyReport::class);
+    expect(reportRowText($page->html(), $this->mine->code))->not->toBe('')
+        ->and(reportRowText($page->html(), $this->theirs->code))->not->toBe('');
+
+    $page->set('building', $this->theirs->id)->assertHasNoErrors();
+    expect(reportRowText($page->html(), $this->mine->code))->toBe('')
+        ->and(reportRowText($page->html(), $this->theirs->code))->toBe("{$this->theirs->code} — {$this->theirs->name} 1 0 1 0 100.0%");
+});
+
+test('the report page itself refuses a viewer without its permission', function () {
+    Livewire::actingAs(User::factory()->create())->test(OccupancyReport::class)->assertForbidden();
 });
 
 test('the reports index lists only what the viewer may open; the pages need reports.operational', function () {

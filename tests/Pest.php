@@ -143,3 +143,11 @@ function scheduledEvent(string $command): Event
         ->first(fn ($event) => str_contains((string) $event->command, $command))
         ?? throw new RuntimeException("{$command} is not scheduled");
 }
+
+/** A report table row's cell text, so digits in codes, names or dates elsewhere on the page can't satisfy an assertion. */
+function reportRowText(string $html, string $needle): string
+{
+    $row = collect(explode('</tr>', $html))->first(fn (string $tr) => str_contains($tr, '<td') && str_contains($tr, $needle));
+
+    return (string) preg_replace('/\s+/', ' ', trim(html_entity_decode(strip_tags((string) $row), ENT_QUOTES)));
+}

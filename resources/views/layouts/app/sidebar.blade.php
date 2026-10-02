@@ -44,7 +44,7 @@
 
                 @canany(['reports.operational', 'reports.financial'])
                     <flux:sidebar.group :heading="__('Reports')" class="grid">
-                        <flux:sidebar.item icon="document-chart-bar" :href="route('reports.index')" :current="request()->routeIs('reports.*')" wire:navigate>{{ __('All reports') }}</flux:sidebar.item>
+                        <flux:sidebar.item icon="document-chart-bar" :href="route('reports.index')" :current="request()->routeIs('reports.index')" wire:navigate>{{ __('All reports') }}</flux:sidebar.item>
                         @can('reports.financial')
                             <flux:sidebar.item icon="chart-bar" :href="route('reports.building-profitability')" :current="request()->routeIs('reports.building-profitability')" wire:navigate>{{ __('Building profitability') }}</flux:sidebar.item>
                         @endcan
