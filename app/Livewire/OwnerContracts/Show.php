@@ -73,6 +73,7 @@ class Show extends Component
         return view('livewire.owner-contracts.show', [
             'contract' => $contract,
             'canManage' => $this->actor()->can('update', $contract),
+            'payables' => $contract->type->value === 'leased' && $this->actor()->can('finance.view') ? $contract->payables()->orderBy('period_start')->orderBy('id')->get() : collect(),
             'approvals' => $contract->approvals()->with(['requester:id,name', 'decider:id,name'])->latest('id')->get(),
         ])->title($contract->label());
     }

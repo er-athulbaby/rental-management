@@ -86,5 +86,31 @@
         </div>
     @endif
 
+    @if ($payables->isNotEmpty())
+        <div class="space-y-2">
+            <flux:heading size="lg">{{ __('Head-lease payments') }}</flux:heading>
+            <div class="overflow-x-auto">
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>{{ __('Period') }}</flux:table.column>
+                        <flux:table.column>{{ __('Due') }}</flux:table.column>
+                        <flux:table.column>{{ __('Amount') }}</flux:table.column>
+                        <flux:table.column>{{ __('Status') }}</flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach ($payables as $p)
+                            <flux:table.row :key="'op-'.$p->id">
+                                <flux:table.cell class="whitespace-nowrap">{{ $p->period_start->format('d/m/Y') }} – {{ $p->period_end->format('d/m/Y') }}</flux:table.cell>
+                                <flux:table.cell class="whitespace-nowrap">{{ $p->due_date->format('d/m/Y') }}</flux:table.cell>
+                                <flux:table.cell class="text-end tabular-nums">{{ $p->amount }}</flux:table.cell>
+                                <flux:table.cell><flux:badge size="sm">{{ $p->status->label() }}</flux:badge></flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            </div>
+        </div>
+    @endif
+
     <livewire:documents.panel :documentable="$contract" :key="'docs-oc-'.$contract->id" />
 </section>

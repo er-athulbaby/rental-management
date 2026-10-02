@@ -2,6 +2,7 @@
 
 namespace App\Approvals;
 
+use App\Actions\OwnerContracts\RescheduleOwnerPayables;
 use App\Enums\OwnerContractStatus;
 use App\Models\Approval;
 use App\Models\OwnerContract;
@@ -12,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 /** Spec §8.3 item 7 (early termination). The payload carries terminated_on and termination_reason. */
 final class OwnerContractTermination implements ApprovalHandler
 {
+    public function __construct(private RescheduleOwnerPayables $reschedule) {}
+
     public function creatorId(Approval $approval): int
     {
         return OwnerContract::query()->findOrFail($approval->approvable_id)->created_by;
@@ -31,7 +34,7 @@ final class OwnerContractTermination implements ApprovalHandler
             'termination_reason' => $approval->payload['termination_reason'] ?? '',
             'end_date' => $on,
         ])->save();
-        // ponytail: M4 cancels head-lease payables after end_date and prorates a straddling one (spec §7.8).
+        $this->reschedule->handle($contract, $on);
     }
 
     /** A rejected request about an existing record leaves it unchanged (spec §8.3). */

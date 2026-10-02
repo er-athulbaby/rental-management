@@ -11,7 +11,7 @@ final class IntegrityCheck
      * Every immutability trigger (spec §8.5). A migration that adds or drops a trigger must change this number;
      * IntegrityCheckTest fails until it does.
      */
-    public const int EXPECTED_TRIGGERS = 53; // 38 at the end of M3a + 2 (disbursements) + 8 (deposit settlements) + 1 (invoice line charge) + 3 (amendments; the two insert triggers are replaced, not added) + 1 (credit source)
+    public const int EXPECTED_TRIGGERS = 55; // 38 at the end of M3a + 2 (disbursements) + 8 (deposit settlements) + 1 (invoice line charge) + 3 (amendments; the two insert triggers are replaced, not added) + 1 (credit source) + 2 (owner payables)
 
     /** @return list<string> */
     public function run(): array

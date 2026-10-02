@@ -13,7 +13,7 @@ use LogicException;
 /** Pending → active (spec §4.5). No authorisation here: DecideApproval and the importer authorise. */
 final class ActivateOwnerContract
 {
-    public function __construct(private EnsureNoOverlap $overlap, private NextDocumentNumber $next) {}
+    public function __construct(private EnsureNoOverlap $overlap, private NextDocumentNumber $next, private GenerateOwnerPayables $payables, private RescheduleOwnerPayables $reschedule) {}
 
     public function handle(OwnerContract $contract): OwnerContract
     {
@@ -39,7 +39,7 @@ final class ActivateOwnerContract
                 }
 
                 $previous->forceFill(['end_date' => $dayBefore])->save();
-                // ponytail: M4 cancels the predecessor's head-lease payables after $dayBefore and prorates a straddling one (spec §7.8).
+                $this->reschedule->handle($previous, $dayBefore);
             }
         }
 
@@ -47,7 +47,7 @@ final class ActivateOwnerContract
             'status' => OwnerContractStatus::Active,
             'number' => ($this->next)(NumberSequenceKey::OwnerContract),
         ])->save();
-        // ponytail: M4 generates a leased contract's payment schedule to the owner here (spec §7.8).
+        $this->payables->handle($contract);
 
         return $contract;
     }
