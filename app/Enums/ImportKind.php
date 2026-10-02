@@ -9,6 +9,7 @@ enum ImportKind: string
     case Units = 'units';
     case Owners = 'owners';
     case OwnerContracts = 'owner_contracts';
+    case Customers = 'customers';
 
     /** @return list<string> */
     public function headers(): array
@@ -21,6 +22,7 @@ enum ImportKind: string
                 'bank_name', 'iban', 'account_name', 'notes'],
             self::OwnerContracts => ['owner_id_type', 'owner_id_number', 'building_code', 'units', 'type', 'start_date', 'end_date',
                 'rent_amount', 'payment_frequency', 'fee_type', 'fee_value', 'expense_approval_limit', 'deposits_held_by', 'notes'],
+            self::Customers => ['type', 'name_en', 'name_ar', 'id_type', 'id_number', 'nationality', 'mobile', 'email', 'address', 'contact_person', 'emergency_contact_name', 'emergency_contact_phone', 'notes'],
         };
     }
 
@@ -37,6 +39,7 @@ enum ImportKind: string
             self::Units => ['list_rent', 'list_deposit', 'list_service_charge', 'ewa_account_no'],
             self::Owners => ['id_number', 'phone', 'iban'],
             self::OwnerContracts => ['owner_id_number', 'rent_amount', 'fee_value', 'expense_approval_limit'],
+            self::Customers => ['id_number', 'mobile', 'emergency_contact_phone'],
         };
     }
 }

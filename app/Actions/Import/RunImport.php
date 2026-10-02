@@ -3,6 +3,7 @@
 namespace App\Actions\Import;
 
 use App\Actions\Buildings\SaveBuilding;
+use App\Actions\Customers\SaveCustomer;
 use App\Actions\OwnerContracts\ActivateOwnerContract;
 use App\Actions\OwnerContracts\SaveOwnerContract;
 use App\Actions\Owners\SaveOwner;
@@ -40,6 +41,7 @@ final class RunImport
         private SaveOwner $owners,
         private SaveOwnerContract $contracts,
         private ActivateOwnerContract $activate,
+        private SaveCustomer $customers,
     ) {}
 
     /** @param  array<string, string>  $paths  ImportKind value => local .xlsx or .csv path */
@@ -147,6 +149,7 @@ final class RunImport
             ]),
             ImportKind::Owners => $this->owners->handle($actor, null, $row, viaImport: true),
             ImportKind::OwnerContracts => $this->ownerContract($actor, $row, $cutover),
+            ImportKind::Customers => $this->customers->handle($actor, null, $row),
         };
     }
 

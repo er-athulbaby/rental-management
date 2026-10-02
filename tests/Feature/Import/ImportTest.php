@@ -9,6 +9,7 @@ use App\Enums\RoleName;
 use App\Livewire\Import\Index;
 use App\Models\Building;
 use App\Models\CompanySetting;
+use App\Models\Customer;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Unit;
@@ -60,6 +61,10 @@ beforeEach(function () {
             ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'units' => '102', 'type' => 'leased',
                 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'rent_amount' => '300.000', 'payment_frequency' => 'monthly'],
         ]),
+        'customers' => importFile(ImportKind::Customers, [
+            ['type' => 'individual', 'name_en' => 'Sara Ahmed', 'id_type' => 'cpr', 'id_number' => '090202345', 'mobile' => '+97336000000', 'email' => 'sara@example.com'],
+            ['type' => 'company', 'name_en' => 'Gulf Trading WLL', 'id_type' => 'cr', 'id_number' => '12345-1', 'mobile' => '+97317000000', 'contact_person' => 'Omar'],
+        ]),
     ];
 });
 
@@ -67,7 +72,7 @@ test('a dry run validates every file and saves nothing', function () {
     $result = app(RunImport::class)->handle($this->vendor, $this->files, commit: false);
 
     expect($result->errors)->toBe([])
-        ->and($result->counts)->toBe(['buildings' => 1, 'units' => 2, 'owners' => 1, 'owner_contracts' => 2])
+        ->and($result->counts)->toBe(['buildings' => 1, 'units' => 2, 'owners' => 1, 'owner_contracts' => 2, 'customers' => 2])
         ->and($result->committed)->toBeFalse()
         ->and(Building::count() + Unit::count() + Owner::count() + OwnerContract::count())->toBe(0);
 });
@@ -189,4 +194,23 @@ test('head-lease payables start with the first period on or after cutover', func
 
 test('the import screen shows the cutover date', function () {
     Livewire::actingAs($this->vendor)->test(Index::class)->assertSee('Cutover date: 01/11/2026');
+});
+
+test('customers import with their IDs kept as text', function () {
+    app(RunImport::class)->handle($this->vendor, $this->files, commit: true);
+
+    expect(Customer::where('id_number', '090202345')->value('name_en'))->toBe('Sara Ahmed')->and(Customer::count())->toBe(2);
+});
+
+test('a duplicate customer ID or a numeric mobile is reported against its line', function () {
+    $files = [...$this->files, 'customers' => importFile(ImportKind::Customers, [
+        ['type' => 'individual', 'name_en' => 'A', 'id_type' => 'cpr', 'id_number' => '090202345', 'mobile' => '+97336000000'],
+        ['type' => 'individual', 'name_en' => 'B', 'id_type' => 'cpr', 'id_number' => '090202345', 'mobile' => '+97336000001'],
+        ['type' => 'individual', 'name_en' => 'C', 'id_type' => 'cpr', 'id_number' => '090202346', 'mobile' => 97336000002],
+    ])];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: true);
+
+    expect($result->committed)->toBeFalse()->and(array_keys($result->errors['customers']))->toBe([3, 4])
+        ->and($result->errors['customers'][4][0])->toContain('formatted as Text');
 });
