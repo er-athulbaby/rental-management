@@ -31,6 +31,7 @@ class Index extends Component
                 ['route' => 'reports.ageing', 'label' => __('Overdue ageing')],
                 ['route' => 'reports.collections', 'label' => __('Collections by date and method')],
                 ['route' => 'reports.deposits', 'label' => __('Deposits held')],
+                ['route' => 'reports.vat', 'label' => __('VAT summary')],
             ],
         ];
     }
