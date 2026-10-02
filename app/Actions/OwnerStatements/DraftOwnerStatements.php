@@ -44,7 +44,8 @@ final class DraftOwnerStatements
     private function draftOne(int $id, CarbonImmutable $start, CarbonImmutable $end, CarbonImmutable $cutoff): int
     {
         $contract = OwnerContract::query()->lockForUpdate()->findOrFail($id);
-        if ($contract->statements()->where('period_start', $start->toDateString())->exists()) {
+        // §7.9: each window starts after the previous statement's cutoff, so never draft this month again or behind a later one.
+        if ($contract->statements()->where('period_start', '>=', $start->toDateString())->exists()) {
             return 0;
         }
 

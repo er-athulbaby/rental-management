@@ -120,6 +120,14 @@ test('drafts: managed contracts active in the month or with new entries; once pe
         ->and(scheduledEvent('rms:owner-statements:draft')->expression)->toBe('0 4 1 * *');
 });
 
+test('an earlier month is never drafted behind a later statement (§7.9 windows chain forward)', function () {
+    $contract = ($this->managed)();
+    ($this->draft)('2026-03');
+
+    expect(app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-02-01')))->toBe(0)
+        ->and($contract->statements()->pluck('period_start')->map->toDateString()->all())->toBe(['2026-03-01']);
+});
+
 test('statements are never deleted and a finalised one never changes', function () {
     $contract = ($this->managed)();
     ($this->draft)('2026-03');
