@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\Digest;
 use App\Reports\Queries;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 
 /** Spec §12: the 07:00 digests, each counted for its recipient's own buildings (plan ruling 6: none when all counts are zero). */
@@ -24,9 +25,14 @@ final class SendDigests
         };
 
         $sent = 0;
+        $today = now('Asia/Bahrain')->toDateString();
         foreach (self::recipients($permission) as $user) {
             $items = $this->items($kind, $user);
             if (collect($items)->sum('count') === 0) {
+                continue;
+            }
+            // §12: idempotent. Once per recipient per day; Cache::add is atomic, so a re-run or an overlap skips them.
+            if (! Cache::add("digest:{$kind}:{$user->id}:{$today}", true, now('Asia/Bahrain')->endOfDay())) {
                 continue;
             }
             $user->notify(new Digest($subject, $items));

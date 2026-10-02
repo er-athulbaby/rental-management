@@ -1,5 +1,8 @@
 <?php
 
+use App\Actions\Agreements\SaveAgreement;
+use App\Actions\Agreements\SubmitAgreement;
+use App\Actions\ContractTemplates\EnsureDefaultContractTemplate;
 use App\Actions\Digests\SendDigests;
 use App\Enums\RoleName;
 use App\Models\Building;
@@ -72,14 +75,52 @@ test('the documents digest counts customer and owner ID documents and never show
         ])->save();
     }
     $manager = matrixUser(RoleName::PropertyManager, $this->mine); // customers.manage, owners.view, all buildings
+    $vendor = matrixUser(RoleName::VendorSupport, $this->mine);    // holds customers.manage too, but never a recipient (spec §12)
+    expect($vendor->can('customers.manage'))->toBeTrue();
 
     app(SendDigests::class)->handle('documents');
+
+    Notification::assertNotSentTo($vendor, Digest::class);
 
     Notification::assertSentTo($manager, Digest::class, function (Digest $d) use ($manager) {
         $html = (string) $d->toMail($manager)->render();
 
         return collect($d->items)->sum('count') === 2 && ! str_contains($html, '080101234') && ! str_contains($html, '090202345');
     });
+});
+
+test('a same-day re-run sends nobody a second email (spec §12: idempotent)', function () {
+    $finance = matrixUser(RoleName::Finance, $this->mine);
+
+    expect(app(SendDigests::class)->handle('finance'))->toBe(2)
+        ->and(app(SendDigests::class)->handle('finance'))->toBe(0);
+    Notification::assertSentToTimes($this->cashier, Digest::class, 1);
+    Notification::assertSentToTimes($finance, Digest::class, 1);
+
+    $this->travelTo(CarbonImmutable::parse('2026-06-09 07:00', 'Asia/Bahrain')); // the next day sends again
+    expect(app(SendDigests::class)->handle('finance'))->toBe(2);
+});
+
+test('the management digest counts pending approvals and agreements expiring in 30/60/90 days', function () {
+    CompanySetting::query()->update(['require_different_approver' => true]);
+    app(EnsureDefaultContractTemplate::class)();
+    $leasing = matrixUser(RoleName::Leasing, $this->mine);
+    $draft = app(SaveAgreement::class)->handle($leasing, null, [
+        'customer_id' => Customer::factory()->create()->id, 'start_date' => '2026-07-01', 'end_date' => '2027-06-30', 'frequency' => 'monthly',
+        'units' => [['unit_id' => Unit::factory()->for($this->mine)->create()->id, 'charges' => [['type' => 'rent', 'monthly_amount' => '400.000', 'tax_category' => 'exempt']]]],
+    ]);
+    app(SubmitAgreement::class)->handle($leasing, $draft);
+    foreach (['2026-06-30', '2026-07-30', '2026-08-30'] as $end) { // within 30, 60 and 90 days of 2026-06-08
+        activeAgreement(['customer_id' => Customer::factory()->create()->id, 'start_date' => '2026-01-01', 'end_date' => $end], [Unit::factory()->for($this->mine)->create()]);
+    }
+    $manager = matrixUser(RoleName::Management, $this->mine); // approvals.decide
+
+    app(SendDigests::class)->handle('management');
+
+    Notification::assertSentTo($manager, Digest::class, fn (Digest $d) => collect($d->items)->pluck('count', 'label')->all() === [
+        'Pending approvals' => 1, 'Agreements expiring in 30 days' => 1, 'Agreements expiring in 60 days' => 2, 'Agreements expiring in 90 days' => 3,
+    ]);
+    Notification::assertNotSentTo([$leasing, $this->cashier], Digest::class);
 });
 
 test('scheduled at 07:00 daily, and Monday 07:00 for documents', function () {
