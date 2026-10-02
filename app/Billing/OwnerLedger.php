@@ -28,6 +28,16 @@ final class OwnerLedger
             ->values();
     }
 
+    /** Plan ruling 5: what can be remitted now without approval — the live balance less remittances not yet paid. */
+    public static function remittableFils(OwnerContract $contract): int
+    {
+        $waiting = Fils::fromDecimal((string) (DB::table('disbursements as d')->join('owner_statements as s', 's.id', '=', 'd.source_id')
+            ->where('d.source_type', 'owner_statement')->where('d.purpose', 'owner_remittance')->where('s.owner_contract_id', $contract->id)
+            ->whereIn('d.status', ['pending_approval', 'approved'])->sum('d.amount') ?: '0'));
+
+        return self::balance($contract) - $waiting;
+    }
+
     public static function balance(OwnerContract $contract, ?CarbonImmutable $upTo = null): int
     {
         return (int) self::entries($contract, null, $upTo)->sum('amount');
@@ -106,6 +116,17 @@ final class OwnerLedger
             $entries->push(['posted_at' => $at($r->posted_at), 'date' => (string) $r->expense_date, 'kind' => 'expense', 'reference' => $r->description, 'amount' => -$total]);
             if ($r->reversed_at !== null) {
                 $entries->push(['posted_at' => $at($r->reversed_at), 'date' => $at($r->reversed_at)->toDateString(), 'kind' => 'expense_reversal', 'reference' => $r->description, 'amount' => $total]);
+            }
+        }
+
+        // Payments to the owner (remittances against the contract's statements); a reversal at reversed_at.
+        foreach (DB::table('disbursements as d')->join('owner_statements as s', 's.id', '=', 'd.source_id')
+            ->where('d.source_type', 'owner_statement')->where('d.purpose', 'owner_remittance')->where('s.owner_contract_id', $contract->id)
+            ->whereIn('d.status', ['paid', 'reversed'])->get(['d.number', 'd.amount', 'd.paid_on', 'd.posted_at', 'd.reversed_at']) as $r) {
+            $amount = Fils::fromDecimal((string) $r->amount);
+            $entries->push(['posted_at' => $at($r->posted_at), 'date' => (string) $r->paid_on, 'kind' => 'remittance', 'reference' => (string) $r->number, 'amount' => -$amount]);
+            if ($r->reversed_at !== null) {
+                $entries->push(['posted_at' => $at($r->reversed_at), 'date' => $at($r->reversed_at)->toDateString(), 'kind' => 'remittance_reversal', 'reference' => (string) $r->number, 'amount' => $amount]);
             }
         }
 

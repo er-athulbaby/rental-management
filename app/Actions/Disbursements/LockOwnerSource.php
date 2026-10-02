@@ -5,6 +5,7 @@ namespace App\Actions\Disbursements;
 use App\Models\Disbursement;
 use App\Models\OwnerContract;
 use App\Models\OwnerPayable;
+use App\Models\OwnerStatement;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -19,15 +20,19 @@ final class LockOwnerSource
 
         $contractId = match ($out->source_type) {
             Disbursement::SOURCE_PAYABLE => OwnerPayable::query()->whereKey($out->source_id)->value('owner_contract_id'),
+            Disbursement::SOURCE_STATEMENT => OwnerStatement::query()->whereKey($out->source_id)->value('owner_contract_id'),
             default => null,
         };
         if ($contractId === null) {
             return null;
         }
 
-        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($contractId);
+        $contract = OwnerContract::query()->lockForUpdate()->findOrFail((int) $contractId);
         if ($out->source_type === Disbursement::SOURCE_PAYABLE) {
             OwnerPayable::query()->lockForUpdate()->findOrFail($out->source_id);
+        }
+        if ($out->source_type === Disbursement::SOURCE_STATEMENT) {
+            OwnerStatement::query()->lockForUpdate()->findOrFail($out->source_id);
         }
 
         return $contract;

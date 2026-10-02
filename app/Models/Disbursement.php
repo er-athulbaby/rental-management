@@ -43,6 +43,8 @@ class Disbursement extends Model
 
     public const string SOURCE_PAYABLE = 'owner_payable';
 
+    public const string SOURCE_STATEMENT = 'owner_statement';
+
     protected $guarded = ['id'];
 
     protected function casts(): array
@@ -77,6 +79,7 @@ class Disbursement extends Model
             self::SOURCE_PAYMENT => Payment::query()->find($this->source_id),
             self::SOURCE_SETTLEMENT => DepositSettlement::query()->find($this->source_id),
             self::SOURCE_PAYABLE => OwnerPayable::query()->find($this->source_id),
+            self::SOURCE_STATEMENT => OwnerStatement::query()->find($this->source_id),
             default => null,
         };
     }

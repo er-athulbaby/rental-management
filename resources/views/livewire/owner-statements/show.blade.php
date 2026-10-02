@@ -22,6 +22,36 @@
         <flux:card><flux:text>{{ __('Closing') }}</flux:text><flux:heading class="tabular-nums">{{ $statement->closing_balance }}</flux:heading></flux:card>
     </div>
 
+    @if ($canRemit)
+        <flux:card class="space-y-4">
+            <flux:heading size="lg">{{ __('Pay the owner') }}</flux:heading>
+            <flux:text>{{ __('Owner ledger balance now: :b BHD', ['b' => \App\Support\Fils::toDecimal($live)]) }}</flux:text>
+            <flux:text>{{ $statement->contract->owner->bank_name }} · {{ $statement->contract->owner->maskedIban() }} · {{ $statement->contract->owner->account_name }}</flux:text>
+            @if ($statement->contract->owner->bankChangedRecently())
+                <flux:callout variant="warning" icon="exclamation-triangle">
+                    {{ __('Bank details changed :d by :u', ['d' => $statement->contract->owner->bank_changed_at->format('d/m/Y'), 'u' => $statement->contract->owner->bankChanger?->name]) }}
+                </flux:callout>
+            @endif
+            <form wire:submit="remit" class="grid gap-3 sm:grid-cols-2">
+                <flux:input wire:model="remittance.amount" :label="__('Amount (BHD)')" inputmode="decimal" />
+                <flux:select wire:model.live="remittance.method" :label="__('Method')">
+                    @foreach ($methods as $m)
+                        <flux:select.option :value="$m->value">{{ $m->label() }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:input type="date" wire:model="remittance.paid_on" :label="__('Paid on')" />
+                <flux:input wire:model="remittance.reference" :label="__('Reference')" />
+                @if (($remittance['method'] ?? null) === 'cheque')
+                    <flux:input wire:model="remittance.cheque_no" :label="__('Cheque number')" />
+                    <flux:input wire:model="remittance.bank_name" :label="__('Bank')" />
+                    <flux:input type="date" wire:model="remittance.cheque_date" :label="__('Cheque date')" />
+                @endif
+                <flux:error name="remittance.owner_statement_id" />
+                <div class="sm:col-span-2 flex justify-end"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>
+            </form>
+        </flux:card>
+    @endif
+
     <div class="overflow-x-auto">
         <flux:table>
             <flux:table.columns>

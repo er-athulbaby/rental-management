@@ -3,12 +3,14 @@
 namespace App\Actions\Disbursements;
 
 use App\Actions\Approvals\RequestApproval;
+use App\Billing\OwnerLedger;
 use App\Enums\ApprovalAction;
 use App\Enums\DepositSettlementStatus;
 use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\OwnerPayableStatus;
+use App\Enums\OwnerStatementStatus;
 use App\Enums\PayeeType;
 use App\Enums\PaymentStatus;
 use App\Models\Customer;
@@ -17,6 +19,7 @@ use App\Models\Disbursement;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\OwnerPayable;
+use App\Models\OwnerStatement;
 use App\Models\Payment;
 use App\Models\User;
 use App\Support\Fils;
@@ -44,9 +47,9 @@ final class RecordDisbursement
         $today = now('Asia/Bahrain')->toDateString();
         // A source-less payment out (purpose other) gets its cheque details when Finance pays it, not now.
         $chequeNow = ($data['method'] ?? null) === DisbursementMethod::Cheque->value
-            && in_array($data['purpose'] ?? null, [DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value], true);
+            && in_array($data['purpose'] ?? null, [DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::OwnerRemittance->value], true);
         $v = Validator::make($data, [
-            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::Other->value])],
+            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::OwnerRemittance->value, DisbursementPurpose::Other->value])],
             'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
             'method' => ['required', Rule::enum(DisbursementMethod::class)],
             'reference' => ['nullable', 'string', 'max:100'],
@@ -55,6 +58,7 @@ final class RecordDisbursement
             'payment_id' => ['required_if:purpose,credit_refund', 'nullable', 'integer', Rule::exists('payments', 'id')],
             'deposit_settlement_id' => ['required_if:purpose,deposit_refund', 'nullable', 'integer', Rule::exists('deposit_settlements', 'id')],
             'owner_payable_id' => ['required_if:purpose,head_lease', 'nullable', 'integer', Rule::exists('owner_payables', 'id')],
+            'owner_statement_id' => ['required_if:purpose,owner_remittance', 'nullable', 'integer', Rule::exists('owner_statements', 'id')],
             'payee_type' => ['required_if:purpose,other', 'nullable', Rule::enum(PayeeType::class)],
             'payee_id' => ['required_if:purpose,other', 'nullable', 'integer'],
             'cheque_no' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:30'],
@@ -70,6 +74,7 @@ final class RecordDisbursement
                 DisbursementPurpose::CreditRefund->value => $this->creditRefund($actor, $v, $amount),
                 DisbursementPurpose::DepositRefund->value => $this->depositRefund($actor, $v, $amount),
                 DisbursementPurpose::HeadLease->value => $this->headLease($actor, $v, $amount),
+                DisbursementPurpose::OwnerRemittance->value => $this->remittance($actor, $v, $amount),
                 default => $this->other($actor, $v, $amount),
             };
         }, attempts: 3);
@@ -188,6 +193,51 @@ final class RecordDisbursement
             $this->request->handle($actor, $out, ApprovalAction::PaymentOut, (string) $out->reason);
 
             return $out; // its cheque details are taken when Finance pays it
+        }
+
+        $this->paid->handle($out, [...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])), 'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
+
+        return $out->refresh();
+    }
+
+    /** @param  array<string, mixed>  $v */
+    private function remittance(User $actor, array $v, int $amount): Disbursement
+    {
+        $statement = OwnerStatement::query()->findOrFail((int) $v['owner_statement_id']);
+        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($statement->owner_contract_id); // owner-side first lock (spec §7.5)
+        if (! OwnerContract::visibleTo($actor)->whereKey($contract->id)->exists()) {
+            throw new AuthorizationException;
+        }
+        $statement = OwnerStatement::query()->lockForUpdate()->findOrFail($statement->id);
+        if ($statement->status !== OwnerStatementStatus::Finalised) {
+            throw ValidationException::withMessages(['owner_statement_id' => __('Only a finalised statement can be remitted.')]);
+        }
+
+        $left = OwnerLedger::remittableFils($contract);
+        $within = $amount <= $left;
+
+        $out = (new Disbursement)->forceFill([
+            'payee_type' => PayeeType::Owner,
+            'payee_id' => $contract->owner_id, // copied from the source
+            'purpose' => DisbursementPurpose::OwnerRemittance,
+            'amount' => Fils::toDecimal($amount),
+            'method' => $v['method'],
+            'reference' => $v['reference'] ?? null,
+            'source_type' => Disbursement::SOURCE_STATEMENT,
+            'source_id' => $statement->id,
+            'status' => $within ? DisbursementStatus::Approved : DisbursementStatus::PendingApproval,
+            'reason' => $within ? null : __('Remittance of :a BHD for :c is above what can be remitted now (:l BHD).', [
+                'a' => Fils::toDecimal($amount), 'c' => $contract->number, 'l' => Fils::toDecimal($left),
+            ]),
+            'notes' => $v['notes'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+        $out->save();
+
+        if (! $within) {
+            $this->request->handle($actor, $out, ApprovalAction::PaymentOut, (string) $out->reason);
+
+            return $out;
         }
 
         $this->paid->handle($out, [...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])), 'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
