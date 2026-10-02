@@ -44,7 +44,7 @@ class Show extends Component
     public function render(): View
     {
         $statement = $this->statement();
-        $figures = OwnerStatementCalculator::compute($statement);
+        $figures = OwnerStatementCalculator::stored($statement);
         $balance = $figures['opening'];
 
         return view('livewire.owner-statements.show', [

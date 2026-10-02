@@ -99,3 +99,15 @@ test('the statement page shows the figures and submits; PDF and Excel downloads 
     $this->actingAs($this->finance)->get(route('owner-statements.export', $march))->assertOk()->assertDownload();
     expect(Activity::where('event', 'owner_statement.exported')->count())->toBe(2);
 });
+
+test('a finalised statement keeps its stored figures when the VAT rate later changes', function () {
+    $march = ($this->draftFor)('2026-03');
+    ($this->finalise)($march);
+    CompanySetting::current()->update(['vat_rate' => '5.00']);
+
+    Livewire::actingAs($this->finance)->test(Show::class, ['statement' => $march])->assertSee('1.000')->assertSee('67.000');
+    $stored = OwnerStatementCalculator::stored($march->fresh());
+    expect([$stored['fee_tax'], $stored['closing']])->toBe([1_000, 67_000])
+        ->and(OwnerStatementCalculator::compute($march->fresh())['fee_tax'])->toBe(500);
+    $this->actingAs($this->finance)->get(route('owner-statements.export', $march))->assertOk()->assertDownload();
+});

@@ -58,6 +58,19 @@ final class OwnerStatementCalculator
         ];
     }
 
+    /** Spec §7.9: the entries come from the ledger, every figure from the statement's stored columns, so a finalised statement never changes. */
+    public static function stored(OwnerStatement $s): array
+    {
+        return [
+            ...self::compute($s),
+            'opening' => Fils::fromDecimal($s->opening_balance),
+            'fee_base' => Fils::fromDecimal($s->fee_base),
+            'fee' => Fils::fromDecimal($s->fee_amount),
+            'fee_tax' => Fils::fromDecimal($s->fee_tax),
+            'closing' => Fils::fromDecimal($s->closing_balance),
+        ];
+    }
+
     public static function apply(OwnerStatement $s): void
     {
         $f = self::compute($s);

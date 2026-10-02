@@ -20,7 +20,7 @@ final class OwnerStatementPdf
     {
         $s->loadMissing(['contract.owner', 'contract.building']);
         $settings = CompanySetting::current();
-        $figures = OwnerStatementCalculator::compute($s);
+        $figures = OwnerStatementCalculator::stored($s);
         $balance = $figures['opening'];
         $rows = $figures['entries']->map(function (array $e) use (&$balance) {
             $balance += $e['amount'];

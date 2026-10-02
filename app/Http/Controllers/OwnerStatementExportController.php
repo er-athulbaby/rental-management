@@ -20,7 +20,7 @@ final class OwnerStatementExportController
         abort_unless($request->user()?->can('view', $statement), 403);
         Audit::log('owner_statement.exported', $statement, properties: ['format' => 'xlsx'], causer: $request->user());
 
-        $f = OwnerStatementCalculator::compute($statement);
+        $f = OwnerStatementCalculator::stored($statement);
         $path = sys_get_temp_dir().'/rms-statement-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
         $balance = $f['opening'];
