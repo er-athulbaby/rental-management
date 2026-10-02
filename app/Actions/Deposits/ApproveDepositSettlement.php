@@ -82,14 +82,17 @@ final class ApproveDepositSettlement
 
         // 0. A held-back deposit invoice wholly on settled units is cancelled, and its held cheques are left to return
         // (as RebillAgreement); a mixed one is refused. Locked after the rent lines above (§7.2: invoice lines → invoices).
-        $heldBack = Invoice::query()->whereKey($heldBackIds)->orderBy('id')->lockForUpdate()->with('lines')->get();
+        // $heldBackIds came from an unlocked read: re-check the status under the lock, so an invoice issued meanwhile
+        // (IssueDueInvoices) is not cancelled; the issued-deposit credit below then picks it up.
+        $heldBack = Invoice::query()->whereKey($heldBackIds)->whereIn('status', [InvoiceStatus::Draft, InvoiceStatus::Scheduled])
+            ->orderBy('id')->lockForUpdate()->with('lines')->get();
         foreach ($heldBack as $invoice) {
             if ($invoice->lines->contains(fn ($l) => ! in_array($l->agreement_unit_id, $settled, true))) {
                 throw ValidationException::withMessages(['approval' => __('Deposit invoice :n also covers other units and is held back by a pending owner contract: decide that contract first, then approve this settlement.', ['n' => $invoice->label()])]);
             }
             $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
         }
-        foreach ($heldCheques as $cheque) {
+        foreach ($heldCheques->whereIn('invoice_id', $heldBack->modelKeys()) as $cheque) {
             $cheque->forceFill(['invoice_id' => null, 'to_return' => true])->save();
         }
 

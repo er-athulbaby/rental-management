@@ -217,3 +217,27 @@ test('a discretionary credit note stays a concession: re-billing neither re-bill
         ->and($later->manualInvoiceId)->toBeNull()
         ->and(($this->byMonth)('2026-11-01')->balance)->toBe('81.507');      // 131.507 kept − 50 concession
 });
+
+test('a scheduled invoice issued between the unlocked read and the lock is not cancelled and keeps its cheque', function () {
+    $december = ($this->byMonth)('2026-12-01');
+    $cheque = app(RecordCheques::class)->handle($this->finance, $this->customer, $this->agreement, [['cheque_no' => '1', 'bank_name' => 'NBB', 'cheque_date' => '2026-12-01', 'amount' => '400', 'invoice_id' => $december->id]])->sole();
+    $this->au->forceFill(['end_date' => '2026-11-15', 'planned_exit_date' => '2026-11-15'])->save();
+
+    // IssueDueInvoices wins the race: it issues December right after the cheques are locked (the unlocked id read is already done).
+    $issued = false;
+    DB::listen(function ($q) use (&$issued, $december) {
+        if (! $issued && str_contains($q->sql, 'from `cheques`') && str_contains($q->sql, 'for update')) {
+            $issued = true;
+            app(IssueInvoice::class)->handle($december->fresh(), $this->finance);
+        }
+    });
+    $result = ($this->rebill)('2026-11-15');
+
+    expect($issued)->toBeTrue()
+        ->and($result->cancelled)->toBe(9)            // January … September; December was issued meanwhile
+        ->and($december->fresh()->status->value)->toBe('issued')
+        ->and($cheque->fresh()->invoice_id)->toBe($december->id)
+        ->and($cheque->fresh()->to_return)->toBeFalse()
+        ->and($result->chequesToReturn)->toBe([])
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
+});

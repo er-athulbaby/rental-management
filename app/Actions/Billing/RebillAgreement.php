@@ -56,7 +56,9 @@ final class RebillAgreement
         $cancelled = 0;
         $replaced = 0;
         $toReturn = [];
-        foreach (Invoice::query()->whereKey($scheduled)->orderBy('id')->lockForUpdate()->get() as $old) {
+        // $scheduled came from an unlocked read: only invoices still Scheduled under the lock are cancelled (one issued
+        // meanwhile by IssueDueInvoices is left to step 2); cheques are moved per cancelled invoice only.
+        foreach (Invoice::query()->whereKey($scheduled)->where('status', InvoiceStatus::Scheduled)->orderBy('id')->lockForUpdate()->get() as $old) {
             $period = InvoicePeriod::of($agreement, $old);
             $lines = $this->schedule->linesFor($agreement, $period);
             $old->forceFill(['status' => InvoiceStatus::Cancelled])->save();

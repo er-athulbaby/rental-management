@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Approvals\DecideApproval;
+use App\Actions\Billing\IssueInvoice;
 use App\Actions\Cheques\RecordCheques;
 use App\Actions\Deposits\CreateDepositSettlement;
 use App\Actions\Deposits\SaveSettlementDeductions;
@@ -204,4 +205,29 @@ test('plan ruling 9: a held-back deposit invoice that also covers a unit not bei
         ->toThrow(ValidationException::class, 'also covers other units and is held back by a pending owner contract: decide that contract first')
         ->and($held->fresh()->status->value)->toBe('scheduled')
         ->and($settlement->fresh()->status->value)->toBe('pending_approval');
+});
+
+test('an invoice issued between the unlocked read and the lock is not cancelled: its cheques stay and its unpaid deposit is credited', function () {
+    $held = scheduledDepositInvoice($this->customer, $this->agreement, $this->au);
+    $cheque = app(RecordCheques::class)->handle($this->finance, $this->customer, $this->agreement, [['cheque_no' => '1', 'bank_name' => 'NBB', 'cheque_date' => '2026-10-05', 'amount' => '100', 'invoice_id' => $held->id]])->sole();
+    $approval = app(SubmitDepositSettlement::class)->handle($this->finance, $this->settlement->fresh());
+
+    // IssueDueInvoices wins the race: it issues the invoice right after the held cheques are locked (the unlocked id read is already done).
+    $issued = false;
+    DB::listen(function ($q) use (&$issued, $held) {
+        if (! $issued && str_contains($q->sql, 'from `cheques`') && str_contains($q->sql, 'for update')) {
+            $issued = true;
+            app(IssueInvoice::class)->handle($held->fresh(), $this->finance);
+        }
+    });
+    app(DecideApproval::class)->handle($this->management, $approval, true);
+
+    $cn = Invoice::where('type', 'credit_note')->where('related_invoice_id', $held->id)->sole();
+    expect($issued)->toBeTrue()
+        ->and($held->fresh()->status->value)->toBe('issued')
+        ->and($cn->status->value)->toBe('issued')
+        ->and($cn->total)->toBe('100.000')
+        ->and($cheque->fresh()->invoice_id)->toBe($held->id)
+        ->and($cheque->fresh()->to_return)->toBeFalse()
+        ->and(app(IntegrityCheck::class)->run())->toBe([]);
 });
