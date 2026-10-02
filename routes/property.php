@@ -72,6 +72,10 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('disbursements/create', Disbursements\Create::class)->middleware('can:disbursements.manage')->name('disbursements.create');
     Route::livewire('disbursements/{disbursement}', Disbursements\Show::class)->middleware('can:finance.view')->name('disbursements.show');
     Route::livewire('head-lease-payments', OwnerPayables\Index::class)->middleware('can:finance.view')->name('owner-payables.index');
+    Route::livewire('reports', Reports\Index::class)->name('reports.index');
+    Route::livewire('reports/occupancy', Reports\OccupancyReport::class)->middleware('can:reports.operational')->name('reports.occupancy');
+    Route::livewire('reports/expiring', Reports\ExpiringAgreementsReport::class)->middleware('can:reports.operational')->name('reports.expiring');
+    Route::livewire('reports/overstays', Reports\OverstaysReport::class)->middleware('can:reports.operational')->name('reports.overstays');
     Route::livewire('reports/building-profitability', Reports\BuildingProfitabilityReport::class)->middleware('can:reports.financial')->name('reports.building-profitability');
     Route::livewire('owner-statements', OwnerStatements\Index::class)->middleware('can:finance.view')->name('owner-statements.index');
     Route::livewire('owner-statements/{statement}', OwnerStatements\Show::class)->middleware('can:finance.view')->name('owner-statements.show');
