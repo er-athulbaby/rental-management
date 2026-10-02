@@ -78,7 +78,7 @@ final class OwnerStatementFinalisation implements ApprovalHandler
         $s = OwnerStatement::query()->with('contract.owner')->findOrFail($approval->approvable_id);
 
         return __('Finalise the :m statement for :owner (:c): fee :fee BHD + VAT :tax, closing balance :close BHD.', [
-            'm' => $s->period_start->format('M Y'), 'owner' => $s->contract->owner->name_en, 'c' => $s->contract->number,
+            'm' => $s->period_start->format('M Y'), 'owner' => $s->contract->owner?->name_en, 'c' => $s->contract->number,
             'fee' => $s->fee_amount, 'tax' => $s->fee_tax, 'close' => $s->closing_balance,
         ]);
     }

@@ -2,6 +2,10 @@
 
 namespace App\Integrity;
 
+use App\Billing\OwnerStatementCalculator;
+use App\Enums\OwnerStatementStatus;
+use App\Models\OwnerStatement;
+use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
 
 /** Spec §7.11. Each query returns the offending rows; an empty result means healthy. */
@@ -63,6 +67,23 @@ final class IntegrityCheck
 
         foreach (DB::select('SELECT agreement_unit_id, SUM(amount) AS held FROM deposit_movements GROUP BY agreement_unit_id HAVING held < 0') as $row) {
             $failures[] = "agreement unit {$row->agreement_unit_id}: deposit held is {$row->held}";
+        }
+
+        foreach (DB::select(<<<'SQL'
+            SELECT p.id FROM owner_payables p
+            LEFT JOIN disbursements d ON d.id = p.disbursement_id
+            WHERE p.status = 'paid' AND (d.id IS NULL OR d.status <> 'paid' OR d.purpose <> 'head_lease'
+                OR d.source_type <> 'owner_payable' OR d.source_id <> p.id OR d.amount <> p.amount)
+            SQL) as $row) {
+            $failures[] = "owner payable {$row->id}: not paid by its own head-lease payment out";
+        }
+
+        // ponytail: recomputes every finalised statement nightly; limit to the last 13 months if it gets slow.
+        foreach (OwnerStatement::query()->where('status', OwnerStatementStatus::Finalised)->with('contract')->orderBy('id')->get() as $s) {
+            $closing = OwnerStatementCalculator::compute($s)['closing'];
+            if ($closing !== Fils::fromDecimal($s->closing_balance)) {
+                $failures[] = "owner statement {$s->number}: closing {$s->closing_balance} but its entries now give ".Fils::toDecimal($closing);
+            }
         }
 
         $triggers = (int) DB::selectOne('SELECT rms_trigger_count() AS n')->n;

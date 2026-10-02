@@ -14,7 +14,7 @@ final class OwnerStatementPdfController
 {
     public function __invoke(Request $request, OwnerStatement $statement, OwnerStatementPdf $pdf): Response
     {
-        abort_unless($request->user()?->can('view', $statement), 403);
+        abort_unless($request->user()?->can('view', $statement) === true, 403);
         Audit::log('owner_statement.exported', $statement, properties: ['format' => 'pdf'], causer: $request->user());
 
         // A finalised statement is served from its stored copy (spec §7.9); drafts are rendered with a watermark.

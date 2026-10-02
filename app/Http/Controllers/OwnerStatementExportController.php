@@ -17,7 +17,7 @@ final class OwnerStatementExportController
 {
     public function __invoke(Request $request, OwnerStatement $statement): BinaryFileResponse
     {
-        abort_unless($request->user()?->can('view', $statement), 403);
+        abort_unless($request->user()?->can('view', $statement) === true, 403);
         Audit::log('owner_statement.exported', $statement, properties: ['format' => 'xlsx'], causer: $request->user());
 
         $f = OwnerStatementCalculator::stored($statement);

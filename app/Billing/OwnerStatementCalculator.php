@@ -59,6 +59,7 @@ final class OwnerStatementCalculator
     }
 
     /** Spec §7.9: the entries come from the ledger, every figure from the statement's stored columns, so a finalised statement never changes. */
+    /** @return array{opening: int, entries: Collection<int, array{posted_at: CarbonImmutable, date: string, kind: string, reference: string, amount: int}>, fee_base: int, fee: int, fee_tax: int, closing: int} */
     public static function stored(OwnerStatement $s): array
     {
         return [
