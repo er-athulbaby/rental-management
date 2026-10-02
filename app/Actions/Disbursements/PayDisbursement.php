@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 /** Spec §7.5: an approved payment out is recorded as paid by Finance. */
 final class PayDisbursement
 {
-    public function __construct(private MarkDisbursementPaid $paid) {}
+    public function __construct(private MarkDisbursementPaid $paid, private LockOwnerSource $ownerSource) {}
 
     /** @param  array<string, mixed>  $data */
     public function handle(User $actor, Disbursement $disbursement, array $data): Disbursement
@@ -35,6 +35,7 @@ final class PayDisbursement
         ])->validate();
 
         return DB::transaction(function () use ($actor, $disbursement, $v) {
+            $this->ownerSource->handle($disbursement); // owner-side locks come before the disbursement (spec §7.2)
             $locked = Disbursement::query()->lockForUpdate()->findOrFail($disbursement->id);
             if ($locked->status !== DisbursementStatus::Approved) {
                 throw ValidationException::withMessages(['paid_on' => __('Only an approved payment out can be paid.')]);

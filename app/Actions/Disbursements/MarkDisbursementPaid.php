@@ -11,11 +11,13 @@ use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\NumberSequenceKey;
+use App\Enums\OwnerPayableStatus;
 use App\Enums\PayeeType;
 use App\Models\Cheque;
 use App\Models\DepositMovement;
 use App\Models\DepositSettlement;
 use App\Models\Disbursement;
+use App\Models\OwnerPayable;
 use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +91,15 @@ final class MarkDisbursementPaid
             }
             if ($settlement->refundedFils() >= $settlement->refundFils()) {
                 $settlement->forceFill(['status' => DepositSettlementStatus::Completed])->save();
+            }
+        }
+
+        // Spec §7.5, plan ruling 4: the payable becomes paid when a payment out for exactly its amount is paid. The
+        // caller locked the payable before this disbursement (LockOwnerSource / RecordDisbursement).
+        if ($locked->purpose === DisbursementPurpose::HeadLease) {
+            $payable = OwnerPayable::query()->lockForUpdate()->findOrFail($locked->source_id);
+            if ($payable->status === OwnerPayableStatus::Scheduled && Fils::fromDecimal($payable->amount) === Fils::fromDecimal($locked->amount)) {
+                $payable->forceFill(['status' => OwnerPayableStatus::Paid, 'disbursement_id' => $locked->id])->save();
             }
         }
     }

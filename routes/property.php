@@ -16,6 +16,7 @@ use App\Livewire\Expenses;
 use App\Livewire\Import;
 use App\Livewire\Invoices;
 use App\Livewire\OwnerContracts;
+use App\Livewire\OwnerPayables;
 use App\Livewire\Owners;
 use App\Livewire\Payments;
 use App\Livewire\Units;
@@ -66,6 +67,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('disbursements', Disbursements\Index::class)->middleware('can:finance.view')->name('disbursements.index');
     Route::livewire('disbursements/create', Disbursements\Create::class)->middleware('can:disbursements.manage')->name('disbursements.create');
     Route::livewire('disbursements/{disbursement}', Disbursements\Show::class)->middleware('can:finance.view')->name('disbursements.show');
+    Route::livewire('head-lease-payments', OwnerPayables\Index::class)->middleware('can:finance.view')->name('owner-payables.index');
     Route::livewire('deposit-settlements', DepositSettlements\Index::class)->middleware('can:finance.view')->name('deposit-settlements.index');
     Route::livewire('deposit-settlements/{settlement}', DepositSettlements\Show::class)->middleware('can:finance.view')->name('deposit-settlements.show');
     Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');

@@ -103,7 +103,12 @@
                                 <flux:table.cell class="whitespace-nowrap">{{ $p->period_start->format('d/m/Y') }} – {{ $p->period_end->format('d/m/Y') }}</flux:table.cell>
                                 <flux:table.cell class="whitespace-nowrap">{{ $p->due_date->format('d/m/Y') }}</flux:table.cell>
                                 <flux:table.cell class="text-end tabular-nums">{{ $p->amount }}</flux:table.cell>
-                                <flux:table.cell><flux:badge size="sm">{{ $p->status->label() }}</flux:badge></flux:table.cell>
+                                <flux:table.cell>
+                                    <flux:badge size="sm">{{ $p->status->label() }}</flux:badge>
+                                    @if ($p->disbursement_id)
+                                        <flux:link :href="route('disbursements.show', $p->disbursement_id)" wire:navigate>{{ __('Payment') }}</flux:link>
+                                    @endif
+                                </flux:table.cell>
                             </flux:table.row>
                         @endforeach
                     </flux:table.rows>

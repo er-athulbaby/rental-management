@@ -8,12 +8,15 @@ use App\Enums\DepositSettlementStatus;
 use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
+use App\Enums\OwnerPayableStatus;
 use App\Enums\PayeeType;
 use App\Enums\PaymentStatus;
 use App\Models\Customer;
 use App\Models\DepositSettlement;
 use App\Models\Disbursement;
 use App\Models\Owner;
+use App\Models\OwnerContract;
+use App\Models\OwnerPayable;
 use App\Models\Payment;
 use App\Models\User;
 use App\Support\Fils;
@@ -24,7 +27,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Spec §7.5. With a source (a payment holding credit; a deposit settlement): paid at once, within the
+ * Spec §7.5. With a source (a payment holding credit; a deposit settlement; a head-lease payable): paid at once, within the
  * source's limit. Without one (purpose other): pending → Management (§8.3 item 9) → approved → PayDisbursement.
  */
 final class RecordDisbursement
@@ -41,9 +44,9 @@ final class RecordDisbursement
         $today = now('Asia/Bahrain')->toDateString();
         // A source-less payment out (purpose other) gets its cheque details when Finance pays it, not now.
         $chequeNow = ($data['method'] ?? null) === DisbursementMethod::Cheque->value
-            && in_array($data['purpose'] ?? null, [DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value], true);
+            && in_array($data['purpose'] ?? null, [DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value], true);
         $v = Validator::make($data, [
-            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::Other->value])],
+            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::Other->value])],
             'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
             'method' => ['required', Rule::enum(DisbursementMethod::class)],
             'reference' => ['nullable', 'string', 'max:100'],
@@ -51,6 +54,7 @@ final class RecordDisbursement
             'paid_on' => ['required_unless:purpose,other', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.$today],
             'payment_id' => ['required_if:purpose,credit_refund', 'nullable', 'integer', Rule::exists('payments', 'id')],
             'deposit_settlement_id' => ['required_if:purpose,deposit_refund', 'nullable', 'integer', Rule::exists('deposit_settlements', 'id')],
+            'owner_payable_id' => ['required_if:purpose,head_lease', 'nullable', 'integer', Rule::exists('owner_payables', 'id')],
             'payee_type' => ['required_if:purpose,other', 'nullable', Rule::enum(PayeeType::class)],
             'payee_id' => ['required_if:purpose,other', 'nullable', 'integer'],
             'cheque_no' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:30'],
@@ -65,6 +69,7 @@ final class RecordDisbursement
             return match ($v['purpose']) {
                 DisbursementPurpose::CreditRefund->value => $this->creditRefund($actor, $v, $amount),
                 DisbursementPurpose::DepositRefund->value => $this->depositRefund($actor, $v, $amount),
+                DisbursementPurpose::HeadLease->value => $this->headLease($actor, $v, $amount),
                 default => $this->other($actor, $v, $amount),
             };
         }, attempts: 3);
@@ -136,6 +141,55 @@ final class RecordDisbursement
             'created_by' => $actor->id,
         ]);
         $out->save();
+        $this->paid->handle($out, [...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])), 'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
+
+        return $out->refresh();
+    }
+
+    /** @param  array<string, mixed>  $v */
+    private function headLease(User $actor, array $v, int $amount): Disbursement
+    {
+        $payable = OwnerPayable::query()->findOrFail((int) $v['owner_payable_id']);
+        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($payable->owner_contract_id); // owner-side first lock (spec §7.2)
+        if (! OwnerContract::visibleTo($actor)->whereKey($contract->id)->exists()) {
+            throw new AuthorizationException;
+        }
+        $payable = OwnerPayable::query()->lockForUpdate()->findOrFail($payable->id);
+        if ($payable->status === OwnerPayableStatus::Cancelled) {
+            throw ValidationException::withMessages(['owner_payable_id' => __('This head-lease payment was cancelled.')]);
+        }
+
+        // Spec §7.5: paid exactly once, for its amount. Anything else — already paid, another payment of it waiting,
+        // a different amount — goes to Management (plan ruling 4).
+        $waiting = Disbursement::query()->where('source_type', Disbursement::SOURCE_PAYABLE)->where('source_id', $payable->id)
+            ->whereIn('status', [DisbursementStatus::PendingApproval, DisbursementStatus::Approved])->exists();
+        $within = $payable->status === OwnerPayableStatus::Scheduled && ! $waiting && $amount === Fils::fromDecimal($payable->amount);
+
+        $out = (new Disbursement)->forceFill([
+            'payee_type' => PayeeType::Owner,
+            'payee_id' => $contract->owner_id, // copied from the source (spec §7.5)
+            'purpose' => DisbursementPurpose::HeadLease,
+            'amount' => Fils::toDecimal($amount),
+            'method' => $v['method'],
+            'reference' => $v['reference'] ?? null,
+            'source_type' => Disbursement::SOURCE_PAYABLE,
+            'source_id' => $payable->id,
+            'status' => $within ? DisbursementStatus::Approved : DisbursementStatus::PendingApproval,
+            'reason' => $within ? null : __('Head-lease payment :c for :from – :to (:due BHD, :status) outside its limit.', [
+                'c' => $contract->number, 'from' => $payable->period_start->format('d/m/Y'), 'to' => $payable->period_end->format('d/m/Y'),
+                'due' => $payable->amount, 'status' => $payable->status->label(),
+            ]),
+            'notes' => $v['notes'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+        $out->save();
+
+        if (! $within) {
+            $this->request->handle($actor, $out, ApprovalAction::PaymentOut, (string) $out->reason);
+
+            return $out; // its cheque details are taken when Finance pays it
+        }
+
         $this->paid->handle($out, [...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])), 'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
 
         return $out->refresh();
