@@ -34,9 +34,13 @@
             @if ($canEnterCheques)
                 <flux:button :href="route('cheques.entry', ['agreement' => $agreement->id])" wire:navigate>{{ __('Enter cheques') }}</flux:button>
             @endif
-            <flux:button :href="route('agreements.pdf', $agreement)" target="_blank" icon="document-arrow-down">
-                {{ in_array($agreement->status, [AgreementStatus::Draft, AgreementStatus::PendingApproval], true) ? __('Draft contract PDF') : __('Contract PDF') }}
-            </flux:button>
+            @if ($agreement->import_ref === null)
+                <flux:button :href="route('agreements.pdf', $agreement)" target="_blank" icon="document-arrow-down">
+                    {{ in_array($agreement->status, [AgreementStatus::Draft, AgreementStatus::PendingApproval], true) ? __('Draft contract PDF') : __('Contract PDF') }}
+                </flux:button>
+            @else
+                <flux:text>{{ __('Imported from the previous system: the signed contract is kept outside this system.') }}</flux:text>
+            @endif
         </div>
     </div>
 

@@ -16,6 +16,7 @@ final class AgreementPdfController
     public function __invoke(Request $request, Agreement $agreement, ContractPdf $pdf): Response|RedirectResponse
     {
         abort_unless($request->user()?->can('view', $agreement) === true, 403);
+        abort_if($agreement->import_ref !== null, 404); // spec §11: an imported agreement's signed contract lives in the old system
 
         if (! in_array($agreement->status, [AgreementStatus::Draft, AgreementStatus::PendingApproval], true)) {
             // The frozen copy, through the audited download route. Built now if the queued job hasn't run yet.

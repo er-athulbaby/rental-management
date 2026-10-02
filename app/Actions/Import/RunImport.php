@@ -205,11 +205,19 @@ final class RunImport
         if ($ref === '') {
             throw ValidationException::withMessages(['import_ref' => __('Give each agreement a reference (import_ref).')]);
         }
+        // Only the first row supplies the agreement's own columns, so the other rows must agree with it.
+        foreach (['customer_id_type', 'customer_id_number', 'start_date', 'end_date', 'frequency', 'billing_day', 'grace_days', 'notice_period_days'] as $column) {
+            foreach ($rows as $row) {
+                if ((string) ($row[$column] ?? '') !== (string) ($first[$column] ?? '')) {
+                    throw ValidationException::withMessages([$column => __('Rows of agreement :ref disagree on :column.', ['ref' => $ref, 'column' => $column])]);
+                }
+            }
+        }
         if (Agreement::query()->where('import_ref', $ref)->exists()) {
             throw ValidationException::withMessages(['import_ref' => __('Agreement :ref was already imported.', ['ref' => $ref])]);
         }
-        if ((string) ($first['end_date'] ?? '') < $cutover->toDateString()) {
-            throw ValidationException::withMessages(['end_date' => __('Only agreements still running at cutover are imported (:ref ends :d).', ['ref' => $ref, 'd' => (string) ($first['end_date'] ?? '')])]);
+        if (filled($first['end_date'] ?? null) && (string) $first['end_date'] < $cutover->toDateString()) { // blank: SaveAgreement reports it
+            throw ValidationException::withMessages(['end_date' => __('Only agreements still running at cutover are imported (:ref ends :d).', ['ref' => $ref, 'd' => (string) $first['end_date']])]);
         }
 
         $customerId = Customer::query()->where('id_type', $first['customer_id_type'] ?? '')->where('id_number', $first['customer_id_number'] ?? '')->value('id')

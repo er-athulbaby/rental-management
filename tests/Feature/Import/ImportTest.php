@@ -11,6 +11,7 @@ use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\InvoiceLine;
 use App\Models\Owner;
 use App\Models\OwnerContract;
@@ -274,4 +275,30 @@ test('an agreement reference can only be imported once', function () {
     ])], commit: false);
 
     expect($again->errors['agreements'][2][0])->toContain('already imported');
+});
+
+test('rows of one reference that disagree on the agreement columns are refused on its first line', function () {
+    $row = fn (string $unit, string $id) => ['import_ref' => 'L-004', 'customer_id_type' => 'cpr', 'customer_id_number' => $id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+        'frequency' => 'monthly', 'building_code' => 'MT', 'unit_code' => $unit, 'rent' => '450.000', 'tax_category' => 'exempt'];
+
+    $result = app(RunImport::class)->handle($this->vendor, agreementFiles($this->files, [$row('101', '090202345'), $row('103', '999999999')]), commit: false);
+
+    expect(array_keys($result->errors['agreements']))->toBe([2])
+        ->and($result->errors['agreements'][2][0])->toBe('Rows of agreement L-004 disagree on customer_id_number.');
+
+    $blank = app(RunImport::class)->handle($this->vendor, agreementFiles($this->files, [[...$row('101', '090202345'), 'end_date' => '']]), commit: false);
+    expect($blank->errors['agreements'][2][0])->toContain('end date field is required');
+});
+
+test('an imported agreement has no generated contract: the PDF route is 404 and the page says why', function () {
+    Storage::fake('local');
+    app(RunImport::class)->handle($this->vendor, agreementFiles($this->files), commit: true);
+    $agreement = Agreement::where('import_ref', 'L-001')->sole();
+
+    $this->actingAs($this->vendor)->get(route('agreements.pdf', $agreement))->assertNotFound();
+    expect(Document::query()->where('documentable_id', $agreement->id)->exists())->toBeFalse();
+
+    $this->actingAs($this->vendor)->get(route('agreements.show', $agreement))->assertOk()
+        ->assertSee('the signed contract is kept outside this system')
+        ->assertDontSee(route('agreements.pdf', $agreement));
 });
