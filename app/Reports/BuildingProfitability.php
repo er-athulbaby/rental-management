@@ -21,6 +21,8 @@ final class BuildingProfitability
     {
         $start = $from.' 00:00:00';
         $end = $to.' 23:59:59';
+        // $expr is always a literal at the call sites below, never user input.
+        // @phpstan-ignore argument.type
         $sum = fn (Builder $q, string $expr) => Fils::fromDecimal((string) ($q->selectRaw("SUM({$expr}) as t")->value('t') ?: '0'));
 
         // The building's company-earned lines: unstamped (owned) or stamped with a leased contract, never deposits.

@@ -91,6 +91,7 @@ class Index extends Component
     public function export(): BinaryFileResponse
     {
         abort_unless($this->actor()->can('reports.financial'), 403);
+        $this->validate(['dueBy' => ['required', 'date_format:Y-m-d']]);
         Audit::log('report.exported', properties: ['report' => 'head_lease_due', 'due_by' => $this->dueBy, 'building' => $this->building], causer: $this->actor());
 
         $path = sys_get_temp_dir().'/rms-head-lease-'.Str::uuid().'.xlsx';

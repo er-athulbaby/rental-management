@@ -87,3 +87,15 @@ test('the report page shows each building and exports to Excel, audited', functi
 
     expect(Activity::where('event', 'report.exported')->count())->toBe(2);
 });
+
+test('invalid dates show an error, keep the page rendering and leave no export audit row', function () {
+    Livewire::actingAs($this->finance)->test(BuildingProfitabilityReport::class)
+        ->set('from', '2026-03-31')->set('to', '2026-03-01')
+        ->assertHasErrors(['to'])->assertStatus(200)
+        ->call('export')->assertHasErrors(['to'])->assertNoFileDownloaded();
+
+    Livewire::actingAs($this->finance)->test(BuildingProfitabilityReport::class)
+        ->set('from', '')->assertHasErrors(['from'])->assertStatus(200);
+
+    expect(Activity::where('event', 'report.exported')->count())->toBe(0);
+});

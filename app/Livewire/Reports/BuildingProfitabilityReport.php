@@ -9,6 +9,7 @@ use App\Reports\BuildingProfitability;
 use App\Support\Fils;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -35,10 +36,23 @@ class BuildingProfitabilityReport extends Component
         $this->to = $this->to ?: now('Asia/Bahrain')->toDateString();
     }
 
+    /** @return array<string, list<string>> */
+    private function dateRules(): array
+    {
+        return ['from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from']];
+    }
+
+    public function updated(): void
+    {
+        $this->validate($this->dateRules());
+    }
+
     /** @return Collection<int, array{building: Building, figures: array{collected: int, fees: int, income: int, billed: int, head_lease: int, expenses: int, costs: int, result: int}}> */
     private function rows(): Collection
     {
-        $this->validate(['from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from']]);
+        if (Validator::make(['from' => $this->from, 'to' => $this->to], $this->dateRules())->fails()) {
+            return collect();
+        }
 
         return Building::visibleTo($this->actor())->when($this->building, fn ($q, $b) => $q->whereKey($b))->orderBy('code')->get()
             ->map(fn (Building $b) => ['building' => $b, 'figures' => BuildingProfitability::for($b, $this->from, $this->to)]);
@@ -47,6 +61,7 @@ class BuildingProfitabilityReport extends Component
     public function export(): BinaryFileResponse
     {
         abort_unless($this->actor()->can('reports.financial'), 403);
+        $this->validate($this->dateRules());
         Audit::log('report.exported', properties: ['report' => 'building_profitability', 'from' => $this->from, 'to' => $this->to, 'building' => $this->building], causer: $this->actor());
 
         $path = sys_get_temp_dir().'/rms-profitability-'.Str::uuid().'.xlsx';
