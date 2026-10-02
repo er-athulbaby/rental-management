@@ -2,6 +2,8 @@
 
 namespace App\Actions\Import;
 
+use App\Actions\Agreements\ActivateAgreement;
+use App\Actions\Agreements\SaveAgreement;
 use App\Actions\Buildings\SaveBuilding;
 use App\Actions\Customers\SaveCustomer;
 use App\Actions\OwnerContracts\ActivateOwnerContract;
@@ -9,14 +11,17 @@ use App\Actions\OwnerContracts\SaveOwnerContract;
 use App\Actions\Owners\SaveOwner;
 use App\Actions\Units\SaveUnit;
 use App\Audit\Audit;
+use App\Enums\AgreementStatus;
 use App\Enums\ApprovalAction;
 use App\Enums\ApprovalStatus;
 use App\Enums\ImportKind;
 use App\Enums\OwnerContractStatus;
 use App\Enums\PermissionName;
+use App\Models\Agreement;
 use App\Models\Approval;
 use App\Models\Building;
 use App\Models\CompanySetting;
+use App\Models\Customer;
 use App\Models\Owner;
 use App\Models\Unit;
 use App\Models\User;
@@ -42,6 +47,8 @@ final class RunImport
         private SaveOwnerContract $contracts,
         private ActivateOwnerContract $activate,
         private SaveCustomer $customers,
+        private SaveAgreement $agreements,
+        private ActivateAgreement $activateAgreement,
     ) {}
 
     /** @param  array<string, string>  $paths  ImportKind value => local .xlsx or .csv path */
@@ -84,15 +91,19 @@ final class RunImport
                     continue;
                 }
 
-                $passed = 0;
-
+                $items = [];
                 foreach ($reader->getRows() as $index => $row) {
+                    $items[(int) $index + 2] = $row; // spreadsheet line: header is line 1
+                }
+
+                $passed = 0;
+                foreach (self::units($kind, $items) as $line => $group) {
                     try {
-                        // A savepoint per row: a failed row leaves nothing behind for later rows to trip on.
-                        DB::transaction(fn () => $this->importRow($actor, $kind, $this->normalise($kind, $row), $cutover));
-                        $passed++;
+                        // A savepoint per unit of work: a failed one leaves nothing behind for later ones to trip on.
+                        DB::transaction(fn () => $this->importRow($actor, $kind, array_map(fn (array $r) => $this->normalise($kind, $r), $group), $cutover));
+                        $passed += count($group);
                     } catch (ValidationException $e) {
-                        $errors[$kind->value][(int) $index + 2] = array_values(Arr::flatten($e->errors()));
+                        $errors[$kind->value][$line] = array_values(Arr::flatten($e->errors()));
                     }
                 }
 
@@ -137,9 +148,36 @@ final class RunImport
         return CarbonImmutable::instance($goLive)->timezone('Asia/Bahrain')->startOfDay();
     }
 
-    /** @param  array<string, mixed>  $row */
-    private function importRow(User $actor, ImportKind $kind, array $row, CarbonImmutable $cutover): void
+    /**
+     * Plan ruling 5: agreement rows group by import_ref (one row per agreement unit); every other kind is one row each.
+     * Keyed by the group's first spreadsheet line, which its errors are reported against.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private static function units(ImportKind $kind, array $items): array
     {
+        if ($kind !== ImportKind::Agreements) {
+            return array_map(fn (array $row) => [$row], $items);
+        }
+
+        $groups = [];
+        $firstLine = [];
+        foreach ($items as $line => $row) {
+            $ref = trim((string) ($row['import_ref'] ?? ''));
+            $key = $ref === '' ? "line-{$line}" : $ref; // a row without a reference fails on its own
+            $firstLine[$key] ??= $line;
+            $groups[$firstLine[$key]][] = $row;
+        }
+
+        return $groups;
+    }
+
+    /** @param  list<array<string, mixed>>  $rows  one row, except for agreements: the rows sharing one import_ref */
+    private function importRow(User $actor, ImportKind $kind, array $rows, CarbonImmutable $cutover): void
+    {
+        $row = $rows[0];
+
         match ($kind) {
             ImportKind::Buildings => $this->buildings->handle($actor, null, $row),
             ImportKind::Units => $this->units->handle($actor, null, [
@@ -150,7 +188,73 @@ final class RunImport
             ImportKind::Owners => $this->owners->handle($actor, null, $row, viaImport: true),
             ImportKind::OwnerContracts => $this->ownerContract($actor, $row, $cutover),
             ImportKind::Customers => $this->customers->handle($actor, null, $row),
+            ImportKind::Agreements => $this->agreement($actor, $rows, $cutover),
         };
+    }
+
+    /**
+     * Spec §11: an active agreement, approved as "Imported by {user}", billed from cutover. It is not made from a
+     * contract template, so it has no clauses and no generated contract: the signed contract is the old system's.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function agreement(User $actor, array $rows, CarbonImmutable $cutover): void
+    {
+        $first = $rows[0];
+        $ref = (string) ($first['import_ref'] ?? '');
+        if ($ref === '') {
+            throw ValidationException::withMessages(['import_ref' => __('Give each agreement a reference (import_ref).')]);
+        }
+        if (Agreement::query()->where('import_ref', $ref)->exists()) {
+            throw ValidationException::withMessages(['import_ref' => __('Agreement :ref was already imported.', ['ref' => $ref])]);
+        }
+        if ((string) ($first['end_date'] ?? '') < $cutover->toDateString()) {
+            throw ValidationException::withMessages(['end_date' => __('Only agreements still running at cutover are imported (:ref ends :d).', ['ref' => $ref, 'd' => (string) ($first['end_date'] ?? '')])]);
+        }
+
+        $customerId = Customer::query()->where('id_type', $first['customer_id_type'] ?? '')->where('id_number', $first['customer_id_number'] ?? '')->value('id')
+            ?? throw ValidationException::withMessages(['customer_id_number' => __('No customer with ID :type :number.', ['type' => $first['customer_id_type'] ?? '', 'number' => $first['customer_id_number'] ?? ''])]);
+
+        $units = array_map(function (array $row) {
+            $unit = Unit::query()->where('building_id', $this->buildingId($row['building_code'] ?? null))->where('code', (string) ($row['unit_code'] ?? ''))->first()
+                ?? throw ValidationException::withMessages(['unit_code' => __('No unit :code in :building.', ['code' => (string) ($row['unit_code'] ?? ''), 'building' => (string) ($row['building_code'] ?? '')])]);
+            $tax = $row['tax_category'] ?? $unit->effectiveTaxCategory()->value;
+            $charges = [['type' => 'rent', 'monthly_amount' => $row['rent'] ?? null, 'tax_category' => $tax]];
+            foreach (['service_charge', 'parking'] as $type) {
+                if (filled($row[$type] ?? null)) {
+                    $charges[] = ['type' => $type, 'monthly_amount' => $row[$type], 'tax_category' => $tax];
+                }
+            }
+            if (filled($row['other'] ?? null)) {
+                $charges[] = ['type' => 'other', 'description' => $row['other_description'] ?? null, 'monthly_amount' => $row['other'], 'tax_category' => $tax];
+            }
+
+            return ['unit_id' => $unit->id, 'deposit_amount' => $row['deposit_amount'] ?? null, 'start_date' => $row['unit_start_date'] ?? null,
+                'end_date' => $row['unit_end_date'] ?? null, 'charges' => $charges];
+        }, $rows);
+
+        $agreement = $this->agreements->handle($actor, null, [
+            ...array_intersect_key($first, array_flip(['start_date', 'end_date', 'frequency', 'billing_day', 'grace_days', 'notice_period_days'])),
+            'customer_id' => $customerId,
+            'units' => $units,
+        ]);
+        // SaveAgreement defaults the template for a draft that will be submitted; an imported one never is.
+        $agreement->forceFill(['status' => AgreementStatus::PendingApproval, 'import_ref' => $ref, 'contract_template_id' => null])->save();
+
+        Approval::create([
+            'approvable_type' => $agreement->getMorphClass(),
+            'approvable_id' => $agreement->id,
+            'action' => ApprovalAction::AgreementActivation,
+            'status' => ApprovalStatus::Approved,
+            'requested_by' => $actor->id,
+            'requested_at' => now(),
+            'decided_by' => $actor->id,
+            'decided_at' => now(),
+            'comment' => __('Imported by :name', ['name' => $actor->name]),
+            'ip' => request()->ip(),
+        ]);
+
+        $this->activateAgreement->handle($agreement, $actor, $cutover);
     }
 
     /** Imported contracts are created active, with an approval recorded as "Imported by {user}" (spec §11). */

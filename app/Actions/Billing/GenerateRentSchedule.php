@@ -23,8 +23,12 @@ use LogicException;
  */
 final class GenerateRentSchedule
 {
-    /** @return Collection<int, Invoice> */
-    public function handle(Agreement $agreement, User $actor): Collection
+    /**
+     * @param  CarbonImmutable|null  $from  spec §11: an imported agreement is billed from the first period starting on or
+     *                                      after cutover; the period containing cutover was billed in the old system
+     * @return Collection<int, Invoice>
+     */
+    public function handle(Agreement $agreement, User $actor, ?CarbonImmutable $from = null): Collection
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('GenerateRentSchedule must run inside the caller\'s transaction.');
@@ -32,6 +36,9 @@ final class GenerateRentSchedule
 
         $invoices = collect();
         foreach (BillingPeriods::for($agreement->start_date, $agreement->end_date, $agreement->frequency, $agreement->billing_day) as $period) {
+            if ($from !== null && $period->start->lessThan($from)) {
+                continue;
+            }
             $lines = $this->linesFor($agreement, $period);
             if ($lines !== []) {
                 $invoices->push($this->createScheduled($agreement, $period, $lines, $actor));

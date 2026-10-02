@@ -10,6 +10,7 @@ enum ImportKind: string
     case Owners = 'owners';
     case OwnerContracts = 'owner_contracts';
     case Customers = 'customers';
+    case Agreements = 'agreements';
 
     /** @return list<string> */
     public function headers(): array
@@ -23,6 +24,9 @@ enum ImportKind: string
             self::OwnerContracts => ['owner_id_type', 'owner_id_number', 'building_code', 'units', 'type', 'start_date', 'end_date',
                 'rent_amount', 'payment_frequency', 'fee_type', 'fee_value', 'expense_approval_limit', 'deposits_held_by', 'notes'],
             self::Customers => ['type', 'name_en', 'name_ar', 'id_type', 'id_number', 'nationality', 'mobile', 'email', 'address', 'contact_person', 'emergency_contact_name', 'emergency_contact_phone', 'notes'],
+            self::Agreements => ['import_ref', 'customer_id_type', 'customer_id_number', 'start_date', 'end_date', 'frequency', 'billing_day', 'grace_days',
+                'notice_period_days', 'building_code', 'unit_code', 'unit_start_date', 'unit_end_date', 'deposit_amount', 'rent', 'service_charge', 'parking',
+                'other', 'other_description', 'tax_category'],
         };
     }
 
@@ -40,6 +44,7 @@ enum ImportKind: string
             self::Owners => ['id_number', 'phone', 'iban'],
             self::OwnerContracts => ['owner_id_number', 'rent_amount', 'fee_value', 'expense_approval_limit'],
             self::Customers => ['id_number', 'mobile', 'emergency_contact_phone'],
+            self::Agreements => ['customer_id_number', 'deposit_amount', 'rent', 'service_charge', 'parking', 'other'],
         };
     }
 }

@@ -7,9 +7,11 @@ use App\Enums\ImportKind;
 use App\Enums\OwnerContractStatus;
 use App\Enums\RoleName;
 use App\Livewire\Import\Index;
+use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\InvoiceLine;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Unit;
@@ -18,6 +20,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Livewire;
@@ -214,4 +217,61 @@ test('a duplicate customer ID or a numeric mobile is reported against its line',
 
     expect($result->committed)->toBeFalse()->and(array_keys($result->errors['customers']))->toBe([3, 4])
         ->and($result->errors['customers'][4][0])->toContain('formatted as Text');
+});
+
+/** Three units (102 blocked), the two customers, and one two-unit agreement L-001 on 101 and 103. */
+function agreementFiles(array $base, ?array $agreementRows = null): array
+{
+    return [...$base,
+        'units' => importFile(ImportKind::Units, [
+            ['building_code' => 'MT', 'code' => '101', 'use' => 'residential', 'type' => 'flat', 'furnishing' => 'unfurnished', 'list_rent' => '450.000', 'blocked' => 'no'],
+            ['building_code' => 'MT', 'code' => '102', 'use' => 'residential', 'type' => 'flat', 'furnishing' => 'semi', 'list_rent' => '480.500', 'blocked' => 'yes', 'blocked_reason' => 'Renovation'],
+            ['building_code' => 'MT', 'code' => '103', 'use' => 'residential', 'type' => 'flat', 'furnishing' => 'unfurnished', 'list_rent' => '500.000', 'blocked' => 'no'],
+        ]),
+        'agreements' => importFile(ImportKind::Agreements, $agreementRows ?? [
+            ['import_ref' => 'L-001', 'customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'frequency' => 'monthly',
+                'building_code' => 'MT', 'unit_code' => '101', 'deposit_amount' => '450.000', 'rent' => '450.000', 'tax_category' => 'exempt'],
+            ['import_ref' => 'L-001', 'customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'frequency' => 'monthly',
+                'building_code' => 'MT', 'unit_code' => '103', 'deposit_amount' => '500.000', 'rent' => '500.000', 'service_charge' => '20.000', 'tax_category' => 'exempt'],
+        ]),
+    ];
+}
+
+test('rows sharing a reference import as one active agreement, scheduled from cutover, with no deposit invoice', function () {
+    Storage::fake('local');
+    $result = app(RunImport::class)->handle($this->vendor, agreementFiles($this->files), commit: true);
+
+    expect($result->errors)->toBe([])->and($result->counts['agreements'])->toBe(2);
+    $agreement = Agreement::where('import_ref', 'L-001')->sole();
+    expect($agreement->status->value)->toBe('active')->and($agreement->number)->not->toBeNull()
+        ->and($agreement->agreementUnits()->count())->toBe(2)
+        ->and($agreement->approvals()->sole()->comment)->toBe('Imported by '.$this->vendor->name)
+        ->and($agreement->invoices()->where('type', 'deposit')->exists())->toBeFalse()
+        ->and($agreement->invoices()->where('type', 'rent')->orderBy('period_start')->pluck('period_start')->map->toDateString()->all())->toBe(['2026-11-01', '2026-12-01'])
+        ->and(InvoiceLine::whereIn('invoice_id', $agreement->invoices()->pluck('id'))->whereNull('agreement_unit_charge_id')->exists())->toBeFalse();
+});
+
+test('an agreement over before cutover, or with an unknown customer, is refused on its first line', function () {
+    $row = fn (string $ref, string $id, string $end, string $unit) => ['import_ref' => $ref, 'customer_id_type' => 'cpr', 'customer_id_number' => $id, 'start_date' => '2026-01-01', 'end_date' => $end,
+        'frequency' => 'monthly', 'building_code' => 'MT', 'unit_code' => $unit, 'rent' => '450.000', 'tax_category' => 'exempt'];
+
+    $result = app(RunImport::class)->handle($this->vendor, agreementFiles($this->files, [
+        $row('L-002', '090202345', '2026-10-31', '101'),
+        $row('L-003', '999999999', '2026-12-31', '103'),
+    ]), commit: false);
+
+    expect(array_keys($result->errors['agreements']))->toBe([2, 3])
+        ->and($result->errors['agreements'][2][0])->toContain('still running at cutover')
+        ->and($result->errors['agreements'][3][0])->toContain('No customer');
+});
+
+test('an agreement reference can only be imported once', function () {
+    Storage::fake('local');
+    app(RunImport::class)->handle($this->vendor, agreementFiles($this->files), commit: true);
+
+    $again = app(RunImport::class)->handle($this->vendor, ['agreements' => importFile(ImportKind::Agreements, [
+        ['import_ref' => 'L-001', 'customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'frequency' => 'monthly', 'building_code' => 'MT', 'unit_code' => '103', 'rent' => '500.000', 'tax_category' => 'exempt'],
+    ])], commit: false);
+
+    expect($again->errors['agreements'][2][0])->toContain('already imported');
 });

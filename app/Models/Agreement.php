@@ -23,6 +23,7 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * @property int $id
  * @property string|null $number
+ * @property string|null $import_ref
  * @property int $customer_id
  * @property CarbonImmutable $start_date
  * @property CarbonImmutable $end_date

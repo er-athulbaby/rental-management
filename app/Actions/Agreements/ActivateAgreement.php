@@ -11,6 +11,7 @@ use App\Enums\NumberSequenceKey;
 use App\Models\Agreement;
 use App\Models\Customer;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use LogicException;
@@ -27,7 +28,8 @@ final class ActivateAgreement
         private TransferDeposits $transfer,
     ) {}
 
-    public function handle(Agreement $agreement, User $approver): Agreement
+    /** @param  CarbonImmutable|null  $importedAt  spec §11: the cutover date of an imported agreement */
+    public function handle(Agreement $agreement, User $approver, ?CarbonImmutable $importedAt = null): Agreement
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('ActivateAgreement must run inside the caller\'s transaction.');
@@ -47,10 +49,12 @@ final class ActivateAgreement
             'verify_token' => Str::random(32), // random, not derived from APP_KEY, so it survives a key rotation
         ])->save();
 
-        $this->schedule->handle($agreement, $approver);
-        $agreement->previous_agreement_id !== null
-            ? $this->transfer->handle($agreement, $approver)   // spec §5.8
-            : $this->deposit->handle($agreement, $approver);
+        $this->schedule->handle($agreement, $approver, $importedAt);
+        if ($importedAt === null) {
+            $agreement->previous_agreement_id !== null
+                ? $this->transfer->handle($agreement, $approver)   // spec §5.8
+                : $this->deposit->handle($agreement, $approver);
+        } // imported agreements get no deposit invoice: deposits held come from the deposits file (spec §11)
         ($this->issueDue)($agreement, $approver); // activation itself issues what is already due (spec §6.3)
 
         return $agreement;
