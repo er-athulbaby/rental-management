@@ -2,7 +2,7 @@
 
 namespace App\Actions\Payments;
 
-use App\Billing\AllocationTax;
+use App\Billing\LineTax;
 use App\Enums\DepositMovementType;
 use App\Enums\InvoiceChargeType;
 use App\Models\DepositMovement;
@@ -48,7 +48,7 @@ final class ReverseAllocations
             $line = $lines[$allocation->invoice_line_id] ?? throw new LogicException("Line {$allocation->invoice_line_id} was not locked.");
             $before = Fils::fromDecimal((string) $line->allocated);
             $after = $before - $cut['amount'];
-            $tax = AllocationTax::between($before, $after, Fils::fromDecimal($line->tax_amount), Fils::fromDecimal($line->total));
+            $tax = LineTax::allocationShare($line, $after, -$cut['amount']);
 
             $row = PaymentAllocation::create([
                 'payment_id' => $allocation->payment_id,

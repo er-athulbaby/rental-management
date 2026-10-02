@@ -2,8 +2,8 @@
 
 namespace App\Actions\Payments;
 
-use App\Billing\AllocationTax;
 use App\Billing\LargestRemainder;
+use App\Billing\LineTax;
 use App\Enums\DepositMovementType;
 use App\Enums\InvoiceChargeType;
 use App\Models\DepositMovement;
@@ -111,7 +111,7 @@ final class ApplyToInvoices
     private function writeLine(Payment $payment, InvoiceLine $line, int $share, User $actor, CarbonInterface $now): void
     {
         $before = Fils::fromDecimal((string) $line->allocated);
-        $tax = AllocationTax::between($before, $before + $share, Fils::fromDecimal($line->tax_amount), Fils::fromDecimal($line->total));
+        $tax = LineTax::allocationShare($line, $before + $share, $share);
 
         $allocation = PaymentAllocation::create([
             'payment_id' => $payment->id,
