@@ -40,7 +40,7 @@ beforeEach(function () {
     $this->draft = function (string $month) {
         $this->travelTo(CarbonImmutable::parse($month.'-01 04:00', 'Asia/Bahrain')->addMonth());
 
-        return app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse($month.'-01'));
+        return app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse($month.'-01'))['created'];
     };
 });
 
@@ -115,7 +115,7 @@ test('drafts: managed contracts active in the month or with new entries; once pe
     expect(($this->draft)('2026-03'))->toBe(2)
         ->and(OwnerStatement::pluck('owner_contract_id')->sort()->values()->all())->toBe([$active->id, $endedBusy->id])
         ->and(OwnerStatement::where('owner_contract_id', $endedBusy->id)->value('created_by'))->toBe($endedBusy->created_by) // plan ruling 8
-        ->and(app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-03-01')))->toBe(0)
+        ->and(app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-03-01')))->toBe(['created' => 0, 'failed' => 0])
         ->and(OwnerStatement::where('owner_contract_id', $endedQuiet->id)->exists())->toBeFalse()
         ->and(scheduledEvent('rms:owner-statements:draft')->expression)->toBe('0 4 1 * *');
 });
@@ -124,7 +124,7 @@ test('an earlier month is never drafted behind a later statement (§7.9 windows 
     $contract = ($this->managed)();
     ($this->draft)('2026-03');
 
-    expect(app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-02-01')))->toBe(0)
+    expect(app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-02-01')))->toBe(['created' => 0, 'failed' => 0])
         ->and($contract->statements()->pluck('period_start')->map->toDateString()->all())->toBe(['2026-03-01']);
 });
 
@@ -138,4 +138,22 @@ test('statements are never deleted and a finalised one never changes', function 
     DB::table('owner_statements')->where('id', $id)->update(['status' => 'finalised', 'number' => 'OS-T-1', 'finalised_at' => now(), 'finalised_by' => $this->management->id]);
     expect(fn () => DB::table('owner_statements')->where('id', $id)->update(['closing_balance' => '1.000']))->toThrow(QueryException::class, 'owner_statements: a finalised statement never changes')
         ->and(fn () => DB::table('owner_statements')->where('id', $id)->update(['status' => 'draft']))->toThrow(QueryException::class);
+});
+
+test('a month that has not ended is never drafted', function () {
+    ($this->managed)();
+
+    expect(fn () => app(DraftOwnerStatements::class)->handle(CarbonImmutable::parse('2026-03-01')))->toThrow(DomainException::class, 'has not ended')
+        ->and(OwnerStatement::count())->toBe(0);
+    $this->artisan('rms:owner-statements:draft', ['--month' => '2026-03'])->expectsOutputToContain('has not ended')->assertExitCode(1);
+    expect(OwnerStatement::count())->toBe(0);
+});
+
+test('the draft command fails, so the heartbeat stays silent, when a contract cannot be drafted', function () {
+    $ok = ($this->managed)();
+    ($this->managed)(['fee_type' => null, 'fee_value' => null]); // cannot be drafted: its figures need a fee type
+    $this->travelTo(CarbonImmutable::parse('2026-04-01 04:00', 'Asia/Bahrain'));
+
+    $this->artisan('rms:owner-statements:draft')->expectsOutputToContain('1 owner statement(s) drafted for 2026-03; 1 failed')->assertExitCode(1);
+    expect(OwnerStatement::pluck('owner_contract_id')->all())->toBe([$ok->id]);
 });

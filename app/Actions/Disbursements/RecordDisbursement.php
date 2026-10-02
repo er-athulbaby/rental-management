@@ -69,26 +69,37 @@ final class RecordDisbursement
 
         $amount = Fils::fromDecimal((string) $v['amount']);
 
-        return DB::transaction(function () use ($actor, $v, $amount) {
+        // The first-lock row's id (spec §7.2: the customer, or the owner contract) is read before the transaction, so
+        // the first read inside it is that locking read. A plain read first would fix the InnoDB snapshot and hide later
+        // commits from the limit checks below. These ids never change on their rows.
+        $lockId = (int) match ($v['purpose']) {
+            DisbursementPurpose::CreditRefund->value => Payment::query()->whereKey($v['payment_id'])->value('customer_id'),
+            DisbursementPurpose::DepositRefund->value => DepositSettlement::query()->join('agreements', 'agreements.id', '=', 'deposit_settlements.agreement_id')
+                ->where('deposit_settlements.id', $v['deposit_settlement_id'])->value('agreements.customer_id'),
+            DisbursementPurpose::HeadLease->value => OwnerPayable::query()->whereKey($v['owner_payable_id'])->value('owner_contract_id'),
+            DisbursementPurpose::OwnerRemittance->value => OwnerStatement::query()->whereKey($v['owner_statement_id'])->value('owner_contract_id'),
+            default => 0,
+        };
+
+        return DB::transaction(function () use ($actor, $v, $amount, $lockId) {
             return match ($v['purpose']) {
-                DisbursementPurpose::CreditRefund->value => $this->creditRefund($actor, $v, $amount),
-                DisbursementPurpose::DepositRefund->value => $this->depositRefund($actor, $v, $amount),
-                DisbursementPurpose::HeadLease->value => $this->headLease($actor, $v, $amount),
-                DisbursementPurpose::OwnerRemittance->value => $this->remittance($actor, $v, $amount),
+                DisbursementPurpose::CreditRefund->value => $this->creditRefund($actor, $v, $amount, $lockId),
+                DisbursementPurpose::DepositRefund->value => $this->depositRefund($actor, $v, $amount, $lockId),
+                DisbursementPurpose::HeadLease->value => $this->headLease($actor, $v, $amount, $lockId),
+                DisbursementPurpose::OwnerRemittance->value => $this->remittance($actor, $v, $amount, $lockId),
                 default => $this->other($actor, $v, $amount),
             };
         }, attempts: 3);
     }
 
     /** @param  array<string, mixed>  $v */
-    private function creditRefund(User $actor, array $v, int $amount): Disbursement
+    private function creditRefund(User $actor, array $v, int $amount, int $customerId): Disbursement
     {
-        $payment = Payment::query()->findOrFail((int) $v['payment_id']);
-        $customer = Customer::query()->lockForUpdate()->findOrFail($payment->customer_id); // first lock (spec §7.2)
+        $customer = Customer::query()->lockForUpdate()->findOrFail($customerId); // first lock (spec §7.2)
         if (! Customer::visibleTo($actor)->whereKey($customer->id)->exists()) {
             throw new AuthorizationException;
         }
-        $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+        $payment = Payment::query()->lockForUpdate()->findOrFail((int) $v['payment_id']);
 
         if ($payment->status !== PaymentStatus::Confirmed || $amount > $payment->unallocatedFils()) {
             throw ValidationException::withMessages(['amount' => __('At most :c BHD of this payment is credit that can be refunded.', ['c' => Fils::toDecimal(max(0, $payment->unallocatedFils()))])]);
@@ -119,14 +130,13 @@ final class RecordDisbursement
     }
 
     /** @param  array<string, mixed>  $v */
-    private function depositRefund(User $actor, array $v, int $amount): Disbursement
+    private function depositRefund(User $actor, array $v, int $amount, int $customerId): Disbursement
     {
-        $settlement = DepositSettlement::query()->with('agreement')->findOrFail((int) $v['deposit_settlement_id']);
-        $customer = Customer::query()->lockForUpdate()->findOrFail($settlement->agreement->customer_id); // first lock
+        $customer = Customer::query()->lockForUpdate()->findOrFail($customerId); // first lock
+        $settlement = DepositSettlement::query()->lockForUpdate()->with('agreement')->findOrFail((int) $v['deposit_settlement_id']);
         if (! $actor->can('view', $settlement)) {
             throw new AuthorizationException;
         }
-        $settlement = DepositSettlement::query()->lockForUpdate()->findOrFail($settlement->id);
 
         $left = $settlement->refundFils() - $settlement->refundedFils();
         if ($settlement->status !== DepositSettlementStatus::Approved || $amount > $left) {
@@ -152,14 +162,13 @@ final class RecordDisbursement
     }
 
     /** @param  array<string, mixed>  $v */
-    private function headLease(User $actor, array $v, int $amount): Disbursement
+    private function headLease(User $actor, array $v, int $amount, int $contractId): Disbursement
     {
-        $payable = OwnerPayable::query()->findOrFail((int) $v['owner_payable_id']);
-        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($payable->owner_contract_id); // owner-side first lock (spec §7.2)
+        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($contractId); // owner-side first lock (spec §7.2)
         if (! OwnerContract::visibleTo($actor)->whereKey($contract->id)->exists()) {
             throw new AuthorizationException;
         }
-        $payable = OwnerPayable::query()->lockForUpdate()->findOrFail($payable->id);
+        $payable = OwnerPayable::query()->lockForUpdate()->findOrFail((int) $v['owner_payable_id']);
         if ($payable->status === OwnerPayableStatus::Cancelled) {
             throw ValidationException::withMessages(['owner_payable_id' => __('This head-lease payment was cancelled.')]);
         }
@@ -201,14 +210,13 @@ final class RecordDisbursement
     }
 
     /** @param  array<string, mixed>  $v */
-    private function remittance(User $actor, array $v, int $amount): Disbursement
+    private function remittance(User $actor, array $v, int $amount, int $contractId): Disbursement
     {
-        $statement = OwnerStatement::query()->findOrFail((int) $v['owner_statement_id']);
-        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($statement->owner_contract_id); // owner-side first lock (spec §7.5)
+        $contract = OwnerContract::query()->lockForUpdate()->findOrFail($contractId); // owner-side first lock (spec §7.5)
         if (! OwnerContract::visibleTo($actor)->whereKey($contract->id)->exists()) {
             throw new AuthorizationException;
         }
-        $statement = OwnerStatement::query()->lockForUpdate()->findOrFail($statement->id);
+        $statement = OwnerStatement::query()->lockForUpdate()->findOrFail((int) $v['owner_statement_id']);
         if ($statement->status !== OwnerStatementStatus::Finalised) {
             throw ValidationException::withMessages(['owner_statement_id' => __('Only a finalised statement can be remitted.')]);
         }

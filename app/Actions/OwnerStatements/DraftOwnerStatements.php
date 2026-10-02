@@ -10,6 +10,7 @@ use App\Enums\OwnerStatementStatus;
 use App\Models\OwnerContract;
 use App\Models\OwnerStatement;
 use Carbon\CarbonImmutable;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -19,26 +20,35 @@ use Throwable;
  */
 final class DraftOwnerStatements
 {
-    public function handle(CarbonImmutable $month): int
+    /**
+     * @return array{created: int, failed: int}
+     *
+     * @throws DomainException when the month has not ended (its entries could still change)
+     */
+    public function handle(CarbonImmutable $month): array
     {
         $start = $month->startOfMonth()->startOfDay();
         $end = $month->endOfMonth()->startOfDay();
         $cutoff = CarbonImmutable::parse($end->toDateString().' 23:59:59', 'Asia/Bahrain');
+        if ($cutoff->greaterThanOrEqualTo(now())) {
+            throw new DomainException(__(':m has not ended yet; its statements are drafted after its last day.', ['m' => $start->format('M Y')]));
+        }
 
         $ids = OwnerContract::query()->where('type', OwnerContractType::Managed)
             ->whereIn('status', [OwnerContractStatus::Active, OwnerContractStatus::Ended, OwnerContractStatus::Terminated])
             ->where('start_date', '<=', $end->toDateString())->orderBy('id')->pluck('id');
 
-        $created = 0;
+        $created = $failed = 0;
         foreach ($ids as $id) {
             try {
                 $created += DB::transaction(fn () => $this->draftOne($id, $start, $end, $cutoff), attempts: 3);
             } catch (Throwable $e) {
                 report($e); // one contract's failure doesn't stop the others' statements
+                $failed++;
             }
         }
 
-        return $created;
+        return ['created' => $created, 'failed' => $failed];
     }
 
     private function draftOne(int $id, CarbonImmutable $start, CarbonImmutable $end, CarbonImmutable $cutoff): int

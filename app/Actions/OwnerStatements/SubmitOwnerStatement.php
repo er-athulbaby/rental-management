@@ -31,6 +31,9 @@ final class SubmitOwnerStatement
             if ($locked->status !== OwnerStatementStatus::Draft) {
                 throw ValidationException::withMessages(['statement' => __('Only a draft statement can be submitted.')]);
             }
+            if ($locked->cutoff_at->greaterThanOrEqualTo(now())) { // §7.9: its window's entries could still change
+                throw ValidationException::withMessages(['statement' => __(':m has not ended yet; submit its statement after its last day.', ['m' => $locked->period_start->format('M Y')])]);
+            }
             $previous = $locked->previous();
             if ($previous !== null && $previous->status !== OwnerStatementStatus::Finalised) {
                 throw ValidationException::withMessages(['statement' => __('Finalise the previous statement (:m) first.', ['m' => $previous->period_start->format('M Y')])]);

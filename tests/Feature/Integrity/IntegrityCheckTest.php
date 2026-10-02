@@ -2,6 +2,7 @@
 
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
+use App\Billing\OwnerStatementCalculator;
 use App\Enums\RoleName;
 use App\Integrity\IntegrityCheck;
 use App\Models\CompanySetting;
@@ -82,4 +83,42 @@ test('a finalised statement must still add up from the ledger', function () {
     // Something posted back into a finalised window.
     OwnerCharge::create(['owner_contract_id' => $contract->id, 'type' => 'opening_balance', 'net' => '5.000', 'tax_amount' => '0.000', 'amount' => '5.000', 'posted_at' => '2026-01-20 10:00:00', 'created_by' => $contract->created_by]);
     expect(app(IntegrityCheck::class)->run())->toContain('owner statement OS-T-1: closing 0.000 but its entries now give 5.000');
+});
+
+test('a finalised statement stays clean after the VAT rate changes', function () {
+    $contract = activeOwnerContract(['type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'fee_type' => 'fixed', 'fee_value' => '10.000'], []);
+    $s = (new OwnerStatement)->forceFill(['owner_contract_id' => $contract->id, 'period_start' => '2026-01-01', 'period_end' => '2026-01-31', 'cutoff_at' => '2026-01-31 23:59:59', 'status' => 'draft', 'created_by' => $contract->created_by]);
+    $s->setRelation('contract', $contract);
+    OwnerStatementCalculator::apply($s);
+    $s->save();
+    DB::table('owner_statements')->where('id', $s->id)->update(['status' => 'pending_approval']);
+    DB::table('owner_statements')->where('id', $s->id)->update(['status' => 'finalised', 'number' => 'OS-T-1', 'finalised_at' => now(), 'finalised_by' => $contract->created_by]);
+    expect($s->fresh()->fee_tax)->toBe('1.000');
+
+    CompanySetting::current()->forceFill(['vat_rate' => '5.00'])->save();
+
+    expect(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('a finalised statement whose contract has no fee type is still checked, not an abort', function () {
+    $contract = activeOwnerContract(['type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'fee_type' => null, 'fee_value' => null], []);
+    $s = (new OwnerStatement)->forceFill(['owner_contract_id' => $contract->id, 'period_start' => '2026-01-01', 'period_end' => '2026-01-31', 'cutoff_at' => '2026-01-31 23:59:59', 'status' => 'draft', 'created_by' => $contract->created_by]);
+    $s->save();
+    DB::table('owner_statements')->where('id', $s->id)->update(['status' => 'pending_approval']);
+    DB::table('owner_statements')->where('id', $s->id)->update(['status' => 'finalised', 'number' => 'OS-T-1', 'finalised_at' => now(), 'finalised_by' => $contract->created_by]);
+
+    expect(app(IntegrityCheck::class)->run())->toBe([]);
+});
+
+test('a finalised statement must open at the previous statement\'s closing', function () {
+    $contract = activeOwnerContract(['type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'fee_type' => 'fixed', 'fee_value' => '0.000'], []);
+    foreach ([['2026-01', '0.000', 'OS-T-1'], ['2026-02', '3.000', 'OS-T-2']] as [$month, $balance, $number]) {
+        $start = CarbonImmutable::parse($month.'-01');
+        $s = (new OwnerStatement)->forceFill(['owner_contract_id' => $contract->id, 'period_start' => $start->toDateString(), 'period_end' => $start->endOfMonth()->toDateString(), 'cutoff_at' => $start->endOfMonth()->toDateString().' 23:59:59', 'status' => 'draft', 'opening_balance' => $balance, 'closing_balance' => $balance, 'created_by' => $contract->created_by]);
+        $s->save();
+        DB::table('owner_statements')->where('id', $s->id)->update(['status' => 'pending_approval']);
+        DB::table('owner_statements')->where('id', $s->id)->update(['status' => 'finalised', 'number' => $number, 'finalised_at' => now(), 'finalised_by' => $contract->created_by]);
+    }
+
+    expect(app(IntegrityCheck::class)->run())->toBe(['owner statement OS-T-2: opening 3.000 but the previous statement closed at 0.000']);
 });

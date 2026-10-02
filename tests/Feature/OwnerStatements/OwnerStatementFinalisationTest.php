@@ -111,3 +111,11 @@ test('a finalised statement keeps its stored figures when the VAT rate later cha
         ->and(OwnerStatementCalculator::compute($march->fresh())['fee_tax'])->toBe(500);
     $this->actingAs($this->finance)->get(route('owner-statements.export', $march))->assertOk()->assertDownload();
 });
+
+test('a statement whose cutoff has not passed cannot be submitted', function () {
+    $s = (new OwnerStatement)->forceFill(['owner_contract_id' => $this->contract->id, 'period_start' => '2026-03-01', 'period_end' => '2026-03-31', 'cutoff_at' => '2026-03-31 23:59:59', 'status' => 'draft', 'created_by' => $this->contract->created_by]);
+    $s->save();
+
+    expect(fn () => app(SubmitOwnerStatement::class)->handle($this->finance, $s))->toThrow(ValidationException::class, 'has not ended')
+        ->and($s->fresh()->status->value)->toBe('draft');
+});

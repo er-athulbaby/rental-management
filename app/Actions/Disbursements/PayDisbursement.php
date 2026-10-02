@@ -4,7 +4,9 @@ namespace App\Actions\Disbursements;
 
 use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementStatus;
+use App\Enums\OwnerPayableStatus;
 use App\Models\Disbursement;
+use App\Models\OwnerPayable;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +41,12 @@ final class PayDisbursement
             $locked = Disbursement::query()->lockForUpdate()->findOrFail($disbursement->id);
             if ($locked->status !== DisbursementStatus::Approved) {
                 throw ValidationException::withMessages(['paid_on' => __('Only an approved payment out can be paid.')]);
+            }
+            // A termination or successor re-cut its payable after approval; paying it would pay the period twice.
+            // A locking read, so it sees the latest commit rather than the transaction's snapshot.
+            if ($locked->source_type === Disbursement::SOURCE_PAYABLE
+                && OwnerPayable::query()->whereKey($locked->source_id)->lockForUpdate()->value('status') === OwnerPayableStatus::Cancelled) {
+                throw ValidationException::withMessages(['paid_on' => __('This head-lease period was re-cut and its payable cancelled. Reject or reverse this payment out instead of paying it.')]);
             }
             $this->paid->handle($locked, $v, $actor);
 

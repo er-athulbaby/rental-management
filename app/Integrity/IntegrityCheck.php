@@ -2,11 +2,12 @@
 
 namespace App\Integrity;
 
-use App\Billing\OwnerStatementCalculator;
+use App\Billing\OwnerLedger;
 use App\Enums\OwnerStatementStatus;
 use App\Models\OwnerStatement;
 use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /** Spec §7.11. Each query returns the offending rows; an empty result means healthy. */
 final class IntegrityCheck
@@ -78,11 +79,22 @@ final class IntegrityCheck
             $failures[] = "owner payable {$row->id}: not paid by its own head-lease payment out";
         }
 
-        // ponytail: recomputes every finalised statement nightly; limit to the last 13 months if it gets slow.
+        // ponytail: walks every finalised statement nightly; limit to the last 13 months if it gets slow.
+        // Stored figures only: fee and VAT are what was finalised, so a later settings change never flags old statements.
         foreach (OwnerStatement::query()->where('status', OwnerStatementStatus::Finalised)->with('contract')->orderBy('id')->get() as $s) {
-            $closing = OwnerStatementCalculator::compute($s)['closing'];
-            if ($closing !== Fils::fromDecimal($s->closing_balance)) {
-                $failures[] = "owner statement {$s->number}: closing {$s->closing_balance} but its entries now give ".Fils::toDecimal($closing);
+            try {
+                $previous = $s->previous();
+                $expectedOpening = $previous !== null ? Fils::fromDecimal($previous->closing_balance) : 0;
+                if (Fils::fromDecimal($s->opening_balance) !== $expectedOpening) {
+                    $failures[] = "owner statement {$s->number}: opening {$s->opening_balance} but the previous statement closed at ".Fils::toDecimal($expectedOpening);
+                }
+                $entries = OwnerLedger::entries($s->contract, $previous?->cutoff_at, $s->cutoff_at)->reject(fn (array $e) => $e['kind'] === 'management_fee');
+                $closing = Fils::fromDecimal($s->opening_balance) + (int) $entries->sum('amount') - Fils::fromDecimal($s->fee_amount) - Fils::fromDecimal($s->fee_tax);
+                if ($closing !== Fils::fromDecimal($s->closing_balance)) {
+                    $failures[] = "owner statement {$s->number}: closing {$s->closing_balance} but its entries now give ".Fils::toDecimal($closing);
+                }
+            } catch (Throwable $e) {
+                $failures[] = "owner statement {$s->number}: could not be checked ({$e->getMessage()})";
             }
         }
 

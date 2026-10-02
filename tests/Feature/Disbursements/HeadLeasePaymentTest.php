@@ -103,3 +103,16 @@ test('the head-lease payments due page lists scheduled payables and pays one', f
 
     expect($this->q1->fresh()->status->value)->toBe('paid');
 });
+
+test('a payment out approved after its payable was cancelled cannot be paid', function () {
+    $q3 = OwnerPayable::where('owner_contract_id', $this->contract->id)->where('period_start', '2026-07-01')->sole();
+    $out = ($this->pay)('1999.000', $q3);
+    expect($out->status->value)->toBe('pending_approval');
+    app(DecideApproval::class)->handle($this->management, app(RequestOwnerContractTermination::class)->handle($this->finance, $this->contract, '2026-03-31', 'Sold'), true);
+    expect($q3->fresh()->status->value)->toBe('cancelled');
+    app(DecideApproval::class)->handle($this->management, Approval::where('approvable_id', $out->id)->where('action', 'payment_out.approve')->sole(), true);
+
+    expect(fn () => app(PayDisbursement::class)->handle($this->finance, $out->fresh(), ['method' => 'bank_transfer', 'paid_on' => '2026-01-05']))
+        ->toThrow(ValidationException::class, 'was re-cut')
+        ->and($out->fresh()->status->value)->toBe('approved');
+});
