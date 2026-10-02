@@ -4,6 +4,7 @@ namespace App\Actions\Import;
 
 use App\Actions\Agreements\ActivateAgreement;
 use App\Actions\Agreements\SaveAgreement;
+use App\Actions\Billing\IssueInvoice;
 use App\Actions\Buildings\SaveBuilding;
 use App\Actions\Customers\SaveCustomer;
 use App\Actions\OwnerContracts\ActivateOwnerContract;
@@ -15,21 +16,32 @@ use App\Enums\AgreementStatus;
 use App\Enums\ApprovalAction;
 use App\Enums\ApprovalStatus;
 use App\Enums\ImportKind;
+use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
+use App\Enums\OwnerChargeType;
 use App\Enums\OwnerContractStatus;
+use App\Enums\OwnerContractType;
 use App\Enums\PermissionName;
+use App\Enums\TaxCategory;
 use App\Models\Agreement;
+use App\Models\AgreementUnit;
 use App\Models\Approval;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Owner;
+use App\Models\OwnerCharge;
+use App\Models\OwnerContract;
 use App\Models\Unit;
 use App\Models\User;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Throwable;
@@ -49,6 +61,7 @@ final class RunImport
         private SaveCustomer $customers,
         private SaveAgreement $agreements,
         private ActivateAgreement $activateAgreement,
+        private IssueInvoice $issue,
     ) {}
 
     /** @param  array<string, string>  $paths  ImportKind value => local .xlsx or .csv path */
@@ -63,6 +76,7 @@ final class RunImport
 
         $errors = [];
         $counts = [];
+        $totals = []; // kind => fils
 
         DB::beginTransaction();
 
@@ -102,6 +116,9 @@ final class RunImport
                         // A savepoint per unit of work: a failed one leaves nothing behind for later ones to trip on.
                         DB::transaction(fn () => $this->importRow($actor, $kind, array_map(fn (array $r) => $this->normalise($kind, $r), $group), $cutover));
                         $passed += count($group);
+                        if (($column = $kind->moneyColumn()) !== null) {
+                            $totals[$kind->value] = ($totals[$kind->value] ?? 0) + array_sum(array_map(fn (array $r) => Fils::fromDecimal((string) $this->normalise($kind, $r)[$column]), $group));
+                        }
                     } catch (ValidationException $e) {
                         $errors[$kind->value][$line] = array_values(Arr::flatten($e->errors()));
                     }
@@ -124,7 +141,7 @@ final class RunImport
             throw $e;
         }
 
-        return new ImportResult($errors, $counts, $committed);
+        return new ImportResult($errors, $counts, $committed, array_map(Fils::toDecimal(...), $totals));
     }
 
     /** After cutover the import screens and Actions refuse to run (spec §11). */
@@ -189,6 +206,8 @@ final class RunImport
             ImportKind::OwnerContracts => $this->ownerContract($actor, $row, $cutover),
             ImportKind::Customers => $this->customers->handle($actor, null, $row),
             ImportKind::Agreements => $this->agreement($actor, $rows, $cutover),
+            ImportKind::CustomerBalances => $this->customerBalance($actor, $row, $cutover),
+            ImportKind::OwnerBalances => $this->ownerBalance($actor, $row, $cutover),
         };
     }
 
@@ -301,6 +320,120 @@ final class RunImport
         ]);
 
         $this->activate->handle($contract, $cutover);
+    }
+
+    /**
+     * Plan rulings 3–4: what the customer owed at cutover, as one issued opening invoice.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function customerBalance(User $actor, array $row, CarbonImmutable $cutover): void
+    {
+        if (str_starts_with((string) ($row['amount'] ?? ''), '-')) {
+            throw ValidationException::withMessages(['amount' => __('A credit is not imported: enter it as a payment after go-live, reference "Opening credit".')]);
+        }
+        $v = Validator::make($row, [
+            'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ])->validate();
+        $amount = Fils::toDecimal(Fils::fromDecimal((string) $v['amount']));
+
+        $customer = $this->customerByRow($row);
+        [$agreement, $au] = $this->agreementUnitByRow($row, $customer, unitRequired: false);
+
+        $invoice = (new Invoice)->forceFill([
+            'type' => InvoiceType::Opening,
+            'customer_id' => $customer->id,
+            'agreement_id' => $agreement?->id,
+            'issue_date' => $cutover->toDateString(),
+            'due_date' => $cutover->toDateString(),
+            'status' => InvoiceStatus::Draft,
+            'subtotal' => $amount,
+            'tax_total' => '0.000',
+            'total' => $amount,
+            'created_by' => $actor->id,
+        ]);
+        $invoice->save();
+        $invoice->lines()->create([
+            'agreement_unit_id' => $au?->id,
+            'unit_id' => $au?->unit_id,
+            'charge_type' => 'opening_balance',
+            'description' => $v['description'] ?? __('Balance brought forward at :d', ['d' => $cutover->format('d/m/Y')]),
+            'net' => $amount,
+            'tax_category' => TaxCategory::OutOfScope->value, // the old system's figure already includes any VAT billed
+            'tax_rate' => '0.00',
+            'tax_amount' => '0.000',
+            'total' => $amount,
+        ]);
+
+        if (! $this->issue->handle($invoice, $actor, autoAllocate: false)) {
+            throw ValidationException::withMessages(['unit_code' => __('This balance is held back by a pending owner contract; approve or import that contract first.')]);
+        }
+    }
+
+    /**
+     * Plan ruling 7.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function ownerBalance(User $actor, array $row, CarbonImmutable $cutover): void
+    {
+        if (! preg_match('/^-?\d{1,9}(\.\d{1,3})?$/', (string) ($row['amount'] ?? '')) || Fils::fromDecimal((string) $row['amount']) === 0) {
+            throw ValidationException::withMessages(['amount' => __('Enter the balance in BHD (negative when the owner owes the company), not zero.')]);
+        }
+        $amount = Fils::toDecimal(Fils::fromDecimal((string) $row['amount']));
+
+        $ownerId = Owner::query()->where('id_type', $row['owner_id_type'] ?? '')->where('id_number', $row['owner_id_number'] ?? '')->value('id')
+            ?? throw ValidationException::withMessages(['owner_id_number' => __('No owner with ID :type :number.', ['type' => $row['owner_id_type'] ?? '', 'number' => $row['owner_id_number'] ?? ''])]);
+        $contract = OwnerContract::query()->effectiveOn($cutover)->where('owner_id', $ownerId)->where('building_id', $this->buildingId($row['building_code'] ?? null))
+            ->where('type', OwnerContractType::Managed)->first()
+            ?? throw ValidationException::withMessages(['building_code' => __('This owner has no managed contract on :b at cutover.', ['b' => (string) ($row['building_code'] ?? '')])]);
+        if ($contract->charges()->where('type', OwnerChargeType::OpeningBalance)->exists()) {
+            throw ValidationException::withMessages(['owner_id_number' => __('Contract :c already has an opening balance.', ['c' => $contract->number])]);
+        }
+
+        OwnerCharge::create([
+            'owner_contract_id' => $contract->id,
+            'type' => OwnerChargeType::OpeningBalance,
+            'net' => $amount,
+            'tax_amount' => '0.000',
+            'amount' => $amount,
+            'posted_at' => now(),
+            'created_by' => $actor->id,
+        ]);
+    }
+
+    /** @param  array<string, mixed>  $row */
+    private function customerByRow(array $row): Customer
+    {
+        return Customer::query()->where('id_type', $row['customer_id_type'] ?? '')->where('id_number', $row['customer_id_number'] ?? '')->first()
+            ?? throw ValidationException::withMessages(['customer_id_number' => __('No customer with ID :type :number.', ['type' => $row['customer_id_type'] ?? '', 'number' => $row['customer_id_number'] ?? ''])]);
+    }
+
+    /**
+     * The imported agreement named by agreement_ref (the customer's), and its unit when building_code/unit_code are given.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array{0: Agreement|null, 1: AgreementUnit|null}
+     */
+    private function agreementUnitByRow(array $row, Customer $customer, bool $unitRequired): array
+    {
+        $ref = (string) ($row['agreement_ref'] ?? '');
+        if ($ref === '') {
+            return $unitRequired
+                ? throw ValidationException::withMessages(['agreement_ref' => __('Name the agreement (agreement_ref).')])
+                : [null, null];
+        }
+        $agreement = Agreement::query()->where('import_ref', $ref)->where('customer_id', $customer->id)->first()
+            ?? throw ValidationException::withMessages(['agreement_ref' => __('No imported agreement :ref for this customer.', ['ref' => $ref])]);
+        if (blank($row['unit_code'] ?? null) && ! $unitRequired) {
+            return [$agreement, null];
+        }
+
+        $au = $agreement->agreementUnits()->whereHas('unit', fn ($q) => $q->where('code', (string) ($row['unit_code'] ?? ''))->where('building_id', $this->buildingId($row['building_code'] ?? null)))->first()
+            ?? throw ValidationException::withMessages(['unit_code' => __('Unit :u is not on agreement :ref.', ['u' => (string) ($row['unit_code'] ?? ''), 'ref' => $ref])]);
+
+        return [$agreement, $au];
     }
 
     private function buildingId(mixed $code): int

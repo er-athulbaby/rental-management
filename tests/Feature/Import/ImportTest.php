@@ -12,8 +12,10 @@ use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Owner;
+use App\Models\OwnerCharge;
 use App\Models\OwnerContract;
 use App\Models\Unit;
 use App\Models\User;
@@ -301,4 +303,56 @@ test('an imported agreement has no generated contract: the PDF route is 404 and 
     $this->actingAs($this->vendor)->get(route('agreements.show', $agreement))->assertOk()
         ->assertSee('the signed contract is kept outside this system')
         ->assertDontSee(route('agreements.pdf', $agreement));
+});
+
+test('opening balances become issued opening invoices and an owner opening charge, with totals to reconcile', function () {
+    Storage::fake('local');
+    $files = [...agreementFiles($this->files),
+        'customer_balances' => importFile(ImportKind::CustomerBalances, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'building_code' => 'MT', 'unit_code' => '101', 'amount' => '120.500'],
+            ['customer_id_type' => 'cr', 'customer_id_number' => '12345-1', 'amount' => '80.000', 'description' => 'Old invoice 2025/77'],
+        ]),
+        'owner_balances' => importFile(ImportKind::OwnerBalances, [
+            ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'amount' => '-25.000'],
+        ]),
+    ];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: true);
+
+    expect($result->errors)->toBe([])
+        ->and($result->totals)->toMatchArray(['customer_balances' => '200.500', 'owner_balances' => '-25.000']);
+
+    $managed = OwnerContract::where('type', 'managed')->sole();
+    $sara = Invoice::where('type', 'opening')->where('customer_id', Customer::where('id_number', '090202345')->value('id'))->sole();
+    $line = $sara->lines->sole();
+    expect([$sara->status->value, $sara->issue_date->toDateString(), $sara->due_date->toDateString(), $sara->total, $sara->number !== null])
+        ->toBe(['issued', '2026-11-01', '2026-11-01', '120.500', true])
+        ->and([$line->charge_type->value, $line->tax_amount, $line->owner_contract_id])->toBe(['opening_balance', '0.000', $managed->id])
+        ->and(Invoice::where('type', 'opening')->whereNull('agreement_id')->value('total'))->toBe('80.000')
+        ->and(OwnerCharge::where('owner_contract_id', $managed->id)->where('type', 'opening_balance')->value('amount'))->toBe('-25.000');
+});
+
+test('a customer credit, an unknown agreement unit or a second owner opening balance is refused', function () {
+    $files = [...agreementFiles($this->files),
+        'customer_balances' => importFile(ImportKind::CustomerBalances, [
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'amount' => '-10.000'],
+            ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'agreement_ref' => 'L-001', 'building_code' => 'MT', 'unit_code' => '102', 'amount' => '5.000'],
+        ]),
+        'owner_balances' => importFile(ImportKind::OwnerBalances, [
+            ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'amount' => '10.000'],
+            ['owner_id_type' => 'cpr', 'owner_id_number' => '080101234', 'building_code' => 'MT', 'amount' => '10.000'],
+        ]),
+    ];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: false);
+
+    expect($result->errors['customer_balances'][2][0])->toContain('enter it as a payment after go-live')
+        ->and($result->errors['customer_balances'][3][0])->toContain('not on agreement L-001')
+        ->and(array_keys($result->errors['owner_balances']))->toBe([3]);
+});
+
+test('the screen lists the totals of a dry run', function () {
+    Livewire::actingAs($this->vendor)->test(Index::class)
+        ->set('result', ['errors' => [], 'counts' => ['customer_balances' => 2], 'totals' => ['customer_balances' => '200.500'], 'committed' => false, 'commit' => false])
+        ->assertSee('Customer balances total: 200.500 BHD');
 });

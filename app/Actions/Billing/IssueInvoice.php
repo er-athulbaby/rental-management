@@ -76,7 +76,7 @@ final class IssueInvoice
                 'tax_total' => Fils::toDecimal($taxTotal),
                 'total' => Fils::toDecimal($subtotal + $taxTotal),
                 'number' => ($this->next)(NumberSequenceKey::Invoice),
-                'issue_date' => now('Asia/Bahrain')->toDateString(), // the tax point (spec §6.4): issuing early moves it
+                'issue_date' => $invoice->type === InvoiceType::Opening ? $invoice->issue_date->toDateString() : now('Asia/Bahrain')->toDateString(), // the tax point (spec §6.4): issuing early moves it; an opening invoice keeps its cutover date
                 'grace_until' => $invoice->due_date->addDays($graceDays)->toDateString(),
                 'issued_at' => now(),
                 'issued_by' => $issuer?->id,

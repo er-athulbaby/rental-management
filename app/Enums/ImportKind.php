@@ -11,6 +11,8 @@ enum ImportKind: string
     case OwnerContracts = 'owner_contracts';
     case Customers = 'customers';
     case Agreements = 'agreements';
+    case CustomerBalances = 'customer_balances';
+    case OwnerBalances = 'owner_balances';
 
     /** @return list<string> */
     public function headers(): array
@@ -27,6 +29,17 @@ enum ImportKind: string
             self::Agreements => ['import_ref', 'customer_id_type', 'customer_id_number', 'start_date', 'end_date', 'frequency', 'billing_day', 'grace_days',
                 'notice_period_days', 'building_code', 'unit_code', 'unit_start_date', 'unit_end_date', 'deposit_amount', 'rent', 'service_charge', 'parking',
                 'other', 'other_description', 'tax_category'],
+            self::CustomerBalances => ['customer_id_type', 'customer_id_number', 'agreement_ref', 'building_code', 'unit_code', 'amount', 'description'],
+            self::OwnerBalances => ['owner_id_type', 'owner_id_number', 'building_code', 'amount', 'notes'],
+        };
+    }
+
+    /** The column summed into the import's reconciliation totals (spec §11: checked against the old system). */
+    public function moneyColumn(): ?string
+    {
+        return match ($this) {
+            self::CustomerBalances, self::OwnerBalances => 'amount',
+            default => null,
         };
     }
 
@@ -45,6 +58,8 @@ enum ImportKind: string
             self::OwnerContracts => ['owner_id_number', 'rent_amount', 'fee_value', 'expense_approval_limit'],
             self::Customers => ['id_number', 'mobile', 'emergency_contact_phone'],
             self::Agreements => ['customer_id_number', 'deposit_amount', 'rent', 'service_charge', 'parking', 'other'],
+            self::CustomerBalances => ['customer_id_number', 'amount'],
+            self::OwnerBalances => ['owner_id_number', 'amount'],
         };
     }
 }

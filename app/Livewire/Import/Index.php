@@ -25,7 +25,7 @@ class Index extends Component
     /** @var array<string, UploadedFile|null> */
     public array $files = [];
 
-    /** @var array{errors: array<string, array<int, list<string>>>, counts: array<string, int>, committed: bool, commit: bool}|null */
+    /** @var array{errors: array<string, array<int, list<string>>>, counts: array<string, int>, totals: array<string, string>, committed: bool, commit: bool}|null */
     public ?array $result = null;
 
     public function mount(): void
@@ -56,7 +56,7 @@ class Index extends Component
             Storage::disk('local')->delete(array_values($stored));
         }
 
-        $this->result = ['errors' => $result->errors, 'counts' => $result->counts, 'committed' => $result->committed, 'commit' => $commit];
+        $this->result = ['errors' => $result->errors, 'counts' => $result->counts, 'totals' => $result->totals, 'committed' => $result->committed, 'commit' => $commit];
 
         if ($result->committed) {
             $this->reset('files');

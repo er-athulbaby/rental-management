@@ -45,6 +45,14 @@
             @endforeach
         </ul>
 
+        @if (! empty($result['totals']))
+            <ul class="text-sm">
+                @foreach ($result['totals'] as $kind => $total)
+                    <li>{{ __(':kind total: :total BHD', ['kind' => str($kind)->replace('_', ' ')->ucfirst(), 'total' => $total]) }}</li>
+                @endforeach
+            </ul>
+        @endif
+
         @foreach ($result['errors'] as $kind => $lines)
             <div class="space-y-1">
                 <flux:heading>{{ str($kind)->headline() }}</flux:heading>
