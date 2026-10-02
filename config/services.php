@@ -46,6 +46,7 @@ return [
             'invoices_issue' => env('HEARTBEAT_INVOICES_ISSUE'),
             'agreements_expire' => env('HEARTBEAT_AGREEMENTS_EXPIRE'),
             'integrity_check' => env('HEARTBEAT_INTEGRITY_CHECK'),
+            'owner_statements' => env('HEARTBEAT_OWNER_STATEMENTS'),
         ],
     ],
 

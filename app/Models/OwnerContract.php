@@ -125,6 +125,12 @@ class OwnerContract extends Model
         return $this->hasMany(OwnerCharge::class);
     }
 
+    /** @return HasMany<OwnerStatement, $this> */
+    public function statements(): HasMany
+    {
+        return $this->hasMany(OwnerStatement::class);
+    }
+
     /** @return BelongsToMany<Unit, $this> */
     public function units(): BelongsToMany
     {

@@ -28,3 +28,6 @@ Schedule::command('rms:agreements:expire')->dailyAt('02:00')->withoutOverlapping
 
 Schedule::command('rms:integrity-check')->dailyAt('02:30')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.integrity_check')), (string) $url);
+
+Schedule::command('rms:owner-statements:draft')->monthlyOn(1, '04:00')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.owner_statements')), (string) $url);
