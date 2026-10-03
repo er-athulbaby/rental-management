@@ -3,7 +3,7 @@
 
     <form wire:submit="save" class="space-y-4">
         <div class="grid gap-4 sm:grid-cols-2">
-            <flux:input wire:model="bank_name" :label="__('Bank')" />
+            <x-bank-select wire:model="bank_name" />
             <flux:input wire:model="account_holder" :label="__('Account holder (optional)')" />
         </div>
         <flux:error name="bank_name" />

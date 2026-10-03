@@ -29,6 +29,7 @@ use Illuminate\Validation\ValidationException;
 beforeEach(function () {
     Storage::fake('local');
     $this->seed(RolesAndPermissionsSeeder::class);
+    fixtureBanks();
     CompanySetting::factory()->create(['require_different_approver' => false]);
     app(EnsureNumberSequences::class)(now('Asia/Bahrain')->year);
 

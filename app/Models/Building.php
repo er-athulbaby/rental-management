@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BuildingType;
+use App\Enums\ParkingType;
 use App\Enums\PermissionName;
 use Database\Factories\BuildingFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -16,20 +17,29 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-/** @property BuildingType $type */
+/**
+ * @property BuildingType $type
+ * @property ParkingType|null $parking
+ */
 class Building extends Model
 {
     /** @use HasFactory<BuildingFactory> */
     use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'location', 'address', 'type', 'floors_count', 'parking', 'facilities',
+        'name', 'code', 'location', 'address', 'type', 'floors_count', 'parking',
         'property_manager_user_id', 'notes',
     ];
 
     protected function casts(): array
     {
-        return ['type' => BuildingType::class, 'floors_count' => 'integer'];
+        return ['type' => BuildingType::class, 'parking' => ParkingType::class, 'floors_count' => 'integer'];
+    }
+
+    /** @return BelongsToMany<Facility, $this> */
+    public function facilities(): BelongsToMany
+    {
+        return $this->belongsToMany(Facility::class)->orderBy('name');
     }
 
     public function getActivitylogOptions(): LogOptions

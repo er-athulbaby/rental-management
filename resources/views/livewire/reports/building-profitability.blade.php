@@ -17,13 +17,13 @@
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Building') }}</flux:table.column>
-                <flux:table.column>{{ __('Collected') }}</flux:table.column>
-                <flux:table.column>{{ __('Fees') }}</flux:table.column>
-                <flux:table.column>{{ __('Income') }}</flux:table.column>
-                <flux:table.column>{{ __('Billed') }}</flux:table.column>
-                <flux:table.column>{{ __('Head lease') }}</flux:table.column>
-                <flux:table.column>{{ __('Expenses') }}</flux:table.column>
-                <flux:table.column>{{ __('Result') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Collected') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Fees') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Income') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Billed') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Head lease') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Expenses') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Result') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach ($rows as $r)

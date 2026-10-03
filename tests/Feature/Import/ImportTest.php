@@ -8,12 +8,14 @@ use App\Enums\OwnerContractStatus;
 use App\Enums\RoleName;
 use App\Livewire\Import\Index;
 use App\Models\Agreement;
+use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\DepositMovement;
 use App\Models\Document;
+use App\Models\Facility;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Owner;
@@ -50,6 +52,7 @@ beforeEach(function () {
     CompanySetting::factory()->create(['go_live_at' => '2026-11-01 00:00:00']);
     $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Asia/Bahrain'));
     app(EnsureNumberSequences::class)(2026);
+    fixtureBanks();
     $this->vendor = User::factory()->withTwoFactor()->create()->assignRole(RoleName::VendorSupport);
 
     $this->files = [
@@ -478,4 +481,51 @@ test('an owner balance is refused when the owner has more than one managed contr
 
     expect($result->counts['owner_contracts'])->toBe(2)
         ->and($result->errors['owner_balances'][2][0])->toContain('more than one managed contract on MT');
+});
+
+test('imported buildings take parking by name and facilities from the list; unknown ones are refused', function () {
+    collect(['Lift', 'Gym'])->each(fn ($n) => Facility::create(['name' => $n]));
+    $files = ['buildings' => importFile(ImportKind::Buildings, [
+        ['code' => 'MT', 'name' => 'Marina Tower', 'type' => 'residential', 'parking' => 'Covered parking', 'facilities' => 'Lift, gym'],
+        ['code' => 'ST', 'name' => 'Sea Tower', 'type' => 'residential', 'parking' => 'rooftop', 'facilities' => 'Spa'],
+    ])];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files, commit: false);
+    expect(array_keys($result->errors['buildings']))->toBe([3])
+        ->and(implode(' ', $result->errors['buildings'][3]))->toContain('rooftop');
+
+    app(RunImport::class)->handle($this->vendor, ['buildings' => importFile(ImportKind::Buildings, [
+        ['code' => 'MT', 'name' => 'Marina Tower', 'type' => 'residential', 'parking' => 'covered', 'facilities' => 'Lift, Gym'],
+    ])], commit: true);
+    $building = Building::sole();
+    expect($building->parking->value)->toBe('covered')->and($building->facilities()->pluck('name')->all())->toBe(['Gym', 'Lift']);
+});
+
+test('imported nationalities and banks match the lists whatever the case; unknown ones are refused', function () {
+    Bank::create(['name' => 'Ahli United Bank']);
+    $owner = fn (string $id, array $more) => ['type' => 'person', 'name_en' => 'Owner '.$id, 'id_type' => 'cpr', 'id_number' => $id, ...$more];
+    $customer = fn (string $id, string $nationality) => ['type' => 'individual', 'name_en' => 'Customer '.$id, 'id_type' => 'cpr', 'id_number' => $id, 'mobile' => '+97336000000', 'nationality' => $nationality];
+    $cheque = fn (string $no, string $bank) => ['customer_id_type' => 'cpr', 'customer_id_number' => '090202345', 'cheque_no' => $no, 'bank_name' => $bank, 'cheque_date' => '2026-11-01', 'amount' => '450.000'];
+    $files = fn (bool $bad) => [
+        'owners' => importFile(ImportKind::Owners, [
+            $owner('080101234', ['nationality' => 'bahraini', 'bank_name' => 'AHLI united bank', 'iban' => 'BH67BMAG00001299123456', 'account_name' => 'Owner']),
+            ...($bad ? [$owner('080101235', ['nationality' => 'Martian']), $owner('080101236', ['bank_name' => 'Bank of Mars'])] : []),
+        ]),
+        'customers' => importFile(ImportKind::Customers, [$customer('090202345', 'INDIAN'), ...($bad ? [$customer('090202346', 'Klingon')] : [])]),
+        'cheques' => importFile(ImportKind::Cheques, [$cheque('000123', 'nbb'), ...($bad ? [$cheque('000124', 'Bank of Mars')] : [])]),
+    ];
+
+    $result = app(RunImport::class)->handle($this->vendor, $files(true), commit: false);
+    expect(array_keys($result->errors['owners']))->toBe([3, 4])
+        ->and($result->errors['owners'][3][0])->toBe("Nationality 'Martian' is not in the list.")
+        ->and($result->errors['owners'][4][0])->toBe("Unknown bank 'Bank of Mars'. Add it under Administration → Banks first.")
+        ->and(array_keys($result->errors['customers']))->toBe([3])
+        ->and($result->errors['customers'][3][0])->toBe("Nationality 'Klingon' is not in the list.")
+        ->and($result->errors['cheques'][3][0])->toBe("Unknown bank 'Bank of Mars'. Add it under Administration → Banks first.");
+
+    $result = app(RunImport::class)->handle($this->vendor, $files(false), commit: true);
+    expect($result->errors)->toBe([])
+        ->and(Owner::sole()->only(['nationality', 'bank_name']))->toBe(['nationality' => 'Bahraini', 'bank_name' => 'Ahli United Bank'])
+        ->and(Customer::sole()->nationality)->toBe('Indian')
+        ->and(Cheque::sole()->bank_name)->toBe('NBB');
 });

@@ -27,6 +27,11 @@ class CompanySettings extends Component
     /** @var UploadedFile|null */
     public $logo = null;
 
+    /** @var UploadedFile|null */
+    public $contractHeader = null;
+
+    public bool $removeContractHeader = false;
+
     public function mount(): void
     {
         $settings = CompanySetting::current();
@@ -36,15 +41,19 @@ class CompanySettings extends Component
     public function save(UpdateCompanySettings $update): void
     {
         try {
-            $update->handle($this->actor(), $this->form, $this->logo);
+            $update->handle($this->actor(), $this->form, $this->logo, $this->contractHeader, $this->removeContractHeader);
         } catch (ValidationException $e) {
             // Prefix field names so errors appear next to wire:model="form.x".
             throw ValidationException::withMessages(
-                collect($e->errors())->mapWithKeys(fn ($messages, $key) => [$key === 'logo' ? 'logo' : "form.$key" => $messages])->all()
+                collect($e->errors())->mapWithKeys(fn ($messages, $key) => [match ($key) {
+                    'logo' => 'logo',
+                    'contract_header' => 'contractHeader',
+                    default => "form.$key",
+                } => $messages])->all()
             );
         }
 
-        $this->reset('logo');
+        $this->reset('logo', 'contractHeader', 'removeContractHeader');
         Flux::toast(variant: 'success', text: __('Settings saved.'));
     }
 
@@ -53,6 +62,7 @@ class CompanySettings extends Component
         return view('livewire.admin.company-settings', [
             'taxCategories' => TaxCategory::cases(),
             'prorationBases' => ProrationBasis::cases(),
+            'hasContractHeader' => CompanySetting::current()->contract_header_path !== null,
         ]);
     }
 }

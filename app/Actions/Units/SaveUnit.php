@@ -26,8 +26,11 @@ final class SaveUnit
 
         $validated = Validator::make([...$data, 'building_id' => $buildingId], [
             'building_id' => ['required', 'integer', 'exists:buildings,id'],
-            'code' => ['required', 'string', 'max:30', Rule::unique('units', 'code')->where('building_id', $buildingId)->ignore($unit?->id)],
-            'floor' => ['nullable', 'string', 'max:10'],
+            'code' => [$unit ? 'required' : 'nullable', 'string', 'max:30', Rule::unique('units', 'code')->where('building_id', $buildingId)->ignore($unit?->id)],
+            // A new unit with no code is numbered from its floor, so the floor is then needed.
+            'floor' => $unit || filled($data['code'] ?? null)
+                ? ['nullable', 'string', 'max:10']
+                : ['required', 'string', 'max:8', 'regex:/^[A-Za-z0-9]+$/'],
             'use' => ['required', Rule::enum(UnitUse::class)],
             'type' => ['required', Rule::enum(UnitType::class)],
             'bedrooms' => ['nullable', 'integer', 'between:0,20'],
@@ -54,10 +57,23 @@ final class SaveUnit
         }
 
         return DB::transaction(function () use ($unit, $validated) {
+            $validated['code'] ??= self::nextCode((int) $validated['building_id'], (string) $validated['floor']);
             $unit ??= new Unit;
             $unit->fill($validated)->save();
 
             return $unit;
         });
+    }
+
+    /** A new unit left without a code gets its floor plus the next two-digit number on that floor: 101, 102, G01, 1201. */
+    private static function nextCode(int $buildingId, string $floor): string
+    {
+        Building::query()->lockForUpdate()->findOrFail($buildingId); // one numbering at a time per building
+
+        $taken = Unit::withTrashed()->where('building_id', $buildingId)->where('code', 'like', $floor.'__')->pluck('code')
+            ->filter(fn (string $code) => preg_match('/^'.preg_quote($floor, '/').'\d{2}$/', $code) === 1)
+            ->map(fn (string $code) => (int) substr($code, strlen($floor)))->max() ?? 0;
+
+        return $floor.str_pad((string) ($taken + 1), 2, '0', STR_PAD_LEFT);
     }
 }

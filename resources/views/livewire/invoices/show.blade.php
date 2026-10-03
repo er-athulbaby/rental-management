@@ -43,9 +43,9 @@
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Line') }}</flux:table.column>
-                <flux:table.column>{{ __('Net') }}</flux:table.column>
-                <flux:table.column>{{ __('Tax') }}</flux:table.column>
-                <flux:table.column>{{ __('Total') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Net') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Tax') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Total') }}</flux:table.column>
                 <flux:table.column>{{ __('Owner contract') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

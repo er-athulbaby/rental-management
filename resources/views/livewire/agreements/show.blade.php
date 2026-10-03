@@ -82,8 +82,8 @@
                 <flux:table.column>{{ __('Unit') }}</flux:table.column>
                 <flux:table.column>{{ __('Dates') }}</flux:table.column>
                 <flux:table.column>{{ __('Charges / month') }}</flux:table.column>
-                <flux:table.column>{{ __('List rent') }}</flux:table.column>
-                <flux:table.column>{{ __('Deposit') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('List rent') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Deposit') }}</flux:table.column>
                 <flux:table.column>{{ __('Move-out') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
@@ -96,8 +96,8 @@
                                 <div class="tabular-nums">{{ $c->type->label() }}: {{ $c->monthly_amount }} <span class="text-xs text-zinc-500">{{ $c->tax_category->label() }}</span></div>
                             @endforeach
                         </flux:table.cell>
-                        <flux:table.cell class="tabular-nums">{{ $au->list_rent }}</flux:table.cell>
-                        <flux:table.cell class="tabular-nums">{{ $au->deposit_amount }}</flux:table.cell>
+                        <flux:table.cell class="text-end tabular-nums">{{ $au->list_rent }}</flux:table.cell>
+                        <flux:table.cell class="text-end tabular-nums">{{ $au->deposit_amount }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $au->move_out_date?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                     </flux:table.row>
                 @endforeach

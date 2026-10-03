@@ -21,6 +21,7 @@ use Livewire\Livewire;
 beforeEach(function () {
     Storage::fake('local'); // recording a payment stores its receipt (Task 9)
     $this->seed(RolesAndPermissionsSeeder::class);
+    fixtureBanks();
     CompanySetting::factory()->create();
     $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Asia/Bahrain'));
     app(EnsureNumberSequences::class)(2026);

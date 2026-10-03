@@ -6,6 +6,7 @@ use App\Audit\Audit;
 use App\Enums\IdType;
 use App\Enums\PartyType;
 use App\Enums\PermissionName;
+use App\Models\Bank;
 use App\Models\Owner;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -36,11 +37,11 @@ final class SaveOwner
             'id_type' => ['required', Rule::enum(IdType::class)],
             'id_number' => ['required', 'string', 'max:30',
                 Rule::unique('owners', 'id_number')->where('id_type', $data['id_type'] ?? null)->ignore($owner?->id)],
-            'nationality' => ['nullable', 'string', 'max:60'],
+            'nationality' => ['nullable', 'string', 'max:60', Rule::in(array_filter([...config('nationalities'), $owner?->nationality]))],
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
-            'bank_name' => ['nullable', 'string', 'max:100'],
+            'bank_name' => ['nullable', 'string', 'max:100', Bank::rule($owner?->bank_name)],
             'iban' => ['nullable', 'regex:/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/'],
             'account_name' => ['nullable', 'string', 'max:150'],
             'notes' => ['nullable', 'string', 'max:2000'],

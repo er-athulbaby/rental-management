@@ -7,6 +7,7 @@ use App\Enums\ChequeStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
 use App\Models\Agreement;
+use App\Models\Bank;
 use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -35,7 +36,7 @@ final class RecordCheques
         $validated = Validator::make(['rows' => $rows], [
             'rows' => ['required', 'array', 'min:1', 'max:60'],
             'rows.*.cheque_no' => ['required', 'string', 'max:30'],
-            'rows.*.bank_name' => ['required', 'string', 'max:100'],
+            'rows.*.bank_name' => ['required', 'string', 'max:100', Bank::rule()],
             'rows.*.account_holder' => ['nullable', 'string', 'max:150'],
             'rows.*.cheque_date' => ['required', 'date_format:Y-m-d'],
             'rows.*.amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],

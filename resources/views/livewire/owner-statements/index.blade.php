@@ -22,7 +22,7 @@
                 <flux:table.column>{{ __('Month') }}</flux:table.column>
                 <flux:table.column>{{ __('Statement') }}</flux:table.column>
                 <flux:table.column>{{ __('Owner') }}</flux:table.column>
-                <flux:table.column>{{ __('Closing balance') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Closing balance') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

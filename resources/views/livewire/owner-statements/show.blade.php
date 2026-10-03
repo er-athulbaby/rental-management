@@ -43,7 +43,7 @@
                 <flux:input wire:model="remittance.reference" :label="__('Reference')" />
                 @if (($remittance['method'] ?? null) === 'cheque')
                     <flux:input wire:model="remittance.cheque_no" :label="__('Cheque number')" />
-                    <flux:input wire:model="remittance.bank_name" :label="__('Bank')" />
+                    <x-bank-select wire:model="remittance.bank_name" />
                     <flux:input type="date" wire:model="remittance.cheque_date" :label="__('Cheque date')" />
                 @endif
                 <flux:error name="remittance.owner_statement_id" />
@@ -58,8 +58,8 @@
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
                 <flux:table.column>{{ __('Entry') }}</flux:table.column>
                 <flux:table.column>{{ __('Reference') }}</flux:table.column>
-                <flux:table.column>{{ __('Amount') }}</flux:table.column>
-                <flux:table.column>{{ __('Balance') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Balance') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @forelse ($rows as $i => $r)

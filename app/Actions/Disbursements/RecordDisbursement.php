@@ -13,6 +13,7 @@ use App\Enums\OwnerPayableStatus;
 use App\Enums\OwnerStatementStatus;
 use App\Enums\PayeeType;
 use App\Enums\PaymentStatus;
+use App\Models\Bank;
 use App\Models\Customer;
 use App\Models\DepositSettlement;
 use App\Models\Disbursement;
@@ -62,7 +63,7 @@ final class RecordDisbursement
             'payee_type' => ['required_if:purpose,other', 'nullable', Rule::enum(PayeeType::class)],
             'payee_id' => ['required_if:purpose,other', 'nullable', 'integer'],
             'cheque_no' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:30'],
-            'bank_name' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:100'],
+            'bank_name' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:100', Bank::rule()],
             'cheque_date' => [Rule::requiredIf($chequeNow), 'nullable', 'date_format:Y-m-d'],
             'reason' => ['required_if:purpose,other', 'nullable', 'string', 'max:2000'],
         ])->validate();

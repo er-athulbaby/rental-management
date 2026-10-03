@@ -97,7 +97,7 @@
                     <flux:table.columns>
                         <flux:table.column>{{ __('Period') }}</flux:table.column>
                         <flux:table.column>{{ __('Due') }}</flux:table.column>
-                        <flux:table.column>{{ __('Amount') }}</flux:table.column>
+                        <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
                         <flux:table.column>{{ __('Status') }}</flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>

@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 beforeEach(function () {
     Storage::fake('local');
     $this->seed(RolesAndPermissionsSeeder::class);
+    fixtureBanks();
     CompanySetting::factory()->create();
     $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Asia/Bahrain'));
     app(EnsureNumberSequences::class)(2026);

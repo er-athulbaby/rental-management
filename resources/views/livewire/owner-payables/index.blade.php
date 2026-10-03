@@ -19,7 +19,7 @@
                 <flux:table.column>{{ __('Contract') }}</flux:table.column>
                 <flux:table.column>{{ __('Owner') }}</flux:table.column>
                 <flux:table.column>{{ __('Period') }}</flux:table.column>
-                <flux:table.column>{{ __('Amount') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
                 <flux:table.column />
             </flux:table.columns>
             <flux:table.rows>
@@ -56,7 +56,7 @@
             <flux:input wire:model="form.reference" :label="__('Reference')" />
             @if (($form['method'] ?? null) === 'cheque')
                 <flux:input wire:model="form.cheque_no" :label="__('Cheque number')" />
-                <flux:input wire:model="form.bank_name" :label="__('Bank')" />
+                <x-bank-select wire:model="form.bank_name" />
                 <flux:input type="date" wire:model="form.cheque_date" :label="__('Cheque date')" />
             @endif
             <flux:error name="form.owner_payable_id" />

@@ -13,7 +13,7 @@
                     @foreach ($idTypes as $idType)<option value="{{ $idType->value }}">{{ $idType->label() }}</option>@endforeach
                 </flux:select>
                 <flux:input wire:model="form.id_number" :label="__('ID number')" required />
-                <flux:input wire:model="form.nationality" :label="__('Nationality')" />
+                <x-nationality-select wire:model="form.nationality" :current="$owner?->nationality" />
                 <flux:input wire:model="form.phone" :label="__('Phone')" type="tel" />
             </div>
             <flux:input wire:model="form.email" :label="__('Email')" type="email" />
@@ -29,7 +29,7 @@
                         :heading="__('Bank details changed :date by :user', ['date' => $owner->bank_changed_at->timezone('Asia/Bahrain')->format('d/m/Y'), 'user' => $owner->bankChanger?->name])" />
                 @endif
                 <fieldset @disabled(! $canEditBank) class="mt-4 space-y-4">
-                    <flux:input wire:model="form.bank_name" :label="__('Bank')" />
+                    <x-bank-select wire:model="form.bank_name" :current="$owner?->bank_name" />
                     <flux:input wire:model="form.iban" :label="__('IBAN')" />
                     <flux:input wire:model="form.account_name" :label="__('Account name')" />
                 </fieldset>

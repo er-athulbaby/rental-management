@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Buildings\SaveBuilding;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
 use App\Livewire\Buildings\Form;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -103,4 +105,21 @@ test('a rejected upload shows an error on the upload field and stores nothing', 
         ->assertHasErrors('upload');
 
     expect($building->documents()->count())->toBe(0);
+});
+
+test('a building left without a code gets the next B number', function () {
+    Building::factory()->create(['code' => 'B007']);
+    Building::factory()->create(['code' => 'MT']); // a hand-typed code doesn't count
+
+    $save = fn () => app(SaveBuilding::class)->handle($this->manager, null, ['name' => 'New tower', 'code' => '', 'type' => 'residential']);
+
+    expect($save()->code)->toBe('B008')->and($save()->code)->toBe('B009');
+});
+
+test('a typed building code is kept, and an existing building must keep a code', function () {
+    $building = app(SaveBuilding::class)->handle($this->manager, null, ['name' => 'Marina', 'code' => 'MT', 'type' => 'residential']);
+    expect($building->code)->toBe('MT');
+
+    expect(fn () => app(SaveBuilding::class)->handle($this->manager, $building, ['name' => 'Marina', 'code' => '', 'type' => 'residential']))
+        ->toThrow(ValidationException::class);
 });

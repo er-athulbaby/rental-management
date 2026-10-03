@@ -19,8 +19,8 @@
                 <flux:table.column>{{ __('Invoice') }}</flux:table.column>
                 <flux:table.column>{{ __('Customer') }}</flux:table.column>
                 <flux:table.column>{{ __('Period / due') }}</flux:table.column>
-                <flux:table.column>{{ __('Total') }}</flux:table.column>
-                <flux:table.column>{{ __('Balance') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Total') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Balance') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

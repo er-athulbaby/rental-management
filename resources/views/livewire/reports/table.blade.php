@@ -33,7 +33,7 @@
         <flux:table>
             <flux:table.columns>
                 @foreach ($columns as $key => $label)
-                    <flux:table.column :class="in_array($key, $numeric, true) ? 'text-end' : ''">{{ $label }}</flux:table.column>
+                    <flux:table.column :align="in_array($key, $numeric, true) ? 'end' : 'start'">{{ $label }}</flux:table.column>
                 @endforeach
             </flux:table.columns>
             <flux:table.rows>

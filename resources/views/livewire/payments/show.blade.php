@@ -31,8 +31,8 @@
             <flux:table.columns>
                 <flux:table.column>{{ __('Invoice') }}</flux:table.column>
                 <flux:table.column>{{ __('Line') }}</flux:table.column>
-                <flux:table.column>{{ __('Amount') }}</flux:table.column>
-                <flux:table.column>{{ __('Of which tax') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Of which tax') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach ($payment->allocations as $allocation)
@@ -67,7 +67,7 @@
             <flux:input wire:model="refund.reference" :label="__('Reference')" />
             @if (($refund['method'] ?? '') === 'cheque')
                 <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
-                <flux:input wire:model="refund.bank_name" :label="__('Bank')" />
+                <x-bank-select wire:model="refund.bank_name" />
                 <flux:input wire:model="refund.cheque_date" type="date" :label="__('Cheque date')" />
             @endif
             @foreach (['amount', 'method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="refund.{{ $f }}" />@endforeach

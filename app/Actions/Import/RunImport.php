@@ -24,16 +24,19 @@ use App\Enums\InvoiceType;
 use App\Enums\OwnerChargeType;
 use App\Enums\OwnerContractStatus;
 use App\Enums\OwnerContractType;
+use App\Enums\ParkingType;
 use App\Enums\PermissionName;
 use App\Enums\TaxCategory;
 use App\Models\Agreement;
 use App\Models\AgreementUnit;
 use App\Models\Approval;
+use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\DepositMovement;
+use App\Models\Facility;
 use App\Models\Invoice;
 use App\Models\Owner;
 use App\Models\OwnerCharge;
@@ -207,19 +210,19 @@ final class RunImport
         $row = $rows[0];
 
         match ($kind) {
-            ImportKind::Buildings => $this->buildings->handle($actor, null, $row),
+            ImportKind::Buildings => $this->buildings->handle($actor, null, self::buildingRow($row)),
             ImportKind::Units => $this->units->handle($actor, null, [
                 ...$row,
                 'building_id' => $this->buildingId($row['building_code'] ?? null),
                 'blocked' => in_array(strtolower((string) ($row['blocked'] ?? '')), ['yes', 'y', 'true', '1'], true),
             ]),
-            ImportKind::Owners => $this->owners->handle($actor, null, $row, viaImport: true),
+            ImportKind::Owners => $this->owners->handle($actor, null, self::listRow($row), viaImport: true),
             ImportKind::OwnerContracts => $this->ownerContract($actor, $row, $cutover),
-            ImportKind::Customers => $this->customers->handle($actor, null, $row),
+            ImportKind::Customers => $this->customers->handle($actor, null, self::listRow($row)),
             ImportKind::Agreements => $this->agreement($actor, $rows, $cutover),
             ImportKind::CustomerBalances => $this->customerBalance($actor, $row, $cutover),
             ImportKind::DepositsHeld => $this->depositHeld($actor, $rows[0], $cutover),
-            ImportKind::Cheques => $this->cheque($actor, $rows[0]),
+            ImportKind::Cheques => $this->cheque($actor, self::listRow($rows[0])),
             ImportKind::OwnerBalances => $this->ownerBalance($actor, $row, $cutover),
         };
     }
@@ -528,6 +531,54 @@ final class RunImport
             ?? throw ValidationException::withMessages(['unit_code' => __('Unit :u is not on agreement :ref.', ['u' => (string) ($row['unit_code'] ?? ''), 'ref' => $ref])]);
 
         return [$agreement, $au];
+    }
+
+    /**
+     * The template's parking and facilities are words: parking is matched to a choice by its value or label,
+     * and facilities are comma-separated names from the Admin's list.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function buildingRow(array $row): array
+    {
+        $parking = trim((string) ($row['parking'] ?? ''));
+        if ($parking !== '') {
+            $match = collect(ParkingType::cases())->first(fn (ParkingType $p) => strcasecmp($parking, $p->value) === 0 || strcasecmp($parking, $p->label()) === 0);
+            $row['parking'] = ($match ?? throw ValidationException::withMessages(['parking' => __('Parking ":p" is not one of: :list.', [
+                'p' => $parking, 'list' => collect(ParkingType::cases())->map(fn (ParkingType $p) => $p->label())->implode(', '),
+            ])]))->value;
+        }
+
+        $names = array_values(array_filter(array_map(trim(...), explode(',', (string) ($row['facilities'] ?? '')))));
+        $facilities = Facility::query()->where('active', true)->whereIn('name', $names)->pluck('id', 'name');
+        $unknown = array_udiff($names, $facilities->keys()->all(), 'strcasecmp');
+        if ($unknown !== []) {
+            throw ValidationException::withMessages(['facilities' => __('Unknown facilities: :list. Add them under Administration → Facilities first.', ['list' => implode(', ', $unknown)])]);
+        }
+        unset($row['facilities']);
+
+        return [...$row, 'facility_ids' => $facilities->values()->all()];
+    }
+
+    /**
+     * Nationality and bank are words matched to their lists whatever the case, and stored as the list spells them.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function listRow(array $row): array
+    {
+        if (filled($n = $row['nationality'] ?? null)) {
+            $row['nationality'] = array_find(config()->array('nationalities'), fn (mixed $item) => is_string($item) && strcasecmp($item, (string) $n) === 0)
+                ?? throw ValidationException::withMessages(['nationality' => __("Nationality ':n' is not in the list.", ['n' => $n])]);
+        }
+        if (filled($b = $row['bank_name'] ?? null)) {
+            $row['bank_name'] = Bank::canonical((string) $b)
+                ?? throw ValidationException::withMessages(['bank_name' => __("Unknown bank ':b'. Add it under Administration → Banks first.", ['b' => $b])]);
+        }
+
+        return $row;
     }
 
     private function buildingId(mixed $code): int

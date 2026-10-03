@@ -51,7 +51,7 @@
             <flux:input wire:model="pay.reference" :label="__('Reference')" />
             @if (($pay['method'] ?? '') === 'cheque')
                 <flux:input wire:model="pay.cheque_no" :label="__('Cheque no.')" />
-                <flux:input wire:model="pay.bank_name" :label="__('Bank')" />
+                <x-bank-select wire:model="pay.bank_name" />
                 <flux:input wire:model="pay.cheque_date" type="date" :label="__('Cheque date')" />
             @endif
             @foreach (['method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="pay.{{ $f }}" />@endforeach

@@ -47,6 +47,7 @@ final class ContractPdf
 
         $settings = CompanySetting::current();
         $logo = $settings->logo_path && Storage::disk('local')->exists($settings->logo_path) ? Storage::disk('local')->path($settings->logo_path) : null;
+        $header = $settings->contract_header_path && Storage::disk('local')->exists($settings->contract_header_path) ? Storage::disk('local')->path($settings->contract_header_path) : null;
 
         return [
             'view' => 'pdf.contract',
@@ -55,6 +56,8 @@ final class ContractPdf
                 'companyEn' => $settings->name_en,
                 'companyAr' => filled($settings->name_ar) ? $settings->name_ar : $settings->name_en,
                 'logo' => $logo,
+                'header' => $header,
+                'stampSpaceMm' => $settings->contract_stamp_space_mm,
                 'clauses' => array_values($rows),
                 'units' => $agreement->agreementUnits->map(fn ($au) => [
                     'building' => $au->unit->building->name,

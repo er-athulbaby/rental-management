@@ -25,7 +25,7 @@
                 <flux:table.column>{{ __('Building / unit') }}</flux:table.column>
                 <flux:table.column>{{ __('Description') }}</flux:table.column>
                 <flux:table.column>{{ __('Charged to') }}</flux:table.column>
-                <flux:table.column>{{ __('Total (BHD)') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Total (BHD)') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

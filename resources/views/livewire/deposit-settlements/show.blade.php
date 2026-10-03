@@ -14,9 +14,9 @@
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Unit') }}</flux:table.column>
-                <flux:table.column>{{ __('Held') }}</flux:table.column>
-                <flux:table.column>{{ __('Applied') }}</flux:table.column>
-                <flux:table.column>{{ __('Refund') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Held') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Applied') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Refund') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach ($s->units as $u)
@@ -79,7 +79,7 @@
             <flux:input wire:model="refund.reference" :label="__('Reference')" />
             @if (($refund['method'] ?? '') === 'cheque')
                 <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
-                <flux:input wire:model="refund.bank_name" :label="__('Bank')" />
+                <x-bank-select wire:model="refund.bank_name" />
                 <flux:input wire:model="refund.cheque_date" type="date" :label="__('Cheque date')" />
             @endif
             @foreach (['amount', 'method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="refund.{{ $f }}" />@endforeach

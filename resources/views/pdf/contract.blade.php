@@ -15,6 +15,13 @@
 </style>
 </head>
 <body>
+@if ($stampSpaceMm > 0)
+    {{-- Left blank for the official stamp band: the contract is printed on stamp paper. --}}
+    <div style="height:{{ $stampSpaceMm }}mm"></div>
+@endif
+@if ($header)
+    <div style="text-align:center; margin-bottom:3mm"><img src="{{ $header }}" style="width:100%; max-height:40mm"></div>
+@endif
 <table style="width:100%; margin-bottom:3mm">
     <tr>
         <td style="width:40%">{{ $companyEn }}</td>

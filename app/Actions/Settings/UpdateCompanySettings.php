@@ -11,6 +11,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -38,11 +39,15 @@ final class UpdateCompanySettings
             'default_grace_days' => ['required', 'integer', 'between:0,60'],
             'invoice_lead_days' => ['required', 'integer', 'between:0,60'],
             'proration_basis' => ['required', Rule::enum(ProrationBasis::class)],
+            'contract_stamp_space_mm' => ['required', 'integer', 'between:0,120'],
         ];
     }
 
-    /** @param  array<string, mixed>  $data */
-    public function handle(User $actor, array $data, ?UploadedFile $logo = null): CompanySetting
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  UploadedFile|null  $contractHeader  the company's letterhead for contracts (never a government stamp)
+     */
+    public function handle(User $actor, array $data, ?UploadedFile $logo = null, ?UploadedFile $contractHeader = null, bool $removeContractHeader = false): CompanySetting
     {
         if (! $actor->can(PermissionName::SettingsManage)) {
             throw new AuthorizationException;
@@ -51,18 +56,31 @@ final class UpdateCompanySettings
         // Only screen-editable keys ever reach the model (install-level keys are dropped here).
         $validated = Validator::make(Arr::only($data, CompanySetting::EDITABLE), self::rules())->validate();
 
-        if ($logo) {
-            Validator::make(['logo' => $logo], ['logo' => ['image', 'mimes:png,jpg,jpeg', 'max:2048']])->validate();
-        }
+        Validator::make(['logo' => $logo, 'contract_header' => $contractHeader], [
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
+            'contract_header' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
+        ])->validate();
 
-        return DB::transaction(function () use ($validated, $logo) {
+        return DB::transaction(function () use ($validated, $logo, $contractHeader, $removeContractHeader) {
             $settings = CompanySetting::query()->lockForUpdate()->findOrFail(1);
 
             if ($logo) {
                 $validated['logo_path'] = $logo->storeAs('settings', 'logo.'.$logo->extension(), 'local');
             }
 
+            $oldHeader = $settings->contract_header_path;
+            if ($contractHeader) {
+                $validated['contract_header_path'] = $contractHeader->storeAs('settings', 'contract-header.'.$contractHeader->extension(), 'local');
+            } elseif ($removeContractHeader) {
+                $validated['contract_header_path'] = null;
+            }
+
             $settings->fill($validated)->save();
+
+            // A replaced or removed letterhead's old file goes once the change is saved. Stored contracts keep theirs.
+            if ($oldHeader !== null && $oldHeader !== $settings->contract_header_path) {
+                DB::afterCommit(fn () => Storage::disk('local')->delete($oldHeader));
+            }
 
             return $settings;
         });

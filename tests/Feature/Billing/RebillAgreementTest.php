@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
 beforeEach(function () {
     Storage::fake('local');
     $this->seed(RolesAndPermissionsSeeder::class);
+    fixtureBanks();
     CompanySetting::factory()->create(['invoice_lead_days' => 0]);
     $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Asia/Bahrain'));
     app(EnsureNumberSequences::class)(2026);

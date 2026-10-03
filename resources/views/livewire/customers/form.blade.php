@@ -33,7 +33,7 @@
                 <flux:input wire:model="form.id_number" :label="__('ID number')" required />
                 <flux:input wire:model="form.mobile" :label="__('Mobile')" type="tel" required />
                 <flux:input wire:model="form.email" :label="__('Email')" type="email" />
-                <flux:input wire:model="form.nationality" :label="__('Nationality')" />
+                <x-nationality-select wire:model="form.nationality" :current="$customer?->nationality" />
                 @if (($form['type'] ?? '') === 'company')
                     <flux:input wire:model="form.contact_person" :label="__('Contact person')" />
                 @endif

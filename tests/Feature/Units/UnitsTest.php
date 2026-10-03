@@ -14,6 +14,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -129,4 +130,19 @@ test('unit writes are denied outside the actor building scope', function () {
     expect(Unit::where('building_id', $other->id)->count())->toBe(1)
         ->and($theirs->fresh()->list_rent)->toBe('400.000')
         ->and($save->handle($scoped, null, [...$data, 'building_id' => $this->building->id, 'code' => 'OWN-1'])->exists)->toBeTrue();
+});
+
+test('a unit left without a code gets its floor plus the next number on that floor', function () {
+    Unit::factory()->for($this->building)->create(['code' => '101', 'floor' => '1']);
+    $save = fn (?string $floor) => app(SaveUnit::class)->handle($this->manager, null, [
+        'building_id' => $this->building->id, 'code' => '', 'floor' => $floor, 'use' => 'residential', 'type' => 'flat', 'furnishing' => 'unfurnished', 'list_rent' => '400',
+    ]);
+
+    expect($save('1')->code)->toBe('102')
+        ->and($save('1')->code)->toBe('103')
+        ->and($save('2')->code)->toBe('201')
+        ->and($save('G')->code)->toBe('G01')
+        ->and($save('12')->code)->toBe('1201');
+
+    expect(fn () => $save(null))->toThrow(ValidationException::class, 'floor');
 });

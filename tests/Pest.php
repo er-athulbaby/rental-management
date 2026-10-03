@@ -3,6 +3,7 @@
 use App\Actions\Billing\IssueInvoice;
 use App\Enums\RoleName;
 use App\Models\Agreement;
+use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -150,4 +151,12 @@ function reportRowText(string $html, string $needle): string
     $row = collect(explode('</tr>', $html))->first(fn (string $tr) => str_contains($tr, '<td') && str_contains($tr, $needle));
 
     return (string) preg_replace('/\s+/', ' ', trim(html_entity_decode(strip_tags((string) $row), ENT_QUOTES)));
+}
+
+/** The short bank names the fixtures use, put on the Admin's list of banks. */
+function fixtureBanks(): void
+{
+    foreach (['NBB', 'BBK'] as $name) {
+        Bank::query()->firstOrCreate(['name' => $name]);
+    }
 }

@@ -67,7 +67,7 @@
         <form wire:submit="replace" class="space-y-4">
             <flux:heading size="lg">{{ __('Replacement cheque') }}</flux:heading>
             <flux:input wire:model="replacement.cheque_no" :label="__('Cheque no.')" />
-            <flux:input wire:model="replacement.bank_name" :label="__('Bank')" />
+            <x-bank-select wire:model="replacement.bank_name" />
             <flux:input wire:model="replacement.cheque_date" type="date" :label="__('Cheque date')" />
             <flux:input wire:model="replacement.amount" inputmode="decimal" :label="__('Amount')" />
             <flux:error name="cheque_no" />

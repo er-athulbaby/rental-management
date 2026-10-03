@@ -13,6 +13,7 @@ use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
+    fixtureBanks();
     $this->admin = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Admin);
     $this->finance = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Finance);
 });

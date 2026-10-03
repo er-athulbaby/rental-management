@@ -9,7 +9,7 @@
                 <flux:table.column>{{ __('Customer') }}</flux:table.column>
                 <flux:table.column>{{ __('Received') }}</flux:table.column>
                 <flux:table.column>{{ __('Method') }}</flux:table.column>
-                <flux:table.column>{{ __('Amount') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

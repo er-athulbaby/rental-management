@@ -16,7 +16,8 @@
                 @endforeach
             </flux:select>
             <div class="grid gap-4 sm:grid-cols-2">
-                <flux:input wire:model="form.code" :label="__('Unit code')" required />
+                <flux:input wire:model="form.code" :label="__('Unit code')" :required="(bool) $unit"
+                    :description="$unit ? null : __('Leave blank to number it from the floor: 101, 102, G01.')" />
                 <flux:input wire:model="form.floor" :label="__('Floor')" />
                 <flux:select wire:model="form.use" :label="__('Use')">
                     @foreach ($uses as $use)<option value="{{ $use->value }}">{{ str($use->value)->headline() }}</option>@endforeach

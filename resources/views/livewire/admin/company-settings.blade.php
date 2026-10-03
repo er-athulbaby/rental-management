@@ -22,6 +22,24 @@
         </flux:fieldset>
 
         <flux:fieldset>
+            <flux:legend>{{ __('Contract layout') }}</flux:legend>
+            <div class="space-y-4">
+                <flux:input wire:model="form.contract_stamp_space_mm" type="number" min="0" max="120" :label="__('Blank space at the top of page 1 (mm)')"
+                    :description="__('For printing contracts on official stamp paper: leave enough room for the printed stamp band. 0 = no space.')" />
+                <flux:field>
+                    <flux:label>{{ __('Contract letterhead (PNG or JPG, max 2 MB)') }}</flux:label>
+                    <flux:description>{{ __('Your company\'s own letterhead, shown at the top of page 1. Not a government stamp: print on official stamp paper for that.') }}</flux:description>
+                    <input type="file" wire:model="contractHeader" accept="image/png,image/jpeg" class="block w-full text-sm" />
+                    <flux:error name="contractHeader" />
+                </flux:field>
+                @if ($hasContractHeader)
+                    <flux:checkbox wire:model="removeContractHeader" :label="__('Remove the current letterhead')" />
+                @endif
+                <flux:text class="text-sm">{{ __('Applies to contracts approved from now on. Contracts already approved keep the PDF they were stored with.') }}</flux:text>
+            </div>
+        </flux:fieldset>
+
+        <flux:fieldset>
             <flux:legend>{{ __('Tax') }}</flux:legend>
             <div class="space-y-4">
                 <flux:checkbox wire:model="form.vat_registered" :label="__('VAT registered')" />

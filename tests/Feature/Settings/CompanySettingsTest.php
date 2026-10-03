@@ -97,3 +97,26 @@ test('changes are audited', function () {
     expect($row->causer_id)->toBe($this->admin->id)
         ->and($row->attribute_changes['attributes']['name_en'])->toBe('Renamed Co');
 });
+
+test('contracts can leave blank space for stamp paper and carry a company letterhead', function () {
+    Storage::fake('local');
+
+    Livewire::actingAs($this->admin)->test(CompanySettings::class)
+        ->set('form.contract_stamp_space_mm', 55)
+        ->set('contractHeader', UploadedFile::fake()->image('letterhead.png', 1200, 200))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $settings = CompanySetting::current();
+    expect($settings->contract_stamp_space_mm)->toBe(55)->and($settings->contract_header_path)->toBe('settings/contract-header.png');
+    Storage::disk('local')->assertExists('settings/contract-header.png');
+
+    Livewire::actingAs($this->admin)->test(CompanySettings::class)->set('removeContractHeader', true)->call('save')->assertHasNoErrors();
+    expect(CompanySetting::current()->contract_header_path)->toBeNull();
+    Storage::disk('local')->assertMissing('settings/contract-header.png');
+});
+
+test('the stamp space is limited to 0–120 mm', function () {
+    Livewire::actingAs($this->admin)->test(CompanySettings::class)
+        ->set('form.contract_stamp_space_mm', 200)->call('save')->assertHasErrors('form.contract_stamp_space_mm');
+});

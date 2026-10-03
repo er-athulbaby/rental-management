@@ -22,7 +22,7 @@
                 <flux:table.column>{{ __('Building') }}</flux:table.column>
                 <flux:table.column>{{ __('Unit') }}</flux:table.column>
                 <flux:table.column>{{ __('Type') }}</flux:table.column>
-                <flux:table.column>{{ __('List rent (BHD)') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('List rent (BHD)') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

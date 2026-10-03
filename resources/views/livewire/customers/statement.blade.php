@@ -20,9 +20,9 @@
                 <flux:table.columns>
                     <flux:table.column>{{ __('Date') }}</flux:table.column>
                     <flux:table.column>{{ __('Entry') }}</flux:table.column>
-                    <flux:table.column>{{ __('Debit') }}</flux:table.column>
-                    <flux:table.column>{{ __('Credit') }}</flux:table.column>
-                    <flux:table.column>{{ __('Balance') }}</flux:table.column>
+                    <flux:table.column align="end">{{ __('Debit') }}</flux:table.column>
+                    <flux:table.column align="end">{{ __('Credit') }}</flux:table.column>
+                    <flux:table.column align="end">{{ __('Balance') }}</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     <flux:table.row>
@@ -52,8 +52,8 @@
                     <flux:table.columns>
                         <flux:table.column>{{ __('Date') }}</flux:table.column>
                         <flux:table.column>{{ __('Movement') }}</flux:table.column>
-                        <flux:table.column>{{ __('Amount') }}</flux:table.column>
-                        <flux:table.column>{{ __('Held') }}</flux:table.column>
+                        <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
+                        <flux:table.column align="end">{{ __('Held') }}</flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
                         @foreach ($deposit['rows'] as $i => $row)

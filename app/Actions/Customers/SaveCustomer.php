@@ -30,7 +30,7 @@ final class SaveCustomer
             'name_ar' => ['nullable', 'string', 'max:150'],
             'id_type' => ['required', Rule::enum(IdType::class)],
             'id_number' => ['required', 'string', 'max:30'],
-            'nationality' => ['nullable', 'string', 'max:60'],
+            'nationality' => ['nullable', 'string', 'max:60', Rule::in(array_filter([...config('nationalities'), $customer?->nationality]))],
             'mobile' => ['required', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],

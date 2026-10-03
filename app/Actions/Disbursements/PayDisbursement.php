@@ -5,6 +5,7 @@ namespace App\Actions\Disbursements;
 use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementStatus;
 use App\Enums\OwnerPayableStatus;
+use App\Models\Bank;
 use App\Models\Disbursement;
 use App\Models\OwnerPayable;
 use App\Models\User;
@@ -32,7 +33,7 @@ final class PayDisbursement
             'paid_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Bahrain')->toDateString()],
             'reference' => ['nullable', 'string', 'max:100'],
             'cheque_no' => [...$cheque, 'string', 'max:30'],
-            'bank_name' => [...$cheque, 'string', 'max:100'],
+            'bank_name' => [...$cheque, 'string', 'max:100', Bank::rule()],
             'cheque_date' => [...$cheque, 'date_format:Y-m-d'],
         ])->validate();
 

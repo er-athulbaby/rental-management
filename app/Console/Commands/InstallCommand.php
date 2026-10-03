@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Banks\EnsureDefaultBanks;
+use App\Actions\Buildings\EnsureDefaultFacilities;
 use App\Actions\ContractTemplates\EnsureDefaultContractTemplate;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\RoleName;
@@ -68,6 +70,8 @@ class InstallCommand extends Command
             $sequences($year);
             $sequences($year + 1);
             app(EnsureDefaultContractTemplate::class)();
+            app(EnsureDefaultFacilities::class)();
+            app(EnsureDefaultBanks::class)();
 
             $admin = User::create(['name' => $data['admin_name'], 'email' => Str::lower($data['admin_email']), 'password' => Str::password(40)]);
             $admin->assignRole(RoleName::Admin);

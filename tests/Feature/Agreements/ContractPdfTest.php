@@ -155,3 +155,15 @@ test('the frozen contract can be neither uploaded nor deleted by a user who mana
         ->call('save')
         ->assertHasErrors('category');
 });
+
+test('the contract leaves the stamp-paper space and shows the letterhead on page 1', function () {
+    Storage::disk('local')->put('settings/contract-header.png', UploadedFile::fake()->image('h.png', 1200, 200)->getContent());
+    CompanySetting::current()->forceFill(['contract_stamp_space_mm' => 55, 'contract_header_path' => 'settings/contract-header.png'])->save();
+
+    $built = app(ContractPdf::class)->build($this->draft);
+    $html = view($built['view'], $built['data'])->render();
+
+    expect($built['data']['stampSpaceMm'])->toBe(55)
+        ->and($built['data']['header'])->toBe(Storage::disk('local')->path('settings/contract-header.png'))
+        ->and($html)->toContain('height:55mm')->toContain('contract-header.png');
+});

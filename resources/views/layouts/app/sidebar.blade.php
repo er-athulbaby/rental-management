@@ -79,6 +79,8 @@
                         @endcan
                         @can('settings.manage')
                             <flux:sidebar.item icon="building-office" :href="route('admin.settings')" :current="request()->routeIs('admin.settings')" wire:navigate>{{ __('Company settings') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="sparkles" :href="route('admin.facilities')" :current="request()->routeIs('admin.facilities')" wire:navigate>{{ __('Facilities') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="building-library" :href="route('admin.banks')" :current="request()->routeIs('admin.banks')" wire:navigate>{{ __('Banks') }}</flux:sidebar.item>
                         @endcan
                         @can('templates.manage')
                             <flux:sidebar.item icon="document-duplicate" :href="route('admin.templates.index')" :current="request()->routeIs('admin.templates.*')" wire:navigate>{{ __('Contract templates') }}</flux:sidebar.item>

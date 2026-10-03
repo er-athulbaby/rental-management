@@ -18,6 +18,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $name_en
  * @property string|null $name_ar
  * @property string|null $logo_path
+ * @property int $contract_stamp_space_mm
+ * @property string|null $contract_header_path
  * @property bool $vat_registered
  * @property string|null $trn
  * @property string $vat_rate
@@ -41,6 +43,7 @@ class CompanySetting extends Model
         'name_en', 'name_ar', 'cr_number', 'address_en', 'address_ar', 'phone', 'email', 'website',
         'vat_registered', 'trn', 'vat_rate', 'residential_tax_category', 'commercial_tax_category',
         'currency_code', 'date_format', 'default_grace_days', 'invoice_lead_days', 'proration_basis',
+        'contract_stamp_space_mm',
     ];
 
     protected $guarded = ['id'];
@@ -57,6 +60,7 @@ class CompanySetting extends Model
             'commercial_tax_category' => TaxCategory::class,
             'default_grace_days' => 'integer',
             'invoice_lead_days' => 'integer',
+            'contract_stamp_space_mm' => 'integer',
             'proration_basis' => ProrationBasis::class,
             'require_different_approver' => 'boolean',
             'go_live_at' => 'datetime',

@@ -7,6 +7,7 @@ use App\Actions\Cheques\ClearCheque;
 use App\Actions\Cheques\EndCheque;
 use App\Actions\Cheques\ReplaceCheque;
 use App\Livewire\Concerns\WithActor;
+use App\Models\Bank;
 use App\Models\Cheque;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -36,7 +37,7 @@ class Show extends Component
         abort_unless($this->actor()->can('view', $cheque), 403);
         $this->chequeId = $cheque->id;
         $this->clearedOn = $this->bouncedOn = now('Asia/Bahrain')->toDateString();
-        $this->replacement = ['cheque_no' => '', 'bank_name' => $cheque->bank_name, 'cheque_date' => now('Asia/Bahrain')->toDateString(), 'amount' => $cheque->amount];
+        $this->replacement = ['cheque_no' => '', 'bank_name' => Bank::canonical($cheque->bank_name) ?? '', 'cheque_date' => now('Asia/Bahrain')->toDateString(), 'amount' => $cheque->amount];
     }
 
     private function cheque(): Cheque
