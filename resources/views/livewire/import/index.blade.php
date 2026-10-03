@@ -22,7 +22,7 @@
                         <flux:label>{{ str($kind->value)->headline() }}</flux:label>
                         <flux:link :href="route('import.template', $kind)">{{ __('Download template') }}</flux:link>
                     </div>
-                    <input type="file" wire:model="files.{{ $kind->value }}" accept=".xlsx,.csv" class="block w-full text-sm" />
+                    <input type="file" wire:model="files.{{ $kind->value }}" accept=".xlsx,.csv" class="block w-full text-sm text-zinc-600 dark:text-zinc-300 file:me-3 file:cursor-pointer file:rounded-lg file:border file:border-zinc-300 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-800 file:shadow-xs hover:file:bg-zinc-50 dark:file:border-zinc-600 dark:file:bg-zinc-700 dark:file:text-white dark:hover:file:bg-zinc-600" />
                     <flux:error name="files.{{ $kind->value }}" />
                 </flux:field>
             @endforeach
