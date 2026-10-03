@@ -107,3 +107,9 @@ test('select-all units ignores a building outside the user scope', function () {
         ->set('form.building_id', $other->id)->call('selectAllUnits')
         ->assertSet('form.unit_ids', []);
 });
+
+test('replacing the whole form at once does not crash (Livewire sends no key)', function () {
+    $page = Livewire::actingAs($this->finance)->test(Form::class);
+    $page->set('form', [...$page->get('form'), 'owner_id' => $this->owner->id, 'building_id' => $this->building->id])
+        ->assertOk()->assertSet('form.owner_id', $this->owner->id);
+});

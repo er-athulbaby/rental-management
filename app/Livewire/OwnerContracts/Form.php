@@ -69,7 +69,8 @@ class Form extends Component
         ];
     }
 
-    public function updatedForm(mixed $value, string $key): void
+    /** $key is null when Livewire replaces the whole form at once. */
+    public function updatedForm(mixed $value, ?string $key = null): void
     {
         if ($key === 'building_id') {
             $this->form['unit_ids'] = [];

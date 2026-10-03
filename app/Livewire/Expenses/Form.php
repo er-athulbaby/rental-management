@@ -35,7 +35,8 @@ class Form extends Component
         $this->form['expense_date'] = now('Asia/Bahrain')->toDateString();
     }
 
-    public function updatedForm(mixed $value, string $key): void
+    /** $key is null when Livewire replaces the whole form at once. */
+    public function updatedForm(mixed $value, ?string $key = null): void
     {
         if ($key === 'building_id') {
             $this->form['unit_id'] = null;

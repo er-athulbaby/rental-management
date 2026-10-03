@@ -52,3 +52,8 @@ test('who can open the expense pages', function () {
     $this->actingAs($leasing)->get(route('expenses.index'))->assertForbidden();
     $this->actingAs($this->pm)->get(route('expenses.create'))->assertOk();
 });
+
+test('replacing the whole expense form at once does not crash (Livewire sends no key)', function () {
+    $page = Livewire::actingAs($this->pm)->test(Form::class);
+    $page->set('form', [...$page->get('form'), 'building_id' => $this->building->id])->assertOk();
+});
