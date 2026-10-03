@@ -15,7 +15,7 @@
                 <flux:input wire:model="form.website" :label="__('Website')" type="url" />
                 <flux:field>
                     <flux:label>{{ __('Logo (PNG or JPG, max 2 MB)') }}</flux:label>
-                    <input type="file" wire:model="logo" accept="image/png,image/jpeg" class="block w-full text-sm text-zinc-600 dark:text-zinc-300 file:me-3 file:cursor-pointer file:rounded-lg file:border file:border-zinc-300 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-800 file:shadow-xs hover:file:bg-zinc-50 dark:file:border-zinc-600 dark:file:bg-zinc-700 dark:file:text-white dark:hover:file:bg-zinc-600" />
+                    <x-file-button wire:model="logo" accept="image/png,image/jpeg" />
                     <flux:error name="logo" />
                 </flux:field>
             </div>
@@ -29,7 +29,7 @@
                 <flux:field>
                     <flux:label>{{ __('Contract letterhead (PNG or JPG, max 2 MB)') }}</flux:label>
                     <flux:description>{{ __('Your company\'s own letterhead, shown at the top of page 1. Not a government stamp: print on official stamp paper for that.') }}</flux:description>
-                    <input type="file" wire:model="contractHeader" accept="image/png,image/jpeg" class="block w-full text-sm text-zinc-600 dark:text-zinc-300 file:me-3 file:cursor-pointer file:rounded-lg file:border file:border-zinc-300 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-800 file:shadow-xs hover:file:bg-zinc-50 dark:file:border-zinc-600 dark:file:bg-zinc-700 dark:file:text-white dark:hover:file:bg-zinc-600" />
+                    <x-file-button wire:model="contractHeader" accept="image/png,image/jpeg" />
                     <flux:error name="contractHeader" />
                 </flux:field>
                 @if ($hasContractHeader)
