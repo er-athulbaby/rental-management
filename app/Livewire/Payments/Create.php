@@ -35,7 +35,13 @@ class Create extends Component
     public function mount(): void
     {
         abort_unless($this->actor()->can('create', Payment::class), 403);
-        $customer = Customer::query()->visibleTo($this->actor())->findOrFail(request()->integer('customer'));
+        $customer = Customer::query()->visibleTo($this->actor())->find(request()->integer('customer'));
+        if ($customer === null) {
+            // No customer chosen yet: the Payments list's New payment button asks for one first.
+            $this->redirectRoute('payments.index', navigate: true);
+
+            return;
+        }
         $this->customerId = $customer->id;
         $this->form['received_on'] = now('Asia/Bahrain')->toDateString();
     }

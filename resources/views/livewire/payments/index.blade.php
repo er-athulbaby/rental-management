@@ -1,5 +1,28 @@
 <section class="w-full space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Payments') }}</flux:heading>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+        <flux:heading size="xl" level="1">{{ __('Payments') }}</flux:heading>
+        @if ($canCreate)
+            <flux:modal.trigger name="new-payment">
+                <flux:button variant="primary">{{ __('New payment') }}</flux:button>
+            </flux:modal.trigger>
+        @endif
+    </div>
+
+    @if ($canCreate)
+        <flux:modal name="new-payment" class="md:w-96">
+            <form wire:submit="startPayment" class="space-y-4">
+                <flux:heading size="lg">{{ __('New payment') }}</flux:heading>
+                <flux:text class="text-sm">{{ __('Record money received from a customer by cash, transfer or card. Post-dated cheques are entered from the agreement page.') }}</flux:text>
+                <flux:select wire:model="newCustomerId" :label="__('Customer')">
+                    <option value="">{{ __('Choose…') }}</option>
+                    @foreach ($customers as $c)
+                        <option value="{{ $c->id }}">{{ $c->name_en }}</option>
+                    @endforeach
+                </flux:select>
+                <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Continue') }}</flux:button></div>
+            </form>
+        </flux:modal>
+    @endif
     <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Receipt, reference or customer')" icon="magnifying-glass" class="sm:max-w-xs" />
 
     <div class="overflow-x-auto">

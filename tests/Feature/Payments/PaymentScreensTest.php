@@ -82,3 +82,21 @@ test('only payments.manage records; finance.view holders see payments', function
     $this->actingAs($management)->get(route('payments.create', ['customer' => $this->customer->id]))->assertForbidden();
     $this->actingAs($pm)->get(route('payments.index'))->assertForbidden();
 });
+
+test('Finance starts a new payment from the list by choosing the customer', function () {
+    Livewire::actingAs($this->finance)->test(Index::class)
+        ->assertSee('New payment')
+        ->set('newCustomerId', (string) $this->customer->id)
+        ->call('startPayment')
+        ->assertRedirect(route('payments.create', ['customer' => $this->customer->id]));
+
+    Livewire::actingAs($this->finance)->test(Index::class)
+        ->set('newCustomerId', '')->call('startPayment')->assertHasErrors('newCustomerId');
+
+    $manager = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
+    Livewire::actingAs($manager)->test(Index::class)->assertDontSee('New payment');
+});
+
+test('opening the new-payment page without a customer goes back to the list instead of failing', function () {
+    $this->actingAs($this->finance)->get(route('payments.create'))->assertRedirect(route('payments.index'));
+});

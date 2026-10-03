@@ -49,7 +49,14 @@ class ManualForm extends Component
         }
 
         abort_unless($this->actor()->can('create', Invoice::class), 403);
-        $this->customerId = Customer::query()->visibleTo($this->actor())->findOrFail(request()->integer('customer'))->id;
+        $customer = Customer::query()->visibleTo($this->actor())->find(request()->integer('customer'));
+        if ($customer === null) {
+            // No customer chosen yet: the Invoices list's New invoice button asks for one first.
+            $this->redirectRoute('invoices.index', navigate: true);
+
+            return;
+        }
+        $this->customerId = $customer->id;
         $this->form = ['due_date' => now('Asia/Bahrain')->toDateString()];
         $this->addLine();
     }

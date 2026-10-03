@@ -1,5 +1,28 @@
 <section class="w-full space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Invoices') }}</flux:heading>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+        <flux:heading size="xl" level="1">{{ __('Invoices') }}</flux:heading>
+        @if ($canCreate)
+            <flux:modal.trigger name="new-invoice">
+                <flux:button variant="primary">{{ __('New invoice') }}</flux:button>
+            </flux:modal.trigger>
+        @endif
+    </div>
+
+    @if ($canCreate)
+        <flux:modal name="new-invoice" class="md:w-96">
+            <form wire:submit="startInvoice" class="space-y-4">
+                <flux:heading size="lg">{{ __('New invoice') }}</flux:heading>
+                <flux:text class="text-sm">{{ __('For charges outside the rent schedule, such as a repair or a fee. Rent invoices are created automatically from agreements.') }}</flux:text>
+                <flux:select wire:model="newCustomerId" :label="__('Customer')">
+                    <option value="">{{ __('Choose…') }}</option>
+                    @foreach ($customers as $c)
+                        <option value="{{ $c->id }}">{{ $c->name_en }}</option>
+                    @endforeach
+                </flux:select>
+                <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Continue') }}</flux:button></div>
+            </form>
+        </flux:modal>
+    @endif
 
     <div class="flex flex-col gap-3 sm:flex-row">
         <flux:select wire:model.live="status" class="sm:max-w-44">

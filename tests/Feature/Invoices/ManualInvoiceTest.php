@@ -5,6 +5,7 @@ use App\Actions\Billing\IssueInvoice;
 use App\Actions\Billing\SaveManualInvoice;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\RoleName;
+use App\Livewire\Invoices\Index;
 use App\Livewire\Invoices\ManualForm;
 use App\Livewire\Invoices\Show;
 use App\Models\CompanySetting;
@@ -107,4 +108,22 @@ test('the manual invoice form saves lines and redirects to the draft', function 
 
     $invoice = Invoice::sole();
     expect($invoice->total)->toBe('47.500')->and($invoice->lines()->count())->toBe(2);
+});
+
+test('Finance starts a manual invoice from the Invoices list by choosing the customer', function () {
+    Livewire::actingAs($this->finance)->test(Index::class)
+        ->assertSee('New invoice')
+        ->set('newCustomerId', (string) $this->customer->id)
+        ->call('startInvoice')
+        ->assertRedirect(route('invoices.create', ['customer' => $this->customer->id]));
+
+    Livewire::actingAs($this->finance)->test(Index::class)
+        ->set('newCustomerId', '')->call('startInvoice')->assertHasErrors('newCustomerId');
+
+    $manager = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
+    Livewire::actingAs($manager)->test(Index::class)->assertDontSee('New invoice');
+});
+
+test('opening the new-invoice page without a customer goes back to the list instead of failing', function () {
+    $this->actingAs($this->finance)->get(route('invoices.create'))->assertRedirect(route('invoices.index'));
 });
