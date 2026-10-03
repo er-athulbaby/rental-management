@@ -36,7 +36,13 @@ class Entry extends Component
     public function mount(): void
     {
         abort_unless($this->actor()->can('manage', Cheque::class), 403);
-        $agreement = Agreement::query()->visibleTo($this->actor())->findOrFail(request()->integer('agreement'));
+        $agreement = Agreement::query()->visibleTo($this->actor())->find(request()->integer('agreement'));
+        if ($agreement === null) {
+            // No agreement chosen yet: the Cheques list's Enter cheques button asks for one first.
+            $this->redirectRoute('cheques.index', navigate: true);
+
+            return;
+        }
         $this->agreementId = $agreement->id;
 
         $taken = Cheque::query()->whereNotNull('invoice_id')->whereIn('status', ['held', 'deposited'])->pluck('invoice_id')->all();

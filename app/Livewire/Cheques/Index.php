@@ -3,12 +3,16 @@
 namespace App\Livewire\Cheques;
 
 use App\Actions\Cheques\DepositCheques;
+use App\Enums\AgreementStatus;
 use App\Enums\ChequeStatus;
 use App\Livewire\Concerns\WithActor;
+use App\Models\Agreement;
 use App\Models\Cheque;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -30,9 +34,27 @@ class Index extends Component
 
     public string $depositedOn = '';
 
+    public string $newAgreementId = '';
+
     public function mount(): void
     {
         $this->depositedOn = now('Asia/Bahrain')->toDateString();
+    }
+
+    /** Cheques are entered against one active agreement's open invoices: pick it, then fill them in. */
+    public function startEntry(): void
+    {
+        abort_unless($this->actor()->can('manage', Cheque::class), 403);
+        $this->validate(['newAgreementId' => ['required', 'integer', Rule::in($this->activeAgreements()->pluck('id')->all())]],
+            ['newAgreementId.required' => __('Choose the agreement.')]);
+
+        $this->redirectRoute('cheques.entry', ['agreement' => (int) $this->newAgreementId], navigate: true);
+    }
+
+    /** @return Builder<Agreement> */
+    private function activeAgreements(): Builder
+    {
+        return Agreement::query()->visibleTo($this->actor())->where('status', AgreementStatus::Active);
     }
 
     public function updating(string $property): void
@@ -70,7 +92,8 @@ class Index extends Component
         return view('livewire.cheques.index', [
             'cheques' => $cheques,
             'statuses' => ChequeStatus::cases(),
-            'canManage' => $this->actor()->can('manage', Cheque::class),
+            'canManage' => $canManage = $this->actor()->can('manage', Cheque::class),
+            'agreements' => $canManage ? $this->activeAgreements()->with('customer:id,name_en')->orderBy('number')->get(['id', 'number', 'customer_id']) : collect(),
         ]);
     }
 }

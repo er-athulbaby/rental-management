@@ -1,5 +1,28 @@
 <section class="w-full space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Cheques') }}</flux:heading>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+        <flux:heading size="xl" level="1">{{ __('Cheques') }}</flux:heading>
+        @if ($canManage)
+            <flux:modal.trigger name="enter-cheques">
+                <flux:button variant="primary">{{ __('Enter cheques') }}</flux:button>
+            </flux:modal.trigger>
+        @endif
+    </div>
+
+    @if ($canManage)
+        <flux:modal name="enter-cheques" class="md:w-96">
+            <form wire:submit="startEntry" class="space-y-4">
+                <flux:heading size="lg">{{ __('Enter cheques') }}</flux:heading>
+                <flux:text class="text-sm">{{ __('Post-dated cheques are entered against an active agreement, one cheque per rent invoice.') }}</flux:text>
+                <flux:select wire:model="newAgreementId" :label="__('Agreement')">
+                    <option value="">{{ __('Choose…') }}</option>
+                    @foreach ($agreements as $a)
+                        <option value="{{ $a->id }}">{{ $a->label() }} · {{ $a->customer->name_en }}</option>
+                    @endforeach
+                </flux:select>
+                <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Continue') }}</flux:button></div>
+            </form>
+        </flux:modal>
+    @endif
 
     <div class="flex flex-wrap items-end gap-3">
         <flux:select wire:model.live="status" :label="__('Status')" class="max-w-48">

@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Livewire\Cheques\Entry;
 use App\Livewire\Cheques\Index;
 use App\Livewire\Cheques\Show;
+use App\Models\Agreement;
 use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -90,4 +91,24 @@ test('only cheques.manage holders enter and act; finance.view holders see the re
     expect(Cheque::find($ids[1])->status->value)->toBe('held')
         ->and(Cheque::find($ids[0])->status->value)->toBe('deposited')
         ->and(Payment::count())->toBe(0);
+});
+
+test('Finance starts cheque entry from the list by choosing an active agreement', function () {
+    Livewire::actingAs($this->finance)->test(Index::class)
+        ->assertSee('Enter cheques')
+        ->set('newAgreementId', (string) $this->agreement->id)
+        ->call('startEntry')
+        ->assertRedirect(route('cheques.entry', ['agreement' => $this->agreement->id]));
+
+    $draft = Agreement::factory()->create(); // a draft: no cheques yet
+    Livewire::actingAs($this->finance)->test(Index::class)
+        ->set('newAgreementId', '')->call('startEntry')->assertHasErrors('newAgreementId')
+        ->set('newAgreementId', (string) $draft->id)->call('startEntry')->assertHasErrors('newAgreementId');
+
+    $manager = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
+    Livewire::actingAs($manager)->test(Index::class)->assertDontSee('Enter cheques');
+});
+
+test('opening cheque entry without an agreement goes back to the list instead of failing', function () {
+    $this->actingAs($this->finance)->get(route('cheques.entry'))->assertRedirect(route('cheques.index'));
 });
