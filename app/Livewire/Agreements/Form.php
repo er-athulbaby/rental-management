@@ -156,12 +156,9 @@ class Form extends Component
     public function render(): View
     {
         $actor = $this->actor();
-        $term = trim($this->customerSearch);
 
         return view('livewire.agreements.form', [
-            'customerResults' => mb_strlen($term) < 2 ? collect() : Customer::query()->visibleTo($actor)
-                ->where(fn ($q) => $q->where('name_en', 'like', '%'.$term.'%')->orWhere('id_number', $term)->orWhere('mobile', $term))
-                ->orderBy('name_en')->limit(8)->get(['id', 'name_en', 'id_number', 'mobile']),
+            'customerResults' => Customer::findFor($actor, $this->customerSearch),
             'buildings' => Building::query()->visibleTo($actor)->orderBy('name')->get(['id', 'code', 'name']),
             'pickableUnits' => $this->pickBuilding
                 ? Unit::query()->visibleTo($actor)->where('building_id', $this->pickBuilding)->orderBy('code')->get(['id', 'code', 'list_rent'])

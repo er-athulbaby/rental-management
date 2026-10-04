@@ -5,10 +5,13 @@
             <flux:button variant="primary" :href="route('disbursements.create')" wire:navigate>{{ __('New payment out') }}</flux:button>
         @endcan
     </div>
-    <flux:select wire:model.live="status" :label="__('Status')" class="max-w-48">
+    <div class="flex flex-col gap-3 sm:flex-row">
+    <flux:select wire:model.live="status" :label="__('Status')" class="sm:max-w-48">
         <option value="all">{{ __('All') }}</option>
         @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
     </flux:select>
+    <x-building-filter :buildings="$this->buildings" />
+    </div>
 
     <div class="overflow-x-auto">
         <flux:table :paginate="$rows">

@@ -10,20 +10,17 @@
 
     @if ($canCreate)
         <flux:modal name="new-payment" class="md:w-96">
-            <form wire:submit="startPayment" class="space-y-4">
+            <div class="space-y-4">
                 <flux:heading size="lg">{{ __('New payment') }}</flux:heading>
-                <flux:text class="text-sm">{{ __('Record money received from a customer by cash, transfer or card. Post-dated cheques are entered from the agreement page.') }}</flux:text>
-                <flux:select wire:model="newCustomerId" :label="__('Customer')">
-                    <option value="">{{ __('Choose…') }}</option>
-                    @foreach ($customers as $c)
-                        <option value="{{ $c->id }}">{{ $c->name_en }}</option>
-                    @endforeach
-                </flux:select>
-                <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Continue') }}</flux:button></div>
-            </form>
+                <flux:text class="text-sm">{{ __('Record money received from a customer by cash, transfer or card. Post-dated cheques are entered from the Cheques list.') }}</flux:text>
+                <x-customer-picker :results="$customerResults" :term="$customerSearch" action="startPayment" />
+            </div>
         </flux:modal>
     @endif
-    <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Receipt, reference or customer')" icon="magnifying-glass" class="sm:max-w-xs" />
+    <div class="flex flex-col gap-3 sm:flex-row">
+        <x-building-filter :buildings="$this->buildings" label="" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Receipt, reference, customer or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
+    </div>
 
     <div class="overflow-x-auto">
         <flux:table :paginate="$payments">

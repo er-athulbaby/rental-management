@@ -96,14 +96,13 @@ test('only cheques.manage holders enter and act; finance.view holders see the re
 test('Finance starts cheque entry from the list by choosing an active agreement', function () {
     Livewire::actingAs($this->finance)->test(Index::class)
         ->assertSee('Enter cheques')
-        ->set('newAgreementId', (string) $this->agreement->id)
-        ->call('startEntry')
+        ->set('agreementSearch', $this->agreement->number)
+        ->assertSee($this->agreement->number)
+        ->call('startEntry', $this->agreement->id)
         ->assertRedirect(route('cheques.entry', ['agreement' => $this->agreement->id]));
 
-    $draft = Agreement::factory()->create(); // a draft: no cheques yet
-    Livewire::actingAs($this->finance)->test(Index::class)
-        ->set('newAgreementId', '')->call('startEntry')->assertHasErrors('newAgreementId')
-        ->set('newAgreementId', (string) $draft->id)->call('startEntry')->assertHasErrors('newAgreementId');
+    $draft = Agreement::factory()->create(['customer_id' => $this->customer->id]); // a draft: no cheques yet
+    Livewire::actingAs($this->finance)->test(Index::class)->call('startEntry', $draft->id)->assertNotFound();
 
     $manager = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
     Livewire::actingAs($manager)->test(Index::class)->assertDontSee('Enter cheques');

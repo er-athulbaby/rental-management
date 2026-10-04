@@ -3,6 +3,7 @@
 namespace App\Livewire\Disbursements;
 
 use App\Enums\DisbursementStatus;
+use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
 use App\Models\Disbursement;
@@ -15,14 +16,14 @@ use Livewire\WithPagination;
 #[Title('Payments out')]
 class Index extends Component
 {
-    use WithActor, WithPagination;
+    use FiltersByBuilding, WithActor, WithPagination;
 
     #[Url]
     public string $status = 'all';
 
     public function updating(string $property): void
     {
-        if ($property === 'status') {
+        if (in_array($property, ['status', 'building'], true)) {
             $this->resetPage();
         }
     }
@@ -33,6 +34,7 @@ class Index extends Component
             ->where(fn ($q) => $q->where('payee_type', 'owner')
                 ->orWhereIn('payee_id', Customer::query()->visibleTo($this->actor())->select('id')))
             ->when($this->status !== 'all', fn ($q) => $q->where('status', $this->status))
+            ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->latest('id')
             ->paginate(50);
 

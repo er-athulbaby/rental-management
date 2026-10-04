@@ -177,4 +177,11 @@ class Agreement extends Model
     {
         return $this->agreementUnits->sum(fn (AgreementUnit $au) => Fils::fromDecimal($au->deposit_amount));
     }
+
+    /** @param  Builder<Agreement>  $query */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->whereHas('agreementUnits.unit', fn (Builder $unit) => $unit->where('building_id', $buildingId));
+    }
 }

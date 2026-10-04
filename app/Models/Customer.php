@@ -8,6 +8,7 @@ use App\Enums\PermissionName;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -86,6 +87,20 @@ class Customer extends Model
             ->orWhereHas('agreements', fn (Builder $a) => $a->visibleTo($user)));
     }
 
+    /**
+     * The first matches for a customer picker; nothing until two characters are typed.
+     *
+     * @return Collection<int, Customer>
+     */
+    public static function findFor(User $user, string $term): Collection
+    {
+        if (mb_strlen(trim($term)) < 2) {
+            return new Collection;
+        }
+
+        return self::query()->visibleTo($user)->search($term)->orderBy('name_en')->limit(8)->get(['id', 'name_en', 'id_number', 'mobile']);
+    }
+
     public function maskedId(): string
     {
         return '••••'.substr($this->id_number, -4);
@@ -95,5 +110,22 @@ class Customer extends Model
     public function displayName(string $lang): string
     {
         return $lang === 'ar' && filled($this->name_ar) ? (string) $this->name_ar : $this->name_en;
+    }
+
+    /**
+     * Finds a customer by part of their name or mobile, their exact ID number, or a unit code they rent.
+     *
+     * @param  Builder<Customer>  $query
+     */
+    #[Scope]
+    protected function search(Builder $query, string $term): void
+    {
+        $term = trim($term);
+        $query->where(fn (Builder $q) => $q
+            ->where('name_en', 'like', '%'.$term.'%')
+            ->orWhere('name_ar', 'like', '%'.$term.'%')
+            ->orWhere('mobile', 'like', '%'.$term.'%')
+            ->orWhere('id_number', $term)
+            ->orWhereHas('agreements.agreementUnits.unit', fn (Builder $u) => $u->where('code', $term)));
     }
 }

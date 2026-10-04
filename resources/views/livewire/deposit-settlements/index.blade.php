@@ -1,10 +1,13 @@
 <section class="w-full space-y-6">
     <flux:heading size="xl" level="1">{{ __('Deposit settlements') }}</flux:heading>
-    <flux:select wire:model.live="status" :label="__('Show')" class="max-w-48">
+    <div class="flex flex-col gap-3 sm:flex-row">
+    <flux:select wire:model.live="status" :label="__('Show')" class="sm:max-w-48">
         <option value="open">{{ __('Open') }}</option>
         <option value="all">{{ __('All') }}</option>
         @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
     </flux:select>
+    <x-building-filter :buildings="$this->buildings" />
+    </div>
     <div class="overflow-x-auto">
         <flux:table :paginate="$rows">
             <flux:table.columns>

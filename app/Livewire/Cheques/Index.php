@@ -5,6 +5,7 @@ namespace App\Livewire\Cheques;
 use App\Actions\Cheques\DepositCheques;
 use App\Enums\AgreementStatus;
 use App\Enums\ChequeStatus;
+use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\Cheque;
@@ -12,7 +13,6 @@ use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -21,7 +21,7 @@ use Livewire\WithPagination;
 #[Title('Cheques')]
 class Index extends Component
 {
-    use WithActor, WithPagination;
+    use FiltersByBuilding, WithActor, WithPagination;
 
     #[Url]
     public string $status = 'held';
@@ -34,7 +34,7 @@ class Index extends Component
 
     public string $depositedOn = '';
 
-    public string $newAgreementId = '';
+    public string $agreementSearch = '';
 
     public function mount(): void
     {
@@ -42,13 +42,12 @@ class Index extends Component
     }
 
     /** Cheques are entered against one active agreement's open invoices: pick it, then fill them in. */
-    public function startEntry(): void
+    public function startEntry(int $agreementId): void
     {
         abort_unless($this->actor()->can('manage', Cheque::class), 403);
-        $this->validate(['newAgreementId' => ['required', 'integer', Rule::in($this->activeAgreements()->pluck('id')->all())]],
-            ['newAgreementId.required' => __('Choose the agreement.')]);
+        $agreement = $this->activeAgreements()->findOrFail($agreementId);
 
-        $this->redirectRoute('cheques.entry', ['agreement' => (int) $this->newAgreementId], navigate: true);
+        $this->redirectRoute('cheques.entry', ['agreement' => $agreement->id], navigate: true);
     }
 
     /** @return Builder<Agreement> */
@@ -59,7 +58,7 @@ class Index extends Component
 
     public function updating(string $property): void
     {
-        if (in_array($property, ['status', 'search'], true)) {
+        if (in_array($property, ['status', 'search', 'building'], true)) {
             $this->resetPage();
             $this->selected = [];
         }
@@ -82,9 +81,10 @@ class Index extends Component
         $cheques = Cheque::query()->visibleTo($this->actor())
             ->where('direction', 'received')
             ->when($this->status !== 'all', fn ($q) => $q->where('status', $this->status))
+            ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('cheque_no', 'like', '%'.$this->search.'%')
-                ->orWhereHas('customer', fn ($c) => $c->where('name_en', 'like', '%'.$this->search.'%'))))
+                ->orWhereHas('customer', fn ($c) => $c->search($this->search))))
             ->with(['customer:id,name_en', 'invoice:id,number,status'])
             ->orderBy('cheque_date')->orderBy('id')
             ->paginate(50);
@@ -93,7 +93,13 @@ class Index extends Component
             'cheques' => $cheques,
             'statuses' => ChequeStatus::cases(),
             'canManage' => $canManage = $this->actor()->can('manage', Cheque::class),
-            'agreements' => $canManage ? $this->activeAgreements()->with('customer:id,name_en')->orderBy('number')->get(['id', 'number', 'customer_id']) : collect(),
+            // Type-to-search: by agreement number, or the customer's name, mobile, ID or unit code.
+            'agreementResults' => $canManage && mb_strlen(trim($this->agreementSearch)) >= 2
+                ? $this->activeAgreements()
+                    ->where(fn ($q) => $q->where('number', 'like', '%'.trim($this->agreementSearch).'%')
+                        ->orWhereHas('customer', fn ($c) => $c->search($this->agreementSearch)))
+                    ->with('customer:id,name_en,mobile')->orderBy('number')->limit(8)->get(['id', 'number', 'customer_id'])
+                : collect(),
         ]);
     }
 }

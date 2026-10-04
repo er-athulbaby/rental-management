@@ -1,10 +1,26 @@
-<div class="space-y-4">
+<div class="space-y-4" x-data="{ src: '', image: false, name: '' }">
     <flux:heading size="lg">{{ __('Documents') }}</flux:heading>
+
+    <flux:modal name="doc-preview-{{ $this->getId() }}" class="w-full max-w-5xl" x-on:close="src = ''">
+        <div class="space-y-3">
+            <flux:heading size="lg" class="truncate pe-8" x-text="name"></flux:heading>
+            <template x-if="src && image"><img :src="src" :alt="name" class="mx-auto max-h-[75vh] rounded" /></template>
+            <template x-if="src && ! image"><iframe :src="src" :title="name" class="h-[75vh] w-full rounded border border-zinc-200 dark:border-zinc-700"></iframe></template>
+        </div>
+    </flux:modal>
 
     <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
         @forelse ($documents as $document)
             <li class="flex flex-wrap items-center justify-between gap-2 py-2">
-                <flux:link :href="route('documents.download', $document)">{{ $document->original_name }}</flux:link>
+                <div class="flex min-w-0 items-center gap-2">
+                    @if ($type = $document->previewType())
+                        <button type="button" class="truncate text-start text-sm font-medium underline decoration-zinc-800/20 underline-offset-[6px] hover:decoration-current dark:decoration-white/20"
+                            x-on:click="src = @js(route('documents.view', $document)); image = @js(str_starts_with($type, 'image/')); name = @js($document->original_name); $flux.modal('doc-preview-{{ $this->getId() }}').show()">{{ $document->original_name }}</button>
+                    @else
+                        <flux:link :href="route('documents.download', $document)">{{ $document->original_name }}</flux:link>
+                    @endif
+                    <flux:button size="xs" variant="ghost" icon="arrow-down-tray" :href="route('documents.download', $document)" :tooltip="__('Download')" :aria-label="__('Download')" />
+                </div>
                 <div class="flex items-center gap-2">
                     <flux:badge size="sm">{{ $document->category->label() }}</flux:badge>
                     @if ($document->expires_on)

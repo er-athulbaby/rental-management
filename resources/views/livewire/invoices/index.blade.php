@@ -10,17 +10,11 @@
 
     @if ($canCreate)
         <flux:modal name="new-invoice" class="md:w-96">
-            <form wire:submit="startInvoice" class="space-y-4">
+            <div class="space-y-4">
                 <flux:heading size="lg">{{ __('New invoice') }}</flux:heading>
                 <flux:text class="text-sm">{{ __('For charges outside the rent schedule, such as a repair or a fee. Rent invoices are created automatically from agreements.') }}</flux:text>
-                <flux:select wire:model="newCustomerId" :label="__('Customer')">
-                    <option value="">{{ __('Choose…') }}</option>
-                    @foreach ($customers as $c)
-                        <option value="{{ $c->id }}">{{ $c->name_en }}</option>
-                    @endforeach
-                </flux:select>
-                <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Continue') }}</flux:button></div>
-            </form>
+                <x-customer-picker :results="$customerResults" :term="$customerSearch" action="startInvoice" />
+            </div>
         </flux:modal>
     @endif
 
@@ -33,7 +27,8 @@
             <option value="">{{ __('All types') }}</option>
             @foreach ($types as $t)<option value="{{ $t->value }}">{{ $t->label() }}</option>@endforeach
         </flux:select>
-        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number or customer')" icon="magnifying-glass" class="sm:max-w-xs" />
+        <x-building-filter :buildings="$this->buildings" label="" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number, customer name or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
     </div>
 
     <div class="overflow-x-auto">

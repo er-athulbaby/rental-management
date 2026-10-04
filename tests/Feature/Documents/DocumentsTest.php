@@ -91,3 +91,23 @@ test('categories read in proper English in the panel', function () {
     expect(array_map(fn (DocumentCategory $c) => $c->label(), DocumentCategory::cases()))
         ->toBe(['Photo', 'ID copy', 'CR copy', 'Signed contract', 'Cheque image', 'Move-out photo', 'Owner approval', 'Generated PDF', 'Other']);
 });
+
+test('PDFs and pictures open in the browser with a fixed type; Word and Excel files still download', function () {
+    $viewer = User::factory()->create()->assignRole(RoleName::Leasing);
+    $viewer->buildings()->attach($this->building->id);
+    $pdf = upload($this->manager, $this->building, UploadedFile::fake()->create('lease.pdf', 10, 'application/pdf'));
+    $photo = upload($this->manager, $this->building, UploadedFile::fake()->image('flat.png'));
+    $sheet = upload($this->manager, $this->building, UploadedFile::fake()->create('rent.xlsx', 10, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+
+    $this->actingAs($viewer)->get(route('documents.view', $pdf))
+        ->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeader('Content-Disposition', 'inline; filename=lease.pdf');
+    $this->actingAs($viewer)->get(route('documents.view', $photo))->assertOk()->assertHeader('Content-Type', 'image/png');
+    $this->actingAs($viewer)->get(route('documents.view', $sheet))->assertDownload('rent.xlsx');
+    expect(Activity::query()->where('event', 'document.viewed')->count())->toBe(2);
+
+    $this->actingAs(User::factory()->create()->assignRole(RoleName::Leasing))->get(route('documents.view', $pdf))->assertForbidden();
+
+    $html = stripslashes(Livewire::actingAs($this->manager)->test(Panel::class, ['documentable' => $this->building])->html());
+    expect($html)->toContain(route('documents.view', $pdf))->not->toContain(route('documents.view', $sheet));
+});

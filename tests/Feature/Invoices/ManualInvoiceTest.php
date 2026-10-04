@@ -113,12 +113,13 @@ test('the manual invoice form saves lines and redirects to the draft', function 
 test('Finance starts a manual invoice from the Invoices list by choosing the customer', function () {
     Livewire::actingAs($this->finance)->test(Index::class)
         ->assertSee('New invoice')
-        ->set('newCustomerId', (string) $this->customer->id)
-        ->call('startInvoice')
+        ->assertSee('Type at least 2 letters or digits.')
+        ->set('customerSearch', $this->customer->mobile)
+        ->assertSee($this->customer->maskedId())
+        ->set('customerSearch', 'no such customer')
+        ->assertSee('No customer found.')
+        ->call('startInvoice', $this->customer->id)
         ->assertRedirect(route('invoices.create', ['customer' => $this->customer->id]));
-
-    Livewire::actingAs($this->finance)->test(Index::class)
-        ->set('newCustomerId', '')->call('startInvoice')->assertHasErrors('newCustomerId');
 
     $manager = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
     Livewire::actingAs($manager)->test(Index::class)->assertDontSee('New invoice');

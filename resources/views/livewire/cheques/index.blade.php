@@ -10,17 +10,27 @@
 
     @if ($canManage)
         <flux:modal name="enter-cheques" class="md:w-96">
-            <form wire:submit="startEntry" class="space-y-4">
+            <div class="space-y-4">
                 <flux:heading size="lg">{{ __('Enter cheques') }}</flux:heading>
                 <flux:text class="text-sm">{{ __('Post-dated cheques are entered against an active agreement, one cheque per rent invoice.') }}</flux:text>
-                <flux:select wire:model="newAgreementId" :label="__('Agreement')">
-                    <option value="">{{ __('Choose…') }}</option>
-                    @foreach ($agreements as $a)
-                        <option value="{{ $a->id }}">{{ $a->label() }} · {{ $a->customer->name_en }}</option>
-                    @endforeach
-                </flux:select>
-                <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Continue') }}</flux:button></div>
-            </form>
+                <flux:input wire:model.live.debounce.300ms="agreementSearch" :label="__('Agreement')" :placeholder="__('Agreement no., customer, mobile or unit code')" icon="magnifying-glass" autocomplete="off" />
+                @if (mb_strlen(trim($agreementSearch)) < 2)
+                    <flux:text class="text-sm">{{ __('Type at least 2 letters or digits.') }}</flux:text>
+                @elseif ($agreementResults->isEmpty())
+                    <flux:text class="text-sm">{{ __('No active agreement found.') }}</flux:text>
+                @else
+                    <ul class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+                        @foreach ($agreementResults as $a)
+                            <li wire:key="pick-{{ $a->id }}">
+                                <button type="button" wire:click="startEntry({{ $a->id }})" class="w-full px-3 py-2 text-start text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                                    <span class="font-medium">{{ $a->label() }}</span>
+                                    <span class="text-zinc-500">· {{ $a->customer->name_en }} · {{ $a->customer->mobile }}</span>
+                                </button>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </div>
         </flux:modal>
     @endif
 
@@ -29,7 +39,8 @@
             <option value="all">{{ __('All') }}</option>
             @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
         </flux:select>
-        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no. or customer')" icon="magnifying-glass" class="sm:max-w-xs" />
+        <x-building-filter :buildings="$this->buildings" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no., customer or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
         @if ($canManage && $status === 'held')
             <flux:input wire:model="depositedOn" type="date" :label="__('Deposited on')" class="max-w-44" />
             <flux:button variant="primary" wire:click="depositSelected" :disabled="count($selected) === 0">{{ __('Deposit selected') }}</flux:button>

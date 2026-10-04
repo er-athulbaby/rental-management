@@ -7,6 +7,8 @@ use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\PayeeType;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -105,5 +107,26 @@ class Disbursement extends Model
     public function label(): string
     {
         return $this->number ?? __(':status #:id', ['status' => $this->status->label(), 'id' => $this->id]);
+    }
+
+    /**
+     * By what the money paid for: a refunded payment, a deposit refund, a head-lease rent or an owner remittance.
+     *
+     * @param  Builder<Disbursement>  $query
+     */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $contracts = OwnerContract::query()->where('building_id', $buildingId)->select('id');
+
+        $query->where(fn (Builder $q) => $q
+            ->where(fn (Builder $s) => $s->where('source_type', self::SOURCE_PAYMENT)
+                ->whereIn('source_id', Payment::query()->inBuilding($buildingId)->select('id')))
+            ->orWhere(fn (Builder $s) => $s->where('source_type', self::SOURCE_SETTLEMENT)
+                ->whereIn('source_id', DepositSettlement::query()->inBuilding($buildingId)->select('id')))
+            ->orWhere(fn (Builder $s) => $s->where('source_type', self::SOURCE_PAYABLE)
+                ->whereIn('source_id', OwnerPayable::query()->whereIn('owner_contract_id', $contracts)->select('id')))
+            ->orWhere(fn (Builder $s) => $s->where('source_type', self::SOURCE_STATEMENT)
+                ->whereIn('source_id', OwnerStatement::query()->whereIn('owner_contract_id', $contracts)->select('id'))));
     }
 }

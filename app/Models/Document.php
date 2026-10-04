@@ -43,4 +43,16 @@ class Document extends Model
     {
         return $this->belongsTo(User::class, 'uploaded_by');
     }
+
+    /** The type a browser can show in place (PDF or picture), or null for Word and Excel files, which download. */
+    public function previewType(): ?string
+    {
+        return match (strtolower(pathinfo($this->original_name, PATHINFO_EXTENSION))) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            default => null,
+        };
+    }
 }

@@ -115,4 +115,13 @@ class Cheque extends Model
 
         $query->where(fn ($q) => $q->whereIn('customer_id', Customer::query()->visibleTo($user)->select('id'))->orWhereNotNull('owner_id'));
     }
+
+    /** @param  Builder<Cheque>  $query */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->whereHas('agreement', fn (Builder $a) => $a->inBuilding($buildingId))
+            ->orWhereHas('invoice', fn (Builder $i) => $i->inBuilding($buildingId)));
+    }
 }

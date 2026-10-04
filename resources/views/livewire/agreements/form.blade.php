@@ -8,7 +8,7 @@
             @if ($customerLabel)
                 <flux:text class="mb-2">{{ $customerLabel }}</flux:text>
             @endif
-            <flux:input wire:model.live.debounce.300ms="customerSearch" :placeholder="__('Search name, exact ID or mobile')" icon="magnifying-glass" />
+            <flux:input wire:model.live.debounce.300ms="customerSearch" :placeholder="__('Name, mobile, ID number or unit code')" icon="magnifying-glass" />
             @if ($customerResults->isNotEmpty())
                 <ul class="mt-2 divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
                     @foreach ($customerResults as $c)

@@ -8,6 +8,8 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -102,5 +104,19 @@ class Payment extends Model
             ->where('purpose', DisbursementPurpose::CreditRefund)
             ->whereIn('status', [DisbursementStatus::Paid])
             ->sum('amount') ?: '0'));
+    }
+
+    /**
+     * By where the money went; a payment held entirely as credit goes by where the customer rents.
+     *
+     * @param  Builder<Payment>  $query
+     */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->whereHas('allocations.line.invoice', fn (Builder $i) => $i->inBuilding($buildingId))
+            ->orWhere(fn (Builder $credit) => $credit->whereDoesntHave('allocations')
+                ->whereHas('customer.agreements', fn (Builder $a) => $a->inBuilding($buildingId))));
     }
 }

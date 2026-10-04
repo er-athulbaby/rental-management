@@ -145,4 +145,17 @@ class Invoice extends Model
     {
         return $this->hasMany(self::class, 'related_invoice_id');
     }
+
+    /**
+     * Rent invoices follow their agreement; manual invoices follow the units on their lines.
+     *
+     * @param  Builder<Invoice>  $query
+     */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->whereHas('agreement', fn (Builder $a) => $a->inBuilding($buildingId))
+            ->orWhereHas('lines.unit', fn (Builder $u) => $u->where('building_id', $buildingId)));
+    }
 }

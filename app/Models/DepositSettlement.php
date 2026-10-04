@@ -6,6 +6,8 @@ use App\Enums\DepositSettlementStatus;
 use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Support\Fils;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -94,5 +96,12 @@ class DepositSettlement extends Model
     public function label(): string
     {
         return $this->number ?? __(':status #:id', ['status' => $this->status->label(), 'id' => $this->id]);
+    }
+
+    /** @param  Builder<DepositSettlement>  $query */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->whereHas('agreement', fn (Builder $a) => $a->inBuilding($buildingId));
     }
 }

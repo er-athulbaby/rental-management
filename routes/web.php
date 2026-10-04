@@ -11,6 +11,7 @@ Route::get('v/{token}', VerifyAgreementController::class)->middleware('throttle:
 Route::middleware(['auth'])->group(function () {
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
     Route::get('documents/{document}', [DocumentController::class, 'download'])->name('documents.download');
+    Route::get('documents/{document}/view', [DocumentController::class, 'show'])->name('documents.view');
 });
 
 require __DIR__.'/settings.php';

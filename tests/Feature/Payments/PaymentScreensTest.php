@@ -86,12 +86,10 @@ test('only payments.manage records; finance.view holders see payments', function
 test('Finance starts a new payment from the list by choosing the customer', function () {
     Livewire::actingAs($this->finance)->test(Index::class)
         ->assertSee('New payment')
-        ->set('newCustomerId', (string) $this->customer->id)
-        ->call('startPayment')
+        ->set('customerSearch', 'Noor')
+        ->assertSee('Noor Aziz')
+        ->call('startPayment', $this->customer->id)
         ->assertRedirect(route('payments.create', ['customer' => $this->customer->id]));
-
-    Livewire::actingAs($this->finance)->test(Index::class)
-        ->set('newCustomerId', '')->call('startPayment')->assertHasErrors('newCustomerId');
 
     $manager = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
     Livewire::actingAs($manager)->test(Index::class)->assertDontSee('New payment');
