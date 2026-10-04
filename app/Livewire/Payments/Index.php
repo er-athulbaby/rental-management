@@ -42,7 +42,7 @@ class Index extends Component
     {
         $payments = Payment::query()
             ->whereIn('customer_id', Customer::query()->visibleTo($this->actor())->select('id'))
-            ->with('customer:id,name_en')
+            ->with(['customer:id,name_en', 'tenders'])
             ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('number', 'like', '%'.$this->search.'%')

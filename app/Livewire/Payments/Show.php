@@ -39,7 +39,7 @@ class Show extends Component
 
     protected function payment(): Payment
     {
-        return Payment::with(['customer', 'recorder:id,name', 'allocations.line.invoice'])->findOrFail($this->paymentId);
+        return Payment::with(['customer', 'recorder:id,name', 'allocations.line.invoice', 'tenders'])->findOrFail($this->paymentId);
     }
 
     public function requestReversal(RequestPaymentReversal $request): void

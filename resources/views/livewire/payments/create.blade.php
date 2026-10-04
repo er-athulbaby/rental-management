@@ -3,13 +3,43 @@
 
     <form wire:submit="save" class="space-y-4">
         <div class="grid gap-4 sm:grid-cols-2">
-            <flux:input wire:model="form.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
-            <flux:input wire:model="form.received_on" type="date" :label="__('Received on')" />
-            <flux:select wire:model="form.method" :label="__('Method')">
+            <flux:select wire:model.live="form.method" :label="__('Method')">
                 @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
+                <option value="split">{{ __('Split — several methods, one receipt') }}</option>
             </flux:select>
-            <flux:input wire:model="form.reference" :label="__('Reference')" />
+            <flux:input wire:model="form.received_on" type="date" :label="__('Received on')" />
+            @unless ($isSplit)
+                <flux:input wire:model="form.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
+                <flux:input wire:model="form.reference" :label="__('Reference')" />
+            @endunless
         </div>
+
+        @if ($isSplit)
+            <flux:fieldset>
+                <flux:legend>{{ __('Paid by') }}</flux:legend>
+                <flux:text size="sm">{{ __('One line per method, e.g. card 300 and cash 200. The payment is their total, on one receipt.') }}</flux:text>
+                <div class="mt-2 space-y-2">
+                    @foreach ($tenders as $i => $t)
+                        <div class="flex flex-wrap items-start gap-2" wire:key="tender-{{ $i }}">
+                            <flux:select wire:model="tenders.{{ $i }}.method" :aria-label="__('Method')" class="max-w-40">
+                                @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
+                            </flux:select>
+                            <flux:input wire:model.live.debounce.400ms="tenders.{{ $i }}.amount" inputmode="decimal" :placeholder="__('BHD')" :aria-label="__('Amount (BHD)')" class="max-w-32" />
+                            <flux:input wire:model="tenders.{{ $i }}.reference" :placeholder="__('Reference, e.g. card slip no.')" :aria-label="__('Reference')" class="min-w-0 flex-1" />
+                            @if (count($tenders) > 2)
+                                <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="removeTender({{ $i }})" :aria-label="__('Remove')" />
+                            @endif
+                        </div>
+                        <flux:error name="tenders.{{ $i }}.method" /><flux:error name="tenders.{{ $i }}.amount" /><flux:error name="tenders.{{ $i }}.reference" />
+                    @endforeach
+                </div>
+                <div class="mt-2 flex items-center justify-between gap-2">
+                    <flux:button size="sm" wire:click="addTender" icon="plus">{{ __('Add a method') }}</flux:button>
+                    <flux:text class="font-medium tabular-nums">{{ __('Total: :t BHD', ['t' => $tendersTotal ?? '—']) }}</flux:text>
+                </div>
+                <flux:error name="tenders" />
+            </flux:fieldset>
+        @endif
         <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
         <flux:error name="form.amount" />
         <flux:error name="form.received_on" />

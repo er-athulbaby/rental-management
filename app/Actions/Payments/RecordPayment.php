@@ -11,8 +11,12 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
-/** Spec §7.1–§7.2: Finance records a payment; no approval. Cheque payments come only from ClearCheque. */
+/**
+ * Spec §7.1–§7.2: Finance records a payment; no approval. Cheque payments come only from ClearCheque.
+ * A split payment (card 300 + cash 200) passes `tenders` instead of `method`: one payment, one receipt, its parts kept as tenders.
+ */
 final class RecordPayment
 {
     public function __construct(private PostPayment $post) {}
@@ -24,10 +28,23 @@ final class RecordPayment
             throw new AuthorizationException;
         }
 
+        $manual = array_map(fn (PaymentMethod $m) => $m->value, PaymentMethod::manual());
+        // Blank part rows are ignored; a single part is just a payment by that method.
+        $data['tenders'] = array_values(array_filter((array) ($data['tenders'] ?? []), fn ($t) => filled($t['method'] ?? null) || filled($t['amount'] ?? null)));
+        if (count($data['tenders']) === 1) {
+            $data = [...$data, 'method' => $data['tenders'][0]['method'] ?? null, 'amount' => $data['tenders'][0]['amount'] ?? null,
+                'reference' => filled($data['tenders'][0]['reference'] ?? null) ? $data['tenders'][0]['reference'] : ($data['reference'] ?? null), 'tenders' => []];
+        }
+        $split = $data['tenders'] !== [];
+
         $validated = Validator::make($data, [
             'received_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Bahrain')->toDateString()],
-            'method' => ['required', Rule::in(array_map(fn (PaymentMethod $m) => $m->value, PaymentMethod::manual()))],
-            'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
+            'method' => $split ? ['nullable'] : ['required', Rule::in($manual)],
+            'tenders' => ['array'],
+            'tenders.*.method' => ['required', Rule::in($manual)],
+            'tenders.*.amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
+            'tenders.*.reference' => ['nullable', 'string', 'max:100'],
+            'amount' => [$split ? 'nullable' : 'required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'allocations' => ['nullable', 'array'],
@@ -35,21 +52,32 @@ final class RecordPayment
             'allocations.*.amount' => ['required', Fils::rule()],
         ])->validate();
 
-        $amount = Fils::fromDecimal((string) $validated['amount']);
+        $tenders = $validated['tenders'] ?? [];
+        $amount = $split ? array_sum(array_map(fn ($t) => Fils::fromDecimal((string) $t['amount']), $tenders)) : Fils::fromDecimal((string) $validated['amount']);
+        if ($split && filled($validated['amount'] ?? null) && Fils::fromDecimal((string) $validated['amount']) !== $amount) {
+            throw ValidationException::withMessages(['tenders' => __('The parts add up to :sum, not the amount :amount.', ['sum' => Fils::toDecimal($amount), 'amount' => Fils::toDecimal(Fils::fromDecimal((string) $validated['amount']))])]);
+        }
 
-        return DB::transaction(function () use ($actor, $customer, $validated, $amount) {
+        return DB::transaction(function () use ($actor, $customer, $validated, $amount, $split, $tenders) {
             $locked = Customer::query()->lockForUpdate()->findOrFail($customer->id); // first lock (spec §7.2)
 
             $entries = array_values(array_filter((array) ($validated['allocations'] ?? []), fn ($e) => Fils::fromDecimal((string) $e['amount']) > 0));
             $plan = $entries === [] ? AllocationPlan::oldestFirst($locked->id, $amount) : AllocationPlan::explicit($locked->id, $entries);
 
-            return $this->post->handle($locked, [
+            $payment = $this->post->handle($locked, [
                 'received_on' => $validated['received_on'],
-                'method' => $validated['method'],
+                'method' => $split ? PaymentMethod::Split->value : $validated['method'],
                 'amount' => Fils::toDecimal($amount),
                 'reference' => $validated['reference'] ?? null,
                 'notes' => $validated['notes'] ?? null,
             ], $plan, $actor);
+
+            // Written before commit, so the receipt job (dispatched after commit) sees every part.
+            foreach ($tenders as $t) {
+                $payment->tenders()->create(['method' => $t['method'], 'amount' => Fils::toDecimal(Fils::fromDecimal((string) $t['amount'])), 'reference' => $t['reference'] ?? null]);
+            }
+
+            return $payment;
         }, attempts: 3);
     }
 }

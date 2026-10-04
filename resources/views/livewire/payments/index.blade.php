@@ -38,7 +38,7 @@
                         <flux:table.cell><flux:link :href="route('payments.show', $payment)" wire:navigate>{{ $payment->number }}</flux:link></flux:table.cell>
                         <flux:table.cell>{{ $payment->customer->name_en }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $payment->received_on->format('d/m/Y') }}</flux:table.cell>
-                        <flux:table.cell>{{ $payment->method->label() }}</flux:table.cell>
+                        <flux:table.cell>{{ $payment->methodSummary() }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $payment->amount }}</flux:table.cell>
                         <flux:table.cell><flux:badge size="sm">{{ str($payment->status->value)->headline() }}</flux:badge></flux:table.cell>
                     </flux:table.row>

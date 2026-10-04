@@ -4,6 +4,8 @@ namespace App\Livewire\Reports;
 
 use App\Enums\PaymentMethod;
 use App\Livewire\Reports\Concerns\ReportPage;
+use App\Models\Payment;
+use App\Models\PaymentTender;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Livewire\Component;
@@ -38,11 +40,16 @@ class CollectionsReport extends Component
     /** @return list<array<string, string|int|null>> */
     protected function rows(): array
     {
-        $payments = Queries::collections($this->actor(), $this->from, $this->to, $this->building)->get(['received_on', 'method', 'amount']);
+        $payments = Queries::collections($this->actor(), $this->from, $this->to, $this->building)->with('tenders')->get(['id', 'received_on', 'method', 'amount']);
         $applied = $payments->filter(fn ($p) => $p->method === PaymentMethod::DepositApplied);
         $collected = $payments->reject(fn ($p) => $p->method === PaymentMethod::DepositApplied);
 
-        $rows = array_values($collected->groupBy(fn ($p) => $p->received_on->toDateString().'|'.$p->method->label())->sortKeys()
+        // A split payment counts under each of its parts, so the cash and card totals match the drawer and the card machine.
+        $parts = $collected->flatMap(fn (Payment $p): array => $p->method === PaymentMethod::Split
+            ? $p->tenders->map(fn (PaymentTender $t): Payment => (new Payment)->forceFill(['received_on' => $p->received_on, 'method' => $t->method, 'amount' => $t->amount]))->all()
+            : [$p]);
+
+        $rows = array_values($parts->groupBy(fn (Payment $p) => $p->received_on->toDateString().'|'.$p->method->label())->sortKeys()
             ->map(fn ($group) => [
                 'date' => $group->firstOrFail()->received_on->format('d/m/Y'),
                 'method' => $group->firstOrFail()->method->label(),

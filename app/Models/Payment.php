@@ -66,6 +66,20 @@ class Payment extends Model
         return $this->hasMany(PaymentAllocation::class);
     }
 
+    /** @return HasMany<PaymentTender, $this> the parts of a split payment; none otherwise */
+    public function tenders(): HasMany
+    {
+        return $this->hasMany(PaymentTender::class);
+    }
+
+    /** "Card 300.000 + Cash 200.000" for a split payment, else the method name. */
+    public function methodSummary(): string
+    {
+        return $this->method === PaymentMethod::Split
+            ? $this->tenders->map(fn (PaymentTender $t) => $t->method->label().' '.$t->amount.($t->reference ? ' ('.$t->reference.')' : ''))->implode(' + ')
+            : $this->method->label();
+    }
+
     /** @return BelongsTo<Cheque, $this> */
     public function cheque(): BelongsTo
     {

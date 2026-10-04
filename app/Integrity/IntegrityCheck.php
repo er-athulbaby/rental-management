@@ -16,7 +16,7 @@ final class IntegrityCheck
      * Every immutability trigger (spec §8.5). A migration that adds or drops a trigger must change this number;
      * IntegrityCheckTest fails until it does.
      */
-    public const int EXPECTED_TRIGGERS = 59; // 38 at the end of M3a + 2 (disbursements) + 8 (deposit settlements) + 1 (invoice line charge) + 3 (amendments; the two insert triggers are replaced, not added) + 1 (credit source) + 2 (owner payables) + 2 (owner charges) + 2 (owner statements)
+    public const int EXPECTED_TRIGGERS = 61; // 38 at the end of M3a + 2 (disbursements) + 8 (deposit settlements) + 1 (invoice line charge) + 3 (amendments; the two insert triggers are replaced, not added) + 1 (credit source) + 2 (owner payables) + 2 (owner charges) + 2 (owner statements) + 2 (payment tenders)
 
     /** @return list<string> */
     public function run(): array
@@ -64,6 +64,14 @@ final class IntegrityCheck
             HAVING credit < 0
             SQL) as $row) {
             $failures[] = "customer {$row->customer_id}: credit is {$row->credit}";
+        }
+
+        foreach (DB::select(<<<'SQL'
+            SELECT p.number, p.amount, COALESCE(t.s, 0) AS parts FROM payments p
+            LEFT JOIN (SELECT payment_id, SUM(amount) AS s, COUNT(*) AS n FROM payment_tenders GROUP BY payment_id) t ON t.payment_id = p.id
+            WHERE (p.method = 'split' AND (t.n IS NULL OR t.n < 2 OR t.s <> p.amount)) OR (p.method <> 'split' AND t.n IS NOT NULL)
+            SQL) as $row) {
+            $failures[] = "payment {$row->number}: amount {$row->amount} but its split parts sum to {$row->parts}";
         }
 
         foreach (DB::select('SELECT agreement_unit_id, SUM(amount) AS held FROM deposit_movements GROUP BY agreement_unit_id HAVING held < 0') as $row) {

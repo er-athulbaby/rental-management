@@ -74,7 +74,7 @@ final class PaymentReversal implements ApprovalHandler
 
         return __('Reverse payment :n: :amount BHD from :customer, received :date by :method. Reason: :reason', [
             'n' => $payment->number, 'amount' => $payment->amount, 'customer' => $customer->name_en,
-            'date' => $payment->received_on->format('d/m/Y'), 'method' => $payment->method->label(), 'reason' => $approval->reason,
+            'date' => $payment->received_on->format('d/m/Y'), 'method' => $payment->methodSummary(), 'reason' => $approval->reason,
         ]);
     }
 

@@ -21,7 +21,7 @@
 <p>
     {{ __('Received from') }} <strong>{{ $payment->customer->name_en }}</strong>
     {{ __('the sum of') }} <strong>BHD {{ $payment->amount }}</strong>
-    {{ __('on :d by :m', ['d' => $payment->received_on->format('d/m/Y'), 'm' => $payment->method->label()]) }}@if ($payment->reference) ({{ $payment->reference }})@endif.
+    {{ __('on :d by :m', ['d' => $payment->received_on->format('d/m/Y'), 'm' => $payment->methodSummary()]) }}@if ($payment->reference) ({{ $payment->reference }})@endif.
 </p>
 
 <table class="lines">

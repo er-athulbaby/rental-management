@@ -15,7 +15,7 @@ final class ReceiptPdf
 
     public function render(Payment $payment): string
     {
-        $payment->loadMissing(['customer', 'allocations.line.invoice']);
+        $payment->loadMissing(['customer', 'allocations.line.invoice', 'tenders']);
         $settings = CompanySetting::current();
         $byInvoice = $payment->allocations->groupBy(fn (PaymentAllocation $a): string => $a->line?->invoice->number ?? '')
             ->map(fn ($rows) => Fils::toDecimal($rows->sum(fn ($a) => Fils::fromDecimal($a->amount))));

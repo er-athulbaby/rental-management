@@ -9,6 +9,7 @@ enum PaymentMethod: string
     case Cheque = 'cheque';               // only by clearing a cheque (spec §7.4)
     case Card = 'card';
     case DepositApplied = 'deposit_applied'; // only by deposit settlements (spec §7.7, M3b)
+    case Split = 'split';                 // several manual methods on one receipt; the parts are payment_tenders
 
     public function label(): string
     {
