@@ -4,10 +4,10 @@ namespace App\Actions\Units;
 
 use App\Enums\Furnishing;
 use App\Enums\TaxCategory;
-use App\Enums\UnitType;
 use App\Enums\UnitUse;
 use App\Models\Building;
 use App\Models\Unit;
+use App\Models\UnitType;
 use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -32,7 +32,7 @@ final class SaveUnit
                 ? ['nullable', 'string', 'max:10']
                 : ['required', 'string', 'max:8', 'regex:/^[A-Za-z0-9]+$/'],
             'use' => ['required', Rule::enum(UnitUse::class)],
-            'type' => ['required', Rule::enum(UnitType::class)],
+            'type' => ['required', 'string', UnitType::rule($unit?->type)],
             'bedrooms' => ['nullable', 'integer', 'between:0,20'],
             'bathrooms' => ['nullable', 'integer', 'between:0,20'],
             'area_sqm' => ['nullable', 'numeric', 'between:0,999999'],

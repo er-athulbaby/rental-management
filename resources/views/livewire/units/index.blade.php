@@ -13,6 +13,10 @@
                 <option value="{{ $building->id }}">{{ $building->code }} — {{ $building->name }}</option>
             @endforeach
         </flux:select>
+        <flux:select wire:model.live="type" class="sm:max-w-56">
+            <option value="">{{ __('All types') }}</option>
+            @foreach ($types as $t)<option value="{{ $t->code }}">{{ $t->name }}</option>@endforeach
+        </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Unit code')" icon="magnifying-glass" class="sm:max-w-40" />
     </div>
 
@@ -30,7 +34,7 @@
                     <flux:table.row :key="$unit->id">
                         <flux:table.cell>{{ $unit->building->code }}</flux:table.cell>
                         <flux:table.cell><flux:link :href="route('units.edit', $unit)" wire:navigate>{{ $unit->code }}</flux:link></flux:table.cell>
-                        <flux:table.cell>{{ str($unit->type->value)->headline() }}</flux:table.cell>
+                        <flux:table.cell>{{ $unit->unitType?->name ?? $unit->type }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $unit->list_rent }}</flux:table.cell>
                         <flux:table.cell>
                             <flux:badge size="sm">{{ $unit->status()->label() }}</flux:badge>

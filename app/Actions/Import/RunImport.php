@@ -42,6 +42,7 @@ use App\Models\Owner;
 use App\Models\OwnerCharge;
 use App\Models\OwnerContract;
 use App\Models\Unit;
+use App\Models\UnitType;
 use App\Models\User;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
@@ -213,6 +214,7 @@ final class RunImport
             ImportKind::Buildings => $this->buildings->handle($actor, null, self::buildingRow($row)),
             ImportKind::Units => $this->units->handle($actor, null, [
                 ...$row,
+                'type' => UnitType::canonical((string) ($row['type'] ?? '')) ?? $row['type'] ?? null,
                 'building_id' => $this->buildingId($row['building_code'] ?? null),
                 'blocked' => in_array(strtolower((string) ($row['blocked'] ?? '')), ['yes', 'y', 'true', '1'], true),
             ]),

@@ -6,7 +6,6 @@ use App\Enums\AgreementStatus;
 use App\Enums\Furnishing;
 use App\Enums\TaxCategory;
 use App\Enums\UnitStatus;
-use App\Enums\UnitType;
 use App\Enums\UnitUse;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -27,7 +26,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $building_id
  * @property string $code
  * @property UnitUse $use
- * @property UnitType $type
+ * @property string $type code of a UnitType
  * @property Furnishing $furnishing
  * @property TaxCategory|null $default_tax_category
  * @property bool $blocked
@@ -51,7 +50,6 @@ class Unit extends Model
     {
         return [
             'use' => UnitUse::class,
-            'type' => UnitType::class,
             'furnishing' => Furnishing::class,
             'default_tax_category' => TaxCategory::class,
             'blocked' => 'boolean',
@@ -70,6 +68,12 @@ class Unit extends Model
     public function agreementUnits(): HasMany
     {
         return $this->hasMany(AgreementUnit::class);
+    }
+
+    /** @return BelongsTo<UnitType, $this> */
+    public function unitType(): BelongsTo
+    {
+        return $this->belongsTo(UnitType::class, 'type', 'code');
     }
 
     /** @return BelongsTo<Building, $this> */

@@ -22,8 +22,8 @@
                 <flux:select wire:model="form.use" :label="__('Use')">
                     @foreach ($uses as $use)<option value="{{ $use->value }}">{{ str($use->value)->headline() }}</option>@endforeach
                 </flux:select>
-                <flux:select wire:model="form.type" :label="__('Type')">
-                    @foreach ($types as $type)<option value="{{ $type->value }}">{{ str($type->value)->headline() }}</option>@endforeach
+                <flux:select wire:model.live="form.type" :label="__('Type')">
+                    @foreach ($types as $type)<option value="{{ $type->code }}">{{ $type->name }}</option>@endforeach
                 </flux:select>
                 <flux:input wire:model="form.bedrooms" :label="__('Bedrooms')" type="number" min="0" />
                 <flux:input wire:model="form.bathrooms" :label="__('Bathrooms')" type="number" min="0" />

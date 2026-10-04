@@ -80,6 +80,7 @@
                         @can('settings.manage')
                             <flux:sidebar.item icon="building-office" :href="route('admin.settings')" :current="request()->routeIs('admin.settings')" wire:navigate>{{ __('Company settings') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="sparkles" :href="route('admin.facilities')" :current="request()->routeIs('admin.facilities')" wire:navigate>{{ __('Facilities') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="home-modern" :href="route('admin.unit-types')" :current="request()->routeIs('admin.unit-types')" wire:navigate>{{ __('Unit types') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="building-library" :href="route('admin.banks')" :current="request()->routeIs('admin.banks')" wire:navigate>{{ __('Banks') }}</flux:sidebar.item>
                         @endcan
                         @can('templates.manage')

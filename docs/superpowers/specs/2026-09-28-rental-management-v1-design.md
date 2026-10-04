@@ -91,7 +91,7 @@ Document number formats live in `number_sequences` (§6.8).
 There is no "property" or "compound" level above buildings in v1 (add it when a company needs to group buildings).
 
 ### 4.2 Units
-`units`: `building_id`, `code` (unique per building), `floor` (string: "G", "1", "M"…), `use` (residential | commercial), `type` (flat | villa | studio | shop | office | showroom | warehouse | other), `bedrooms`, `bathrooms`, `area_sqm`, `furnishing` (unfurnished | semi | furnished), `list_rent` (monthly), `list_deposit`, `list_service_charge` (monthly), `default_tax_category` (nullable → falls back to the setting for its `use`), `ewa_account_no`, `blocked` (bool), `blocked_reason`, `notes`, soft deletes.
+`units`: `building_id`, `code` (unique per building), `floor` (string: "G", "1", "M"…), `use` (residential | commercial), `type` (code of an Admin-managed `unit_types` row: Flat / Apartment, Villa, Shop, … each with a usual use that pre-fills `use`), `bedrooms`, `bathrooms`, `area_sqm`, `furnishing` (unfurnished | semi | furnished), `list_rent` (monthly), `list_deposit`, `list_service_charge` (monthly), `default_tax_category` (nullable → falls back to the setting for its `use`), `ewa_account_no`, `blocked` (bool), `blocked_reason`, `notes`, soft deletes.
 
 ### 4.3 Unit status (computed, never stored or typed)
 Evaluated for "today" (T) from agreement units (§5.3), using `effective_end` from §5.5:

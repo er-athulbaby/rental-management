@@ -5,11 +5,11 @@ namespace App\Livewire\Units;
 use App\Actions\Units\SaveUnit;
 use App\Enums\Furnishing;
 use App\Enums\TaxCategory;
-use App\Enums\UnitType;
 use App\Enums\UnitUse;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\Unit;
+use App\Models\UnitType;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -35,12 +35,20 @@ class Form extends Component
             $this->form = [
                 ...$unit->only(['building_id', 'code', 'floor', 'bedrooms', 'bathrooms', 'area_sqm', 'list_rent', 'list_deposit', 'list_service_charge', 'ewa_account_no', 'blocked', 'blocked_reason', 'notes']),
                 'use' => $unit->use->value,
-                'type' => $unit->type->value,
+                'type' => $unit->type,
                 'furnishing' => $unit->furnishing->value,
                 'default_tax_category' => $unit->default_tax_category?->value,
             ];
         } else {
             abort_unless($this->actor()->can('create', Unit::class), 403);
+        }
+    }
+
+    /** Picking a type fills in its usual use (a shop is commercial); the use can still be changed. $key is null when Livewire replaces the whole form. */
+    public function updatedForm(mixed $value, ?string $key = null): void
+    {
+        if ($key === 'type' && ($use = UnitType::query()->where('code', $value)->first()?->default_use)) {
+            $this->form['use'] = $use->value;
         }
     }
 
@@ -66,7 +74,7 @@ class Form extends Component
             'unit' => $unit,
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('name')->get(['id', 'code', 'name']),
             'uses' => UnitUse::cases(),
-            'types' => UnitType::cases(),
+            'types' => UnitType::choices($unit?->type),
             'furnishings' => Furnishing::cases(),
             'taxCategories' => TaxCategory::cases(),
             'canEdit' => $unit ? $this->actor()->can('update', $unit) : true,
