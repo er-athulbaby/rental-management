@@ -16,7 +16,7 @@ class OutstandingReport extends Component
 
     protected function title(): string
     {
-        return __('Outstanding by customer');
+        return __('Outstanding by tenant');
     }
 
     protected function permission(): bool
@@ -32,7 +32,7 @@ class OutstandingReport extends Component
     /** @return array<string, string> */
     protected function columns(): array
     {
-        return ['customer' => __('Customer'), 'balance' => __('Invoice balances'), 'credit' => __('Credit'), 'outstanding' => __('Outstanding')];
+        return ['customer' => __('Tenant'), 'balance' => __('Invoice balances'), 'credit' => __('Credit'), 'outstanding' => __('Outstanding')];
     }
 
     /** @return list<string> */

@@ -3,6 +3,7 @@
 namespace App\Livewire\Agreements;
 
 use App\Enums\AgreementStatus;
+use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use Illuminate\Contracts\View\View;
@@ -14,7 +15,7 @@ use Livewire\WithPagination;
 #[Title('Agreements')]
 class Index extends Component
 {
-    use WithActor, WithPagination;
+    use FiltersByBuilding, WithActor, WithPagination;
 
     #[Url]
     public string $status = '';
@@ -38,14 +39,15 @@ class Index extends Component
         $agreements = Agreement::query()
             ->visibleTo($this->actor())
             ->with('customer:id,name_en')
-            ->withCount('agreementUnits')
+            ->with('agreementUnits.unit:id,code,building_id', 'agreementUnits.unit.building:id,code')
+            ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->when(in_array($this->expiring, [30, 60, 90], true), fn ($q) => $q
                 ->where('status', AgreementStatus::Active)
                 ->whereBetween('end_date', [$today, now('Asia/Bahrain')->addDays((int) $this->expiring)->toDateString()]))
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('number', 'like', '%'.$this->search.'%')
-                ->orWhereHas('customer', fn ($c) => $c->where('name_en', 'like', '%'.$this->search.'%'))))
+                ->orWhereHas('customer', fn ($c) => $c->search($this->search))))
             ->latest('id')
             ->paginate(25);
 

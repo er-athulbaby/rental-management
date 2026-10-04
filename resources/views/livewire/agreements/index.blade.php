@@ -17,14 +17,15 @@
             <option value="60">{{ __('Expiring in 60 days') }}</option>
             <option value="90">{{ __('Expiring in 90 days') }}</option>
         </flux:select>
-        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number or customer')" icon="magnifying-glass" class="sm:max-w-xs" />
+        <x-building-filter :buildings="$this->buildings" label="" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number, tenant, mobile or unit')" icon="magnifying-glass" class="sm:max-w-xs" />
     </div>
 
     <div class="overflow-x-auto">
         <flux:table :paginate="$agreements">
             <flux:table.columns>
                 <flux:table.column>{{ __('Number') }}</flux:table.column>
-                <flux:table.column>{{ __('Customer') }}</flux:table.column>
+                <flux:table.column>{{ __('Tenant') }}</flux:table.column>
                 <flux:table.column>{{ __('Units') }}</flux:table.column>
                 <flux:table.column>{{ __('Dates') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
@@ -34,7 +35,7 @@
                     <flux:table.row :key="$agreement->id">
                         <flux:table.cell><flux:link :href="route('agreements.show', $agreement)" wire:navigate>{{ $agreement->label() }}</flux:link></flux:table.cell>
                         <flux:table.cell>{{ $agreement->customer->name_en }}</flux:table.cell>
-                        <flux:table.cell>{{ $agreement->agreement_units_count }}</flux:table.cell>
+                        <flux:table.cell>{{ $agreement->agreementUnits->groupBy(fn ($au) => $au->unit->building->code)->map(fn ($units, $building) => $building.' · '.$units->pluck('unit.code')->unique()->implode(', '))->implode('; ') ?: '—' }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $agreement->start_date->format('d/m/Y') }} – {{ $agreement->end_date->format('d/m/Y') }}</flux:table.cell>
                         <flux:table.cell><flux:badge size="sm">{{ $agreement->status->label() }}</flux:badge></flux:table.cell>
                     </flux:table.row>

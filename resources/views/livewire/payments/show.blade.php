@@ -19,7 +19,7 @@
     </div>
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Customer') }}</dt><dd><flux:link :href="route('customers.edit', $payment->customer)" wire:navigate>{{ $payment->customer->name_en }}</flux:link></dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd><flux:link :href="route('customers.edit', $payment->customer)" wire:navigate>{{ $payment->customer->name_en }}</flux:link></dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Received') }}</dt><dd>{{ $payment->received_on->format('d/m/Y') }} · {{ $payment->methodSummary() }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Amount / credit left') }}</dt><dd class="tabular-nums">{{ $payment->amount }} / {{ $credit }}</dd></div>
         @if ($payment->reference)<div><dt class="text-sm text-zinc-500">{{ __('Reference') }}</dt><dd>{{ $payment->reference }}</dd></div>@endif

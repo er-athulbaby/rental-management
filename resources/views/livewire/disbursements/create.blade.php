@@ -5,7 +5,7 @@
     <form wire:submit="save" class="space-y-4">
         <flux:radio.group wire:model.live="form.payee_type" :label="__('Pay to')" variant="segmented">
             <flux:radio value="owner" :label="__('Owner')" />
-            <flux:radio value="customer" :label="__('Customer')" />
+            <flux:radio value="customer" :label="__('Tenant')" />
         </flux:radio.group>
         <flux:select wire:model="form.payee_id" :label="__('Payee')">
             <option value="">{{ __('Choose…') }}</option>

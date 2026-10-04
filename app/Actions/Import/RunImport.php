@@ -259,7 +259,7 @@ final class RunImport
         }
 
         $customerId = Customer::query()->where('id_type', $first['customer_id_type'] ?? '')->where('id_number', $first['customer_id_number'] ?? '')->value('id')
-            ?? throw ValidationException::withMessages(['customer_id_number' => __('No customer with ID :type :number.', ['type' => $first['customer_id_type'] ?? '', 'number' => $first['customer_id_number'] ?? ''])]);
+            ?? throw ValidationException::withMessages(['customer_id_number' => __('No tenant with ID :type :number.', ['type' => $first['customer_id_type'] ?? '', 'number' => $first['customer_id_number'] ?? ''])]);
 
         $units = array_map(function (array $row) use ($ref, $cutover) {
             $unit = Unit::query()->where('building_id', $this->buildingId($row['building_code'] ?? null))->where('code', (string) ($row['unit_code'] ?? ''))->first()
@@ -481,7 +481,7 @@ final class RunImport
         $customer = $this->customerByRow($row);
         [$agreement] = $this->agreementUnitByRow($row, $customer, unitRequired: false);
         if (Cheque::query()->where('customer_id', $customer->id)->where('cheque_no', $v['cheque_no'])->where('bank_name', $v['bank_name'])->exists()) {
-            throw ValidationException::withMessages(['cheque_no' => __('Cheque :no of :bank was already imported for this customer.', ['no' => $v['cheque_no'], 'bank' => $v['bank_name']])]);
+            throw ValidationException::withMessages(['cheque_no' => __('Cheque :no of :bank was already imported for this tenant.', ['no' => $v['cheque_no'], 'bank' => $v['bank_name']])]);
         }
 
         (new Cheque)->forceFill([
@@ -503,7 +503,7 @@ final class RunImport
     private function customerByRow(array $row): Customer
     {
         return Customer::query()->where('id_type', $row['customer_id_type'] ?? '')->where('id_number', $row['customer_id_number'] ?? '')->first()
-            ?? throw ValidationException::withMessages(['customer_id_number' => __('No customer with ID :type :number.', ['type' => $row['customer_id_type'] ?? '', 'number' => $row['customer_id_number'] ?? ''])]);
+            ?? throw ValidationException::withMessages(['customer_id_number' => __('No tenant with ID :type :number.', ['type' => $row['customer_id_type'] ?? '', 'number' => $row['customer_id_number'] ?? ''])]);
     }
 
     /**
@@ -524,7 +524,7 @@ final class RunImport
                 : [null, null];
         }
         $agreement = Agreement::query()->where('import_ref', $ref)->where('customer_id', $customer->id)->first()
-            ?? throw ValidationException::withMessages(['agreement_ref' => __('No imported agreement :ref for this customer.', ['ref' => $ref])]);
+            ?? throw ValidationException::withMessages(['agreement_ref' => __('No imported agreement :ref for this tenant.', ['ref' => $ref])]);
         if (blank($row['unit_code'] ?? null) && ! $unitRequired) {
             return [$agreement, null];
         }

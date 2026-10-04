@@ -47,7 +47,7 @@ class ChequesReport extends Component
     /** @return array<string, string> */
     protected function columns(): array
     {
-        return ['cheque' => __('Cheque'), 'customer' => __('Customer'), 'bank' => __('Bank'), 'date' => __('Cheque date'), 'amount' => __('Amount')];
+        return ['cheque' => __('Cheque'), 'customer' => __('Tenant'), 'bank' => __('Bank'), 'date' => __('Cheque date'), 'amount' => __('Amount')];
     }
 
     /** @return list<string> */

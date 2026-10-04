@@ -16,6 +16,12 @@ enum ImportKind: string
     case Cheques = 'cheques';
     case OwnerBalances = 'owner_balances';
 
+    /** The screen name; the files and their column headers keep the word "customer". */
+    public function label(): string
+    {
+        return str($this->value)->replace('customer', 'tenant')->headline()->toString();
+    }
+
     /** @return list<string> */
     public function headers(): array
     {

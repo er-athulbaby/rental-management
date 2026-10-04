@@ -101,6 +101,17 @@ class Customer extends Model
         return self::query()->visibleTo($user)->search($term)->orderBy('name_en')->limit(8)->get(['id', 'name_en', 'id_number', 'mobile']);
     }
 
+    /**
+     * Tenants with an agreement (any status) on a unit in the building.
+     *
+     * @param  Builder<Customer>  $query
+     */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->whereHas('agreements', fn (Builder $a) => $a->inBuilding($buildingId));
+    }
+
     public function maskedId(): string
     {
         return '••••'.substr($this->id_number, -4);

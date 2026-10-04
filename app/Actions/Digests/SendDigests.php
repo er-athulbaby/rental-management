@@ -74,7 +74,7 @@ final class SendDigests
                 $customers = $documents->where('documentable_type', (new Customer)->getMorphClass())->count();
 
                 return [
-                    ['label' => __('Customer ID documents'), 'count' => $customers, 'url' => route('reports.id-documents')],
+                    ['label' => __('Tenant ID documents'), 'count' => $customers, 'url' => route('reports.id-documents')],
                     ['label' => __('Owner ID documents'), 'count' => $documents->count() - $customers, 'url' => route('reports.id-documents')],
                 ];
             })(),

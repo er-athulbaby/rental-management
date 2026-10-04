@@ -59,7 +59,7 @@
     @endif
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <div><dt class="text-sm text-zinc-500">{{ __('Customer') }}</dt><dd><flux:link :href="route('customers.edit', $agreement->customer)" wire:navigate>{{ $agreement->customer->name_en }}</flux:link></dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd><flux:link :href="route('customers.edit', $agreement->customer)" wire:navigate>{{ $agreement->customer->name_en }}</flux:link></dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Dates') }}</dt><dd>{{ $agreement->start_date->format('d/m/Y') }} – {{ $agreement->end_date->format('d/m/Y') }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Billing') }}</dt><dd>{{ str($agreement->frequency->value)->headline() }}{{ $agreement->billing_day ? ', '.__('day :d', ['d' => $agreement->billing_day]) : '' }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Grace / notice') }}</dt><dd>{{ __(':g days / :n days', ['g' => $agreement->grace_days, 'n' => $agreement->notice_period_days]) }}</dd></div>

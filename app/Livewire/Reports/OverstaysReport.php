@@ -30,7 +30,7 @@ class OverstaysReport extends Component
     /** @return array<string, string> */
     protected function columns(): array
     {
-        return ['number' => __('Agreement'), 'customer' => __('Customer'), 'units' => __('Units'), 'end' => __('Ended'), 'days' => __('Days past end')];
+        return ['number' => __('Agreement'), 'customer' => __('Tenant'), 'units' => __('Units'), 'end' => __('Ended'), 'days' => __('Days past end')];
     }
 
     /** @return list<string> */

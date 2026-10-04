@@ -16,7 +16,7 @@
                     <flux:modal.trigger name="replace"><flux:button variant="primary">{{ __('Replace') }}</flux:button></flux:modal.trigger>
                 @endif
                 @if (in_array($cheque->status->value, ['held', 'bounced'], true))
-                    <flux:button wire:click="end('returned')" wire:confirm="{{ __('Mark this cheque as returned to the customer?') }}">{{ __('Returned to customer') }}</flux:button>
+                    <flux:button wire:click="end('returned')" wire:confirm="{{ __('Mark this cheque as returned to the tenant?') }}">{{ __('Returned to tenant') }}</flux:button>
                 @endif
                 @if ($cheque->status->value === 'held')
                     <flux:button variant="ghost" wire:click="end('cancelled')" wire:confirm="{{ __('Cancel this cheque (entered in error)?') }}">{{ __('Cancel') }}</flux:button>
@@ -27,7 +27,7 @@
     <flux:error name="outcome" />
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Customer') }}</dt><dd>{{ $cheque->customer->name_en }}</dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd>{{ $cheque->customer->name_en }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Cheque date / amount') }}</dt><dd class="tabular-nums">{{ $cheque->cheque_date->format('d/m/Y') }} · {{ $cheque->amount }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('For invoice') }}</dt><dd>@if ($cheque->invoice)<flux:link :href="route('invoices.show', $cheque->invoice)" wire:navigate>{{ $cheque->invoice->label() }}</flux:link>@else — @endif</dd></div>
         @if ($cheque->agreement)<div><dt class="text-sm text-zinc-500">{{ __('Agreement') }}</dt><dd><flux:link :href="route('agreements.show', $cheque->agreement_id)" wire:navigate>{{ $cheque->agreement->number }}</flux:link></dd></div>@endif

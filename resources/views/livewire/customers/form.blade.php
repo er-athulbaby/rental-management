@@ -1,5 +1,5 @@
 <section class="w-full max-w-2xl space-y-6">
-    <flux:heading size="xl" level="1">{{ $customer?->name_en ?? __('New customer') }}</flux:heading>
+    <flux:heading size="xl" level="1">{{ $customer?->name_en ?? __('New tenant') }}</flux:heading>
     @if ($account)
         <flux:card class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex gap-6 tabular-nums">
@@ -20,7 +20,7 @@
 
     <form wire:submit="save" class="space-y-4">
         <fieldset @disabled(! $canEdit) class="space-y-4">
-            <flux:radio.group wire:model.live="form.type" :label="__('Customer type')" variant="segmented">
+            <flux:radio.group wire:model.live="form.type" :label="__('Tenant type')" variant="segmented">
                 <flux:radio value="individual" :label="__('Individual')" />
                 <flux:radio value="company" :label="__('Company')" />
             </flux:radio.group>

@@ -13,7 +13,7 @@
             <div class="space-y-4">
                 <flux:heading size="lg">{{ __('Enter cheques') }}</flux:heading>
                 <flux:text class="text-sm">{{ __('Post-dated cheques are entered against an active agreement, one cheque per rent invoice.') }}</flux:text>
-                <flux:input wire:model.live.debounce.300ms="agreementSearch" :label="__('Agreement')" :placeholder="__('Agreement no., customer, mobile or unit code')" icon="magnifying-glass" autocomplete="off" />
+                <flux:input wire:model.live.debounce.300ms="agreementSearch" :label="__('Agreement')" :placeholder="__('Agreement no., tenant, mobile or unit code')" icon="magnifying-glass" autocomplete="off" />
                 @if (mb_strlen(trim($agreementSearch)) < 2)
                     <flux:text class="text-sm">{{ __('Type at least 2 letters or digits.') }}</flux:text>
                 @elseif ($agreementResults->isEmpty())
@@ -40,7 +40,7 @@
             @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
         </flux:select>
         <x-building-filter :buildings="$this->buildings" />
-        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no., customer or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no., tenant or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
         @if ($canManage && $status === 'held')
             <flux:input wire:model="depositedOn" type="date" :label="__('Deposited on')" class="max-w-44" />
             <flux:button variant="primary" wire:click="depositSelected" :disabled="count($selected) === 0">{{ __('Deposit selected') }}</flux:button>
@@ -54,7 +54,7 @@
             <flux:table.columns>
                 @if ($canManage && $status === 'held')<flux:table.column></flux:table.column>@endif
                 <flux:table.column>{{ __('Cheque') }}</flux:table.column>
-                <flux:table.column>{{ __('Customer') }}</flux:table.column>
+                <flux:table.column>{{ __('Tenant') }}</flux:table.column>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
                 <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>
                 <flux:table.column>{{ __('Invoice') }}</flux:table.column>

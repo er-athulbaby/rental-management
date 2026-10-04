@@ -50,7 +50,7 @@ final class AllocationPlan
             $amount = Fils::fromDecimal((string) $entry['amount']);
 
             if ($invoice === null) {
-                throw ValidationException::withMessages(["allocations.$i.invoice_id" => __('Choose an open invoice of this customer.')]);
+                throw ValidationException::withMessages(["allocations.$i.invoice_id" => __('Choose an open invoice of this tenant.')]);
             }
             if ($amount <= 0 || $amount > Fils::fromDecimal($invoice->balance)) {
                 throw ValidationException::withMessages(["allocations.$i.amount" => __('Allocate more than zero and at most the invoice balance (:b).', ['b' => $invoice->balance])]);

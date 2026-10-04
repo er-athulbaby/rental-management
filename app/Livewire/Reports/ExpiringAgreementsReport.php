@@ -40,7 +40,7 @@ class ExpiringAgreementsReport extends Component
     /** @return array<string, string> */
     protected function columns(): array
     {
-        return ['number' => __('Agreement'), 'customer' => __('Customer'), 'units' => __('Units'), 'end' => __('Ends'), 'days' => __('Days left')];
+        return ['number' => __('Agreement'), 'customer' => __('Tenant'), 'units' => __('Units'), 'end' => __('Ends'), 'days' => __('Days left')];
     }
 
     /** @return list<string> */

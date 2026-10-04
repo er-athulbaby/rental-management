@@ -117,7 +117,7 @@ test('Finance starts a manual invoice from the Invoices list by choosing the cus
         ->set('customerSearch', $this->customer->mobile)
         ->assertSee($this->customer->maskedId())
         ->set('customerSearch', 'no such customer')
-        ->assertSee('No customer found.')
+        ->assertSee('No tenant found.')
         ->call('startInvoice', $this->customer->id)
         ->assertRedirect(route('invoices.create', ['customer' => $this->customer->id]));
 

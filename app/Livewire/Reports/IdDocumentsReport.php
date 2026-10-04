@@ -68,7 +68,7 @@ class IdDocumentsReport extends Component
             $rows[] = [
                 '_url' => $who instanceof Customer ? route('customers.edit', $who) : route('owners.edit', $who),
                 'name' => $who->name_en,
-                'kind' => $who instanceof Customer ? __('Customer') : __('Owner'),
+                'kind' => $who instanceof Customer ? __('Tenant') : __('Owner'),
                 'document' => $d->category->label(),
                 'expires' => $d->expires_on->format('d/m/Y'),
                 'days' => (int) $today->diffInDays($d->expires_on, true),

@@ -36,7 +36,7 @@ final class PaymentReversal implements ApprovalHandler
 
         // Spec §7.2: a payment whose credit was refunded cannot be reversed while the refund stands.
         if ($payment->creditRefundedFils() > 0) {
-            throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the customer\'s credit below zero.')]);
+            throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the tenant\'s credit below zero.')]);
         }
 
         $cuts = [];
@@ -52,7 +52,7 @@ final class PaymentReversal implements ApprovalHandler
         $payment->forceFill(['status' => PaymentStatus::Reversed, 'reversed_at' => now()])->save();
 
         if (CustomerCredit::fils($payment->customer_id) < 0) {
-            throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the customer\'s credit below zero.')]);
+            throw ValidationException::withMessages(['approval' => __('Reversing this payment would leave the tenant\'s credit below zero.')]);
         }
         // Spec §7.4: a cheque returned by the bank after clearing bounces once its payment is reversed.
         if ($cheque?->status === ChequeStatus::Cleared) {

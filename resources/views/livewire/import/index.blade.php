@@ -19,7 +19,7 @@
             @foreach ($kinds as $kind)
                 <flux:field wire:key="file-{{ $kind->value }}">
                     <div class="flex flex-wrap items-center justify-between gap-2">
-                        <flux:label>{{ str($kind->value)->headline() }}</flux:label>
+                        <flux:label>{{ $kind->label() }}</flux:label>
                         <flux:link :href="route('import.template', $kind)">{{ __('Download template') }}</flux:link>
                     </div>
                     <x-file-button wire:model="files.{{ $kind->value }}" accept=".xlsx,.csv" />
@@ -48,14 +48,14 @@
         @if (! empty($result['totals']))
             <ul class="text-sm">
                 @foreach ($result['totals'] as $kind => $total)
-                    <li>{{ __(':kind total: :total BHD', ['kind' => str($kind)->replace('_', ' ')->ucfirst(), 'total' => $total]) }}</li>
+                    <li>{{ __(':kind total: :total BHD', ['kind' => App\Enums\ImportKind::tryFrom($kind)?->label() ?? str($kind)->replace('_', ' ')->ucfirst(), 'total' => $total]) }}</li>
                 @endforeach
             </ul>
         @endif
 
         @foreach ($result['errors'] as $kind => $lines)
             <div class="space-y-1">
-                <flux:heading>{{ str($kind)->headline() }}</flux:heading>
+                <flux:heading>{{ App\Enums\ImportKind::tryFrom($kind)?->label() ?? str($kind)->headline() }}</flux:heading>
                 <ul class="list-disc ps-5 text-sm">
                     @foreach ($lines as $line => $messages)
                         <li>{{ __('Line :line', ['line' => $line]) }}: {{ implode(' ', $messages) }}</li>

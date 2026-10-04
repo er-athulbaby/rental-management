@@ -29,7 +29,7 @@
     <flux:error name="invoice" />
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Customer') }}</dt><dd>{{ $invoice->customer->name_en }}</dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd>{{ $invoice->customer->name_en }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Agreement') }}</dt><dd>@if ($invoice->agreement)<flux:link :href="route('agreements.show', $invoice->agreement_id)" wire:navigate>{{ $invoice->agreement->number }}</flux:link>@endif</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Type') }}</dt><dd>{{ $invoice->type->label() }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Issue date') }}</dt><dd>{{ $invoice->issue_date->format('d/m/Y') }}</dd></div>

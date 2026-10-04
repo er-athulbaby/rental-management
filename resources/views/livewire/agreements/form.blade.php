@@ -4,7 +4,7 @@
     <form wire:submit="save" class="space-y-6">
         <flux:error name="form.status" />
         <flux:fieldset>
-            <flux:legend>{{ __('Customer') }}</flux:legend>
+            <flux:legend>{{ __('Tenant') }}</flux:legend>
             @if ($customerLabel)
                 <flux:text class="mb-2">{{ $customerLabel }}</flux:text>
             @endif

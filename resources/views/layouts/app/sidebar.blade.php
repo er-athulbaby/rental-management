@@ -23,7 +23,7 @@
 
                 <flux:sidebar.group :heading="__('Leasing')" class="grid">
                     @can('customers.view')
-                        <flux:sidebar.item icon="identification" :href="route('customers.index')" :current="request()->routeIs('customers.*')" wire:navigate>{{ __('Customers') }}</flux:sidebar.item>
+                        <flux:sidebar.item icon="identification" :href="route('customers.index')" :current="request()->routeIs('customers.*')" wire:navigate>{{ __('Tenants') }}</flux:sidebar.item>
                     @endcan
                     @can('agreements.view')
                         <flux:sidebar.item icon="document-text" :href="route('agreements.index')" :current="request()->routeIs('agreements.*')" wire:navigate>{{ __('Agreements') }}</flux:sidebar.item>

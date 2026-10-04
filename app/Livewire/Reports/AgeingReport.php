@@ -31,7 +31,7 @@ class AgeingReport extends Component
     /** @return array<string, string> */
     protected function columns(): array
     {
-        return ['customer' => __('Customer'), 'd30' => '1–30', 'd60' => '31–60', 'd90' => '61–90', 'd91' => '91+', 'total' => __('Total')];
+        return ['customer' => __('Tenant'), 'd30' => '1–30', 'd60' => '31–60', 'd90' => '61–90', 'd91' => '91+', 'total' => __('Total')];
     }
 
     /** @return list<string> */

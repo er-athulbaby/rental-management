@@ -47,7 +47,7 @@
 
         <flux:fieldset>
             <flux:legend>{{ __('Allocate to') }}</flux:legend>
-            <flux:text size="sm">{{ __('Leave every amount blank to pay the oldest invoices first. Anything not allocated stays as customer credit.') }}</flux:text>
+            <flux:text size="sm">{{ __('Leave every amount blank to pay the oldest invoices first. Anything not allocated stays as tenant credit.') }}</flux:text>
             <div class="mt-2 divide-y divide-zinc-200 dark:divide-zinc-700">
                 @forelse ($open as $invoice)
                     <div class="flex flex-wrap items-center justify-between gap-2 py-2" wire:key="open-{{ $invoice->id }}">

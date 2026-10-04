@@ -31,7 +31,7 @@ class DepositsHeldReport extends Component
     /** @return array<string, string> */
     protected function columns(): array
     {
-        return ['unit' => __('Building / unit'), 'agreement' => __('Agreement'), 'customer' => __('Customer'), 'held' => __('Held')];
+        return ['unit' => __('Building / unit'), 'agreement' => __('Agreement'), 'customer' => __('Tenant'), 'held' => __('Held')];
     }
 
     /** @return list<string> */

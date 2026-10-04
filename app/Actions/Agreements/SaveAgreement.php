@@ -134,7 +134,7 @@ final class SaveAgreement
         }
 
         if (! Customer::query()->visibleTo($actor)->whereKey($data['customer_id'])->exists()) {
-            $validator->errors()->add('customer_id', __('Choose a customer you can see.'));
+            $validator->errors()->add('customer_id', __('Choose a tenant you can see.'));
         }
 
         foreach (array_values((array) $data['units']) as $i => $line) {

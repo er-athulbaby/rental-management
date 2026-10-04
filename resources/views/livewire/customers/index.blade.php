@@ -1,12 +1,15 @@
 <section class="w-full space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Customers') }}</flux:heading>
+        <flux:heading size="xl" level="1">{{ __('Tenants') }}</flux:heading>
         @can('create', \App\Models\Customer::class)
-            <flux:button variant="primary" :href="route('customers.create')" wire:navigate>{{ __('New customer') }}</flux:button>
+            <flux:button variant="primary" :href="route('customers.create')" wire:navigate>{{ __('New tenant') }}</flux:button>
         @endcan
     </div>
 
-    <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name, exact ID or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
+    <div class="flex flex-col gap-3 sm:flex-row">
+        <x-building-filter :buildings="$this->buildings" label="" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name, mobile, ID number or unit')" icon="magnifying-glass" class="sm:max-w-xs" />
+    </div>
 
     @if ($hint)
         <flux:callout icon="information-circle" :heading="$hint" />

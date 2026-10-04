@@ -3,6 +3,7 @@
 namespace App\Livewire\Customers;
 
 use App\Enums\PermissionName;
+use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
 use Illuminate\Contracts\View\View;
@@ -11,10 +12,10 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Title('Customers')]
+#[Title('Tenants')]
 class Index extends Component
 {
-    use WithActor, WithPagination;
+    use FiltersByBuilding, WithActor, WithPagination;
 
     #[Url]
     public string $search = '';
@@ -30,10 +31,8 @@ class Index extends Component
 
         $customers = Customer::query()
             ->visibleTo($this->actor())
-            ->when($term !== '', fn ($q) => $q->where(fn ($q) => $q
-                ->where('name_en', 'like', '%'.$term.'%')
-                ->orWhere('id_number', $term)
-                ->orWhere('mobile', $term)))
+            ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
+            ->when($term !== '', fn ($q) => $q->search($term))
             ->orderBy('name_en')
             ->paginate(25);
 

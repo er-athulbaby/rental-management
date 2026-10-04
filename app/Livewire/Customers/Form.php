@@ -55,7 +55,7 @@ class Form extends Component
             throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => ["form.$k" => $m])->all());
         }
 
-        Flux::toast(variant: 'success', text: __('Customer saved.'));
+        Flux::toast(variant: 'success', text: __('Tenant saved.'));
         $this->redirectRoute('customers.edit', $customer, navigate: true);
     }
 
@@ -74,6 +74,6 @@ class Form extends Component
                 'canRecord' => $this->actor()->can('create', Payment::class),
             ] : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
-        ])->title($customer ? $customer->name_en : __('New customer'));
+        ])->title($customer ? $customer->name_en : __('New tenant'));
     }
 }

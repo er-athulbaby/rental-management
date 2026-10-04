@@ -17,7 +17,7 @@
     </div>
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Payee') }}</dt><dd>{{ $out->payee()->name_en }} ({{ $out->payee_type->value }})</dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Payee') }}</dt><dd>{{ $out->payee()->name_en }} ({{ $out->payee_type->value === 'customer' ? __('tenant') : __('owner') }})</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Purpose') }}</dt><dd>{{ $out->purpose->label() }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Amount') }}</dt><dd class="tabular-nums">{{ $out->amount }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Method') }}</dt><dd>{{ $out->method->label() }}{{ $out->reference ? ' · '.$out->reference : '' }}</dd></div>

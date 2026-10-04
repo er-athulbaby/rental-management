@@ -6,7 +6,9 @@ use App\Actions\Deposits\CreateDepositSettlement;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
+use App\Livewire\Agreements\Index as Agreements;
 use App\Livewire\Cheques\Index as Cheques;
+use App\Livewire\Customers\Index as Tenants;
 use App\Livewire\DepositSettlements\Index as Settlements;
 use App\Livewire\Disbursements\Index as Disbursements;
 use App\Livewire\Invoices\Index as Invoices;
@@ -49,12 +51,12 @@ beforeEach(function () {
 });
 
 test('each finance list narrows to the chosen building', function (string $component) {
-    Livewire::actingAs($this->finance)->test($component)
+    Livewire::withQueryParams(['tab' => 'all'])->actingAs($this->finance)->test($component) // invoices open on Unpaid; these are scheduled
         ->assertSee('Alia Tower Tenant')->assertSee('Bayview Tenant')
         ->set('building', $this->a->id)
         ->assertSee('Alia Tower Tenant')->assertDontSee('Bayview Tenant')
         ->assertSee($this->b->code); // still offered in the filter
-})->with([Invoices::class, Payments::class, Cheques::class, Settlements::class]);
+})->with([Invoices::class, Payments::class, Cheques::class, Settlements::class, Agreements::class, Tenants::class]);
 
 test('Payments out accepts the building filter', function () {
     Livewire::actingAs($this->finance)->test(Disbursements::class)->set('building', $this->a->id)->assertOk();

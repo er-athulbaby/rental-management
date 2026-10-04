@@ -12,21 +12,21 @@
         <flux:modal name="new-payment" class="md:w-96">
             <div class="space-y-4">
                 <flux:heading size="lg">{{ __('New payment') }}</flux:heading>
-                <flux:text class="text-sm">{{ __('Record money received from a customer by cash, transfer or card. Post-dated cheques are entered from the Cheques list.') }}</flux:text>
+                <flux:text class="text-sm">{{ __('Record money received from a tenant by cash, transfer or card. Post-dated cheques are entered from the Cheques list.') }}</flux:text>
                 <x-customer-picker :results="$customerResults" :term="$customerSearch" action="startPayment" />
             </div>
         </flux:modal>
     @endif
     <div class="flex flex-col gap-3 sm:flex-row">
         <x-building-filter :buildings="$this->buildings" label="" />
-        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Receipt, reference, customer or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Receipt, reference, tenant or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
     </div>
 
     <div class="overflow-x-auto">
         <flux:table :paginate="$payments">
             <flux:table.columns>
                 <flux:table.column>{{ __('Receipt') }}</flux:table.column>
-                <flux:table.column>{{ __('Customer') }}</flux:table.column>
+                <flux:table.column>{{ __('Tenant') }}</flux:table.column>
                 <flux:table.column>{{ __('Received') }}</flux:table.column>
                 <flux:table.column>{{ __('Method') }}</flux:table.column>
                 <flux:table.column align="end">{{ __('Amount') }}</flux:table.column>

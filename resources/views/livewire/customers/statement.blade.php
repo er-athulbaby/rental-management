@@ -43,7 +43,7 @@
                 </flux:table.rows>
             </flux:table>
         </div>
-        <flux:text>{{ __('Closing balance :b BHD (negative means the customer is in credit).', ['b' => $money($receivables['closing'])]) }}</flux:text>
+        <flux:text>{{ __('Closing balance :b BHD (negative means the tenant is in credit).', ['b' => $money($receivables['closing'])]) }}</flux:text>
 
         @foreach ($deposits as $d => $deposit)
             <flux:heading size="lg" wire:key="dep-{{ $d }}">{{ __('Deposit — :u', ['u' => $deposit['unit']]) }}</flux:heading>

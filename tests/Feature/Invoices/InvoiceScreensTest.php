@@ -56,7 +56,7 @@ test('issued invoices past their grace date show as overdue', function () {
     $this->travelTo(CarbonImmutable::parse('2026-11-20 10:00', 'Asia/Bahrain'));
 
     expect($this->invoices[0]->fresh()->displayLabel())->toBe('Overdue');
-    Livewire::actingAs($this->finance)->test(Index::class)->assertSee('Overdue')->assertSee('Scheduled');
+    Livewire::actingAs($this->finance)->test(Index::class)->set('tab', 'all')->assertSee('Overdue')->assertSee('Scheduled');
 });
 
 test('who sees invoices, and who may issue them', function () {

@@ -270,7 +270,7 @@ test('an agreement over before cutover, or with an unknown customer, is refused 
 
     expect(array_keys($result->errors['agreements']))->toBe([2, 3])
         ->and($result->errors['agreements'][2][0])->toContain('still running at cutover')
-        ->and($result->errors['agreements'][3][0])->toContain('No customer');
+        ->and($result->errors['agreements'][3][0])->toContain('No tenant');
 });
 
 test('an agreement reference can only be imported once', function () {
@@ -359,7 +359,7 @@ test('a customer credit, an unknown agreement unit or a second owner opening bal
 test('the screen lists the totals of a dry run', function () {
     Livewire::actingAs($this->vendor)->test(Index::class)
         ->set('result', ['errors' => [], 'counts' => ['customer_balances' => 2], 'totals' => ['customer_balances' => '200.500'], 'committed' => false, 'commit' => false])
-        ->assertSee('Customer balances total: 200.500 BHD');
+        ->assertSee('Tenant Balances total: 200.500 BHD');
 });
 
 test('a balance naming a unit but no agreement is refused rather than losing the owner attribution', function () {
@@ -435,7 +435,7 @@ test('a cheque already imported, in an earlier run or earlier in this one, is re
     $again = app(RunImport::class)->handle($this->vendor, ['cheques' => importFile(ImportKind::Cheques, [$cheque('000123'), $cheque('000124'), $cheque('000124')])], commit: false);
 
     expect(array_keys($again->errors['cheques']))->toBe([2, 4])
-        ->and($again->errors['cheques'][2][0])->toBe('Cheque 000123 of NBB was already imported for this customer.');
+        ->and($again->errors['cheques'][2][0])->toBe('Cheque 000123 of NBB was already imported for this tenant.');
 });
 
 test('a balance naming an agreement but no unit goes to its only unit, and is refused when it has more than one', function () {

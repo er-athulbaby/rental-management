@@ -53,7 +53,7 @@ final class RecordCheques
 
         foreach ($validated as $i => $row) {
             if (filled($row['invoice_id'] ?? null) && ! in_array((int) $row['invoice_id'], $targets, true)) {
-                throw ValidationException::withMessages(["rows.$i.invoice_id" => __('Match the cheque to an open invoice of this customer.')]);
+                throw ValidationException::withMessages(["rows.$i.invoice_id" => __('Match the cheque to an open invoice of this tenant.')]);
             }
         }
 

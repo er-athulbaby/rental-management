@@ -13,7 +13,7 @@
             <flux:table.columns>
                 <flux:table.column>{{ __('Settlement') }}</flux:table.column>
                 <flux:table.column>{{ __('Agreement') }}</flux:table.column>
-                <flux:table.column>{{ __('Customer') }}</flux:table.column>
+                <flux:table.column>{{ __('Tenant') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
