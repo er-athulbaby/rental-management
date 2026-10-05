@@ -18,8 +18,8 @@
         </flux:radio.group>
 
         <div class="grid gap-4 sm:grid-cols-2">
-            <flux:input wire:model="form.start_date" type="date" :label="__('Start date')" />
-            <flux:input wire:model="form.end_date" type="date" :label="__('End date')" />
+            <x-date-input wire:model="form.start_date" :label="__('Start date')" />
+            <x-date-input wire:model="form.end_date" :label="__('End date')" />
         </div>
 
         @if (($form['type'] ?? '') === 'leased')

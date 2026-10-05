@@ -75,4 +75,22 @@ class AgeingReport extends Component
             ];
         })->values()->all());
     }
+
+    /**
+     * @param  list<array<string, string|int|null>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    protected function charts(array $rows): array
+    {
+        $buckets = ['d30' => ['1–30 days', '--viz-age-1'], 'd60' => ['31–60 days', '--viz-age-2'], 'd90' => ['61–90 days', '--viz-age-3'], 'd91' => ['Over 90 days', '--viz-age-4']];
+        $sum = fn (string $key) => array_sum(array_map(fn ($r) => (float) $r[$key], $rows));
+        $top = collect($rows)->sortByDesc(fn ($r) => (float) $r['total'])->take(8);
+
+        return [
+            ['type' => 'stack', 'title' => __('Overdue by age'), 'caption' => __(':n BHD in total', ['n' => number_format($sum('total'), 3)]),
+                'items' => array_map(fn ($key, $b) => ['label' => __($b[0]), 'value' => $sum($key), 'display' => number_format($sum($key), 3), 'color' => $b[1]], array_keys($buckets), $buckets)],
+            ['type' => 'bars', 'title' => __('Largest overdue balances'), 'caption' => count($rows) > 8 ? __('Top 8 of :n tenants', ['n' => count($rows)]) : null,
+                'items' => $top->map(fn ($r) => ['label' => $r['customer'], 'value' => (float) $r['total'], 'display' => number_format((float) $r['total'], 3), 'url' => $r['_url'] ?? null])->values()->all()],
+        ];
+    }
 }

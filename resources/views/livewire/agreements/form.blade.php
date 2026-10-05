@@ -20,8 +20,8 @@
         </flux:fieldset>
 
         <div class="grid gap-4 sm:grid-cols-2">
-            <flux:input wire:model="form.start_date" type="date" :label="__('Start date')" />
-            <flux:input wire:model="form.end_date" type="date" :label="__('End date')" />
+            <x-date-input wire:model="form.start_date" :label="__('Start date')" />
+            <x-date-input wire:model="form.end_date" :label="__('End date')" />
             <flux:select wire:model="form.frequency" :label="__('Billing frequency')">
                 @foreach ($frequencies as $f)<option value="{{ $f->value }}">{{ str($f->value)->headline() }}</option>@endforeach
             </flux:select>
@@ -57,8 +57,8 @@
                     </div>
                     <div class="grid gap-3 sm:grid-cols-3">
                         <flux:input wire:model="units.{{ $i }}.deposit_amount" inputmode="decimal" :label="__('Deposit (BHD)')" />
-                        <flux:input wire:model="units.{{ $i }}.start_date" type="date" :label="__('From (blank = agreement)')" />
-                        <flux:input wire:model="units.{{ $i }}.end_date" type="date" :label="__('To (blank = agreement)')" />
+                        <x-date-input wire:model="units.{{ $i }}.start_date" :label="__('From (blank = agreement)')" />
+                        <x-date-input wire:model="units.{{ $i }}.end_date" :label="__('To (blank = agreement)')" />
                     </div>
                     <flux:error name="units.{{ $i }}.deposit_amount" />
                     <flux:error name="units.{{ $i }}.start_date" />

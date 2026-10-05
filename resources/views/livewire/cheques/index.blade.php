@@ -42,7 +42,7 @@
         <x-building-filter :buildings="$this->buildings" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no., tenant or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
         @if ($canManage && $status === 'held')
-            <flux:input wire:model="depositedOn" type="date" :label="__('Deposited on')" class="max-w-44" />
+            <x-date-input wire:model="depositedOn" :label="__('Deposited on')" class="max-w-44" />
             <flux:button variant="primary" wire:click="depositSelected" :disabled="count($selected) === 0">{{ __('Deposit selected') }}</flux:button>
         @endif
     </div>

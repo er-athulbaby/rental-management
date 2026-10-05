@@ -39,12 +39,12 @@
                         <flux:select.option :value="$m->value">{{ $m->label() }}</flux:select.option>
                     @endforeach
                 </flux:select>
-                <flux:input type="date" wire:model="remittance.paid_on" :label="__('Paid on')" />
+                <x-date-input wire:model="remittance.paid_on" :label="__('Paid on')" />
                 <flux:input wire:model="remittance.reference" :label="__('Reference')" />
                 @if (($remittance['method'] ?? null) === 'cheque')
                     <flux:input wire:model="remittance.cheque_no" :label="__('Cheque number')" />
                     <x-bank-select wire:model="remittance.bank_name" />
-                    <flux:input type="date" wire:model="remittance.cheque_date" :label="__('Cheque date')" />
+                    <x-date-input wire:model="remittance.cheque_date" :label="__('Cheque date')" />
                 @endif
                 <flux:error name="remittance.owner_statement_id" />
                 <div class="sm:col-span-2 flex justify-end"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>

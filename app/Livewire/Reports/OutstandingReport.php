@@ -63,4 +63,16 @@ class OutstandingReport extends Component
             ];
         })->filter()->values()->all());
     }
+
+    /**
+     * @param  list<array<string, string|int|null>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    protected function charts(array $rows): array
+    {
+        $owing = collect($rows)->filter(fn ($r) => (float) $r['outstanding'] > 0)->sortByDesc(fn ($r) => (float) $r['outstanding']);
+
+        return [['type' => 'bars', 'title' => __('Who owes the most'), 'caption' => $owing->count() > 10 ? __('Top 10 of :n tenants', ['n' => $owing->count()]) : null,
+            'items' => $owing->take(10)->map(fn ($r) => ['label' => $r['customer'], 'value' => (float) $r['outstanding'], 'display' => number_format((float) $r['outstanding'], 3), 'url' => $r['_url'] ?? null])->values()->all()]];
+    }
 }

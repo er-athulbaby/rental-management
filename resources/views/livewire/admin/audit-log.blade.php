@@ -15,8 +15,8 @@
                 <option value="{{ $type }}">{{ class_basename($type) }}</option>
             @endforeach
         </flux:select>
-        <flux:input wire:model.live="from" type="date" :label="__('From')" />
-        <flux:input wire:model.live="to" type="date" :label="__('To')" />
+        <x-date-input wire:model.live="from" :label="__('From')" />
+        <x-date-input wire:model.live="to" :label="__('To')" />
     </div>
 
     <div class="overflow-x-auto">

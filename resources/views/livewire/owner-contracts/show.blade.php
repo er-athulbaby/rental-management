@@ -65,7 +65,7 @@
                 <flux:text>{{ __('An early termination is waiting for Management approval.') }}</flux:text>
             @else
                 <form wire:submit="requestTermination" class="mt-2 space-y-3">
-                    <flux:input wire:model="terminatedOn" type="date" :label="__('Last day of the contract')" />
+                    <x-date-input wire:model="terminatedOn" :label="__('Last day of the contract')" />
                     <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" />
                     <flux:button type="submit">{{ __('Request early termination') }}</flux:button>
                 </form>

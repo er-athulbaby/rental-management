@@ -32,7 +32,7 @@
             <flux:button size="sm" wire:click="addCharge">{{ __('Add charge') }}</flux:button>
             <flux:error name="form.charges" />
         @endif
-        <flux:input wire:model="form.effective_date" type="date" :label="$type === 'add_unit' ? __('Let from') : __('Last day of occupancy')" />
+        <x-date-input wire:model="form.effective_date" :label="$type === 'add_unit' ? __('Let from') : __('Last day of occupancy')" />
         <flux:textarea wire:model="form.reason" :label="__('Reason')" rows="3" />
         @foreach (['type', 'agreement_unit_id', 'unit_id', 'deposit_amount', 'effective_date', 'reason', 'approval', 'status'] as $f)<flux:error name="form.{{ $f }}" />@endforeach
         <div class="flex flex-wrap gap-2">

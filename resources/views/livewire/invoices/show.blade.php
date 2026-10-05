@@ -18,6 +18,9 @@
                 <flux:button :href="route('invoices.credit.edit', $invoice)" wire:navigate>{{ __('Edit') }}</flux:button>
                 <flux:button variant="primary" wire:click="submitCreditNote">{{ __('Send for approval') }}</flux:button>
             @endif
+            @if ($canPay)
+                <flux:button variant="primary" icon="banknotes" :href="route('payments.create', ['customer' => $invoice->customer_id, 'invoice' => $invoice->id])" wire:navigate>{{ __('Record payment') }}</flux:button>
+            @endif
             @if ($canCredit)
                 <flux:button :href="route('invoices.credit', $invoice)" wire:navigate>{{ __('Credit note') }}</flux:button>
             @endif
@@ -71,6 +74,19 @@
             <dt>{{ __('Balance') }}</dt><dd class="text-end">{{ $invoice->balance }}</dd>
         @endif
     </dl>
+    @if ($payments->isNotEmpty())
+        <div class="space-y-2">
+            <flux:heading size="sm">{{ __('Payments received') }}</flux:heading>
+            <ul class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-700 dark:border-zinc-700">
+                @foreach ($payments as $p)
+                    <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                        <span><flux:link :href="route('payments.show', $p['payment'])" wire:navigate>{{ $p['payment']->number }}</flux:link> <span class="text-zinc-500">· {{ $p['payment']->received_on->format('d/m/Y') }} · {{ $p['payment']->method->label() }}</span>@if ($p['payment']->status->value === 'reversed') <flux:badge size="sm" color="red">{{ __('Reversed') }}</flux:badge>@endif</span>
+                        <span class="font-medium tabular-nums">{{ $p['amount'] }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     @if ($invoice->relatedInvoice)
         <flux:text>{{ __('Credits') }} <flux:link :href="route('invoices.show', $invoice->related_invoice_id)" wire:navigate>{{ $invoice->relatedInvoice->label() }}</flux:link>. {{ $invoice->credit_reason }}</flux:text>
     @endif

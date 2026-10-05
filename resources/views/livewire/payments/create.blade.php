@@ -7,7 +7,7 @@
                 @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
                 <option value="split">{{ __('Split — several methods, one receipt') }}</option>
             </flux:select>
-            <flux:input wire:model="form.received_on" type="date" :label="__('Received on')" />
+            <x-date-input wire:model="form.received_on" :label="__('Received on')" />
             @unless ($isSplit)
                 <flux:input wire:model="form.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
                 <flux:input wire:model="form.reference" :label="__('Reference')" />
@@ -42,7 +42,6 @@
         @endif
         <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
         <flux:error name="form.amount" />
-        <flux:error name="form.received_on" />
         <flux:error name="form.method" />
 
         <flux:fieldset>

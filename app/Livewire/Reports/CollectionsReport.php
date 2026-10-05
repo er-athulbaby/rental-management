@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\PaymentTender;
 use App\Reports\Queries;
 use App\Support\Fils;
+use Carbon\CarbonImmutable;
 use Livewire\Component;
 
 /** Spec §10: collections by date and method; deposit_applied is excluded from the total and shown separately. */
@@ -63,5 +64,48 @@ class CollectionsReport extends Component
         }
 
         return $rows;
+    }
+
+    /**
+     * Collected per day (per month past two months), and the split by method. Method colours are fixed, not by rank.
+     *
+     * @param  list<array<string, string|int|null>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    protected function charts(array $rows): array
+    {
+        $days = array_filter($rows, fn ($r) => $r['date'] !== '');
+        $from = CarbonImmutable::parse($this->from);
+        $to = CarbonImmutable::parse($this->to);
+        $monthly = $from->diffInDays($to) > 62;
+
+        $totals = [];
+        foreach ($days as $r) {
+            $date = CarbonImmutable::createFromFormat('d/m/Y', (string) $r['date']);
+            if ($date === null) {
+                continue;
+            }
+            $key = $date->format($monthly ? 'Y-m' : 'Y-m-d');
+            $totals[$key] = ($totals[$key] ?? 0) + (float) $r['amount'];
+        }
+        $columns = [];
+        for ($d = $monthly ? $from->startOfMonth() : $from; $d <= $to; $d = $monthly ? $d->addMonth() : $d->addDay()) {
+            $key = $d->format($monthly ? 'Y-m' : 'Y-m-d');
+            $columns[] = ['label' => $d->format($monthly ? 'M Y' : 'D d/m/Y'), 'short' => $d->format($monthly ? 'M' : 'd/m'), 'value' => $totals[$key] ?? 0, 'display' => number_format($totals[$key] ?? 0, 3)];
+        }
+
+        $colors = [PaymentMethod::Cash->label() => '--viz-1', PaymentMethod::Card->label() => '--viz-2', PaymentMethod::BankTransfer->label() => '--viz-3', PaymentMethod::Cheque->label() => '--viz-4'];
+        $byMethod = [];
+        foreach ($days as $r) {
+            $method = (string) $r['method'];
+            $byMethod[$method] = ($byMethod[$method] ?? 0) + (float) $r['amount'];
+        }
+
+        return [
+            ['type' => 'columns', 'title' => $monthly ? __('Collected per month') : __('Collected per day'), 'items' => count($columns) <= 400 ? $columns : []],
+            ['type' => 'stack', 'title' => __('By method'), 'caption' => __(':n BHD collected', ['n' => number_format(array_sum($byMethod), 3)]),
+                'items' => array_map(fn ($label) => ['label' => $label, 'value' => $byMethod[$label], 'display' => number_format($byMethod[$label], 3), 'color' => $colors[$label] ?? '--viz-quiet'],
+                    array_values(array_filter(array_keys($colors), fn ($l) => isset($byMethod[$l]))))],
+        ];
     }
 }

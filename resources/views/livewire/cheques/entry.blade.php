@@ -13,7 +13,7 @@
                 <div class="grid gap-2 py-3 sm:grid-cols-4 sm:items-end" wire:key="row-{{ $i }}">
                     <flux:text class="sm:col-span-4">{{ $row['label'] }}</flux:text>
                     <flux:input wire:model="rows.{{ $i }}.cheque_no" :label="__('Cheque no.')" />
-                    <flux:input wire:model="rows.{{ $i }}.cheque_date" type="date" :label="__('Cheque date')" />
+                    <x-date-input wire:model="rows.{{ $i }}.cheque_date" :label="__('Cheque date')" />
                     <flux:input wire:model="rows.{{ $i }}.amount" inputmode="decimal" :label="__('Amount')" />
                     <div>
                         @foreach (['cheque_no', 'cheque_date', 'amount', 'invoice_id'] as $f)<flux:error name="rows.{{ $i }}.{{ $f }}" />@endforeach

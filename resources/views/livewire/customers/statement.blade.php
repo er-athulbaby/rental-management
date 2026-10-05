@@ -3,8 +3,8 @@
     <div class="flex flex-wrap items-end justify-between gap-4">
         <flux:heading size="xl" level="1">{{ __('Statement — :n', ['n' => $customer->name_en]) }}</flux:heading>
         <div class="flex flex-wrap items-end gap-2">
-            <flux:input wire:model.live="from" type="date" :label="__('From')" />
-            <flux:input wire:model.live="to" type="date" :label="__('To')" />
+            <x-date-input wire:model.live="from" :label="__('From')" />
+            <x-date-input wire:model.live="to" :label="__('To')" />
             @if ($valid)
                 <flux:button icon="document-arrow-down" :href="route('customers.statement.pdf', ['customer' => $customer, 'from' => $from, 'to' => $to])" target="_blank">{{ __('PDF') }}</flux:button>
             @endif

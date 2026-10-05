@@ -8,10 +8,25 @@
                 <flux:select.option :value="$b->id">{{ $b->code }} — {{ $b->name }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:input type="date" wire:model.live="from" :label="__('From')" />
-        <flux:input type="date" wire:model.live="to" :label="__('To')" />
+        <x-date-input wire:model.live="from" :label="__('From')" />
+        <x-date-input wire:model.live="to" :label="__('To')" />
         <div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>
     </div>
+
+    @if (count($rows) > 0)
+        @php($money = fn (int $fils) => number_format($fils / 1000, 3))
+        <div @class(['grid gap-4', 'lg:grid-cols-2' => count($rows) > 1])>
+            <x-report-chart :chart="['type' => 'bars', 'title' => __('Result by building'), 'caption' => __('Income less head lease and expenses; red is a loss'),
+                'items' => collect($rows)->sortByDesc(fn ($r) => $r['figures']['result'])->map(fn ($r) => ['label' => $r['building']->code.' — '.$r['building']->name, 'value' => $r['figures']['result'] / 1000, 'display' => $money($r['figures']['result'])])->values()->all()]" />
+            @php($sum = fn (string $k) => collect($rows)->sum(fn ($r) => $r['figures'][$k]))
+            <x-report-chart :chart="['type' => 'bars', 'title' => __('All buildings: income and costs'), 'caption' => __('BHD, :from to :to', ['from' => \Carbon\CarbonImmutable::parse($from)->format('d/m/Y'), 'to' => \Carbon\CarbonImmutable::parse($to)->format('d/m/Y')]),
+                'items' => [
+                    ['label' => __('Income'), 'value' => $sum('income') / 1000, 'display' => $money($sum('income'))],
+                    ['label' => __('Head lease'), 'value' => $sum('head_lease') / 1000, 'display' => $money($sum('head_lease'))],
+                    ['label' => __('Expenses'), 'value' => $sum('expenses') / 1000, 'display' => $money($sum('expenses'))],
+                ]]" />
+        </div>
+    @endif
 
     <div class="overflow-x-auto">
         <flux:table>

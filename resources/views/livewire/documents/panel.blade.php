@@ -49,7 +49,7 @@
                 @endforeach
             </flux:select>
             @if (in_array($category, ['id_copy', 'cr_copy'], true))
-                <flux:input wire:model="expiresOn" type="date" :label="__('Expires on')" class="sm:max-w-44" />
+                <x-date-input wire:model="expiresOn" :label="__('Expires on')" class="sm:max-w-44" />
             @endif
             <flux:button type="submit" variant="primary">{{ __('Upload') }}</flux:button>
         </form>

@@ -62,6 +62,17 @@ trait ReportPage
         return [];
     }
 
+    /**
+     * Charts drawn above the table from the same rows (see <x-report-chart>); none by default.
+     *
+     * @param  list<array<string, string|int|null>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    protected function charts(array $rows): array
+    {
+        return [];
+    }
+
     public function mountReportPage(): void
     {
         abort_unless($this->permission(), 403);
@@ -128,7 +139,8 @@ trait ReportPage
         return view('livewire.reports.table', [
             'title' => $this->title(),
             'columns' => $this->columns(),
-            'rows' => $this->filtersValid() ? $this->rows() : [],
+            'rows' => $rows = $this->filtersValid() ? $this->rows() : [],
+            'charts' => $rows === [] ? [] : $this->charts($rows),
             'numeric' => $this->numeric(),
             'options' => $this->options(),
             'dateMode' => $this->dateMode(),

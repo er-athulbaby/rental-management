@@ -14,10 +14,10 @@
             </flux:select>
         @endif
         @if ($dateMode === 'range')
-            <flux:input type="date" wire:model.live="from" :label="__('From')" />
-            <flux:input type="date" wire:model.live="to" :label="__('To')" />
+            <x-date-input wire:model.live="from" :label="__('From')" />
+            <x-date-input wire:model.live="to" :label="__('To')" />
         @elseif ($dateMode === 'single')
-            <flux:input type="date" wire:model.live="to" :label="__('As at')" />
+            <x-date-input wire:model.live="to" :label="__('As at')" />
         @endif
         @foreach ($options as $property => $choices)
             <flux:select wire:model.live="{{ $property }}" :label="str($property)->headline()">
@@ -28,6 +28,12 @@
         @endforeach
         <div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>
     </div>
+
+    @if ($charts !== [])
+        <div @class(['grid gap-4', 'lg:grid-cols-2' => count($charts) > 1])>
+            @foreach ($charts as $chart)<x-report-chart :chart="$chart" />@endforeach
+        </div>
+    @endif
 
     <div class="overflow-x-auto">
         <flux:table>

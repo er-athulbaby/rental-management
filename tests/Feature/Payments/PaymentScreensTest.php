@@ -98,3 +98,17 @@ test('Finance starts a new payment from the list by choosing the customer', func
 test('opening the new-payment page without a customer goes back to the list instead of failing', function () {
     $this->actingAs($this->finance)->get(route('payments.create'))->assertRedirect(route('payments.index'));
 });
+
+test('an unpaid invoice offers Record payment, which opens the form with that invoice and its balance filled in', function () {
+    Livewire::actingAs($this->finance)->test(App\Livewire\Invoices\Show::class, ['invoice' => $this->b])
+        ->assertSee('Record payment')->assertSeeHtml(e(route('payments.create', ['customer' => $this->customer->id, 'invoice' => $this->b->id])));
+
+    Livewire::withQueryParams(['customer' => $this->customer->id, 'invoice' => $this->b->id])->actingAs($this->finance)->test(Create::class)
+        ->assertSet('form.amount', '300.000')->assertSet("split.{$this->b->id}", '300.000')
+        ->set('form.method', 'cash')->call('save')->assertHasNoErrors();
+
+    expect($this->b->fresh()->balance)->toBe('0.000')->and($this->a->fresh()->balance)->toBe('400.000'); // the chosen invoice, not oldest first
+
+    Livewire::actingAs($this->finance)->test(App\Livewire\Invoices\Show::class, ['invoice' => $this->b])
+        ->assertDontSee('Record payment')->assertSee('Payments received')->assertSee(Payment::sole()->number);
+});

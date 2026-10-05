@@ -140,8 +140,8 @@
                     <option value="">{{ __('The whole agreement') }}</option>
                     @foreach ($agreement->agreementUnits as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
                 </flux:select>
-                <flux:input wire:model="noticeDate" type="date" :label="__('Notice given on')" />
-                <flux:input wire:model="plannedExit" type="date" :label="__('Planned exit')" />
+                <x-date-input wire:model="noticeDate" :label="__('Notice given on')" />
+                <x-date-input wire:model="plannedExit" :label="__('Planned exit')" />
                 <flux:button type="submit" class="sm:col-span-3 sm:justify-self-start">{{ __('Record notice') }}</flux:button>
             </form>
         </flux:fieldset>
@@ -152,10 +152,9 @@
                     <option value="">{{ __('Every unit still in') }}</option>
                     @foreach ($agreement->agreementUnits->whereNull('move_out_date') as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
                 </flux:select>
-                <flux:input wire:model="moveOutDate" type="date" :label="__('Moved out on')" />
+                <x-date-input wire:model="moveOutDate" :label="__('Moved out on')" />
                 <flux:textarea wire:model="moveOutReadings" :label="__('Meter readings')" rows="2" />
                 <flux:textarea wire:model="moveOutNotes" :label="__('Notes')" rows="2" />
-                <flux:error name="moveOutDate" />
                 <flux:button type="submit" class="sm:col-span-2 sm:justify-self-start">{{ __('Record move-out') }}</flux:button>
             </form>
         </flux:fieldset>
@@ -223,7 +222,7 @@
             <flux:checkbox.group wire:model="renewUnits" :label="__('Units to carry')">
                 @foreach ($agreement->agreementUnits as $au)<flux:checkbox value="{{ $au->unit_id }}" :label="$au->unit->building->code.' / '.$au->unit->code" />@endforeach
             </flux:checkbox.group>
-            <flux:input wire:model="renewEnd" type="date" :label="__('New end date')" />
+            <x-date-input wire:model="renewEnd" :label="__('New end date')" />
             <flux:error name="renewUnits" />
             <flux:text size="sm">{{ __('A draft opens with the current rents and deposits; change them before sending it for approval.') }}</flux:text>
             <flux:button variant="primary" type="submit">{{ __('Create renewal draft') }}</flux:button>

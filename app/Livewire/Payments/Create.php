@@ -48,6 +48,14 @@ class Create extends Component
         }
         $this->customerId = $customer->id;
         $this->form['received_on'] = now('Asia/Bahrain')->toDateString();
+
+        // From an invoice's Record payment button: pay that invoice's balance.
+        $invoice = Invoice::query()->where('customer_id', $customer->id)->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)
+            ->where('balance', '>', 0)->find(request()->integer('invoice'));
+        if ($invoice) {
+            $this->split[$invoice->id] = $invoice->balance;
+            $this->form['amount'] = $invoice->balance;
+        }
     }
 
     /** Choosing Split starts with card + cash rows. $key is null when Livewire replaces the whole form. */

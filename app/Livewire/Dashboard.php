@@ -11,7 +11,7 @@ use App\Support\Fils;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
-/** Spec §10: 8 number tiles, no charts; each tile needs its report's permission and links to it. */
+/** Spec §10: 8 number tiles, each needing its report's permission and linking to it; plus two charts (collections, occupancy) under the same permissions. */
 class Dashboard extends Component
 {
     use WithActor;
@@ -55,8 +55,51 @@ class Dashboard extends Component
         return $tiles;
     }
 
+    /**
+     * Collected per month for the last six months, deposit-applied excluded (it moves no money). Null without reports.financial.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function collectionsChart(User $user): ?array
+    {
+        if (! $user->can('reports.financial')) {
+            return null;
+        }
+        $today = now('Asia/Bahrain');
+        $start = $today->startOfMonth()->subMonths(5);
+        $byMonth = Queries::collections($user, $start->toDateString(), $today->toDateString())->where('method', '!=', PaymentMethod::DepositApplied)
+            ->get(['received_on', 'amount'])->groupBy(fn ($p) => $p->received_on->format('Y-m'))
+            ->map(fn ($ps) => $ps->sum(fn ($p) => Fils::fromDecimal((string) $p->amount)));
+
+        $items = [];
+        for ($m = $start; $m <= $today; $m = $m->addMonth()) {
+            $fils = (int) ($byMonth[$m->format('Y-m')] ?? 0);
+            $items[] = ['label' => $m->format('F Y'), 'short' => $m->format('M'), 'value' => $fils / 1000, 'display' => number_format($fils / 1000, 3).' BHD'];
+        }
+
+        return ['type' => 'columns', 'title' => __('Collected, last 6 months'), 'caption' => __('BHD'), 'items' => $items];
+    }
+
+    /** @return array{units: int, occupied: int, percent: float}|null available (not blocked) units today; null without reports.operational */
+    public static function occupancy(User $user): ?array
+    {
+        if (! $user->can('reports.operational')) {
+            return null;
+        }
+        $units = Unit::query()->visibleTo($user)->where('blocked', false)->count();
+        $occupied = Unit::query()->visibleTo($user)->where('blocked', false)->whereIn('id', Queries::occupiedUnitIds($user, now('Asia/Bahrain')->toDateString()))->count();
+
+        return ['units' => $units, 'occupied' => $occupied, 'percent' => $units > 0 ? round(100 * $occupied / $units, 1) : 0.0];
+    }
+
     public function render(): View
     {
-        return view('livewire.dashboard', ['tiles' => self::tiles($this->actor())])->title(__('Dashboard'));
+        $user = $this->actor();
+
+        return view('livewire.dashboard', [
+            'tiles' => self::tiles($user),
+            'collections' => self::collectionsChart($user),
+            'occupancy' => self::occupancy($user),
+        ])->title(__('Dashboard'));
     }
 }

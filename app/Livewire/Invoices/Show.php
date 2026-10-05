@@ -5,8 +5,13 @@ namespace App\Livewire\Invoices;
 use App\Actions\Billing\CancelDraftInvoice;
 use App\Actions\Billing\IssueInvoice;
 use App\Actions\Billing\SubmitCreditNote;
+use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\PaymentAllocation;
+use App\Support\Fils;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -71,6 +76,12 @@ class Show extends Component
             'canEdit' => $this->actor()->can('update', $invoice),
             'canIssue' => $this->actor()->can('issue', $invoice),
             'canCredit' => $this->actor()->can('credit', $invoice),
+            'canPay' => $invoice->status === InvoiceStatus::Issued && $invoice->type !== InvoiceType::CreditNote
+                && Fils::fromDecimal($invoice->balance) > 0 && $this->actor()->can('create', Payment::class),
+            // Money applied to this invoice, net of any reversal, per receipt.
+            'payments' => $this->actor()->can('viewAny', Payment::class) ? PaymentAllocation::query()->whereIn('invoice_line_id', $invoice->lines->pluck('id'))
+                ->with('payment:id,number,received_on,method,status')->orderBy('id')->get()->groupBy('payment_id')
+                ->map(fn ($rows) => ['payment' => $rows->firstOrFail()->payment, 'amount' => Fils::toDecimal($rows->sum(fn (PaymentAllocation $a) => Fils::fromDecimal($a->amount)))])->values() : collect(),
         ])->title($invoice->label());
     }
 }

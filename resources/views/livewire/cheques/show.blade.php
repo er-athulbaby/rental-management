@@ -42,7 +42,7 @@
     <flux:modal name="clear" class="md:w-96">
         <form wire:submit="clear" class="space-y-4">
             <flux:heading size="lg">{{ __('Cheque cleared') }}</flux:heading>
-            <flux:input wire:model="clearedOn" type="date" :label="__('Cleared on')" />
+            <x-date-input wire:model="clearedOn" :label="__('Cleared on')" />
             <flux:error name="cleared_on" />
             <flux:button variant="primary" type="submit">{{ __('Record payment') }}</flux:button>
         </form>
@@ -54,8 +54,7 @@
             @if ($cheque->status->value === 'cleared')
                 <flux:text>{{ __('This cheque has cleared: its payment will be reversed once Management approves.') }}</flux:text>
             @endif
-            <flux:input wire:model="bouncedOn" type="date" :label="__('Bounced on')" />
-            <flux:error name="bouncedOn" />
+            <x-date-input wire:model="bouncedOn" :label="__('Bounced on')" />
             <flux:textarea wire:model="bounceReason" :label="__('Reason')" rows="2" />
             <flux:error name="bounceReason" />
             <flux:error name="approval" />
@@ -68,7 +67,7 @@
             <flux:heading size="lg">{{ __('Replacement cheque') }}</flux:heading>
             <flux:input wire:model="replacement.cheque_no" :label="__('Cheque no.')" />
             <x-bank-select wire:model="replacement.bank_name" />
-            <flux:input wire:model="replacement.cheque_date" type="date" :label="__('Cheque date')" />
+            <x-date-input wire:model="replacement.cheque_date" :label="__('Cheque date')" />
             <flux:input wire:model="replacement.amount" inputmode="decimal" :label="__('Amount')" />
             <flux:error name="cheque_no" />
             @foreach (['cheque_no', 'bank_name', 'cheque_date', 'amount', 'invoice_id'] as $f)<flux:error name="rows.0.{{ $f }}" />@endforeach

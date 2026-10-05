@@ -2,8 +2,7 @@
     <flux:heading size="xl" level="1">{{ __('Manual invoice — :name', ['name' => $customer->name_en]) }}</flux:heading>
 
     <form wire:submit="save" class="space-y-4">
-        <flux:input wire:model="form.due_date" type="date" :label="__('Due date')" class="max-w-48" />
-        <flux:error name="form.due_date" />
+        <x-date-input wire:model="form.due_date" :label="__('Due date')" class="max-w-48" />
 
         @foreach ($lines as $i => $line)
             <flux:card class="space-y-3" wire:key="line-{{ $i }}">

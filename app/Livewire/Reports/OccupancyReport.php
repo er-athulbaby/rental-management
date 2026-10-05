@@ -63,4 +63,25 @@ class OccupancyReport extends Component
                 ];
             })->all());
     }
+
+    /**
+     * @param  list<array<string, string|int|null>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    protected function charts(array $rows): array
+    {
+        $sum = fn (string $key) => array_sum(array_map(fn ($r) => (int) $r[$key], $rows));
+        $units = [
+            ['label' => __('Occupied'), 'value' => $sum('units') - $sum('blocked') - $sum('vacant'), 'color' => '--viz-1'],
+            ['label' => __('Vacant'), 'value' => $sum('vacant'), 'color' => '--viz-2'],
+            ['label' => __('Blocked'), 'value' => $sum('blocked'), 'color' => '--viz-quiet'],
+        ];
+
+        return [
+            ['type' => 'stack', 'title' => __('All units'), 'caption' => __(':n units', ['n' => $sum('units')]),
+                'items' => array_map(fn ($u) => [...$u, 'display' => (string) $u['value']], $units)],
+            ['type' => 'bars', 'title' => __('Occupancy by building'), 'max' => 100,
+                'items' => array_map(fn ($r) => ['label' => $r['building'], 'value' => (float) $r['occupancy'], 'display' => (string) $r['occupancy']], $rows)],
+        ];
+    }
 }

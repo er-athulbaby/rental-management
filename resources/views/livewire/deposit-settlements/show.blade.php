@@ -75,12 +75,12 @@
             <flux:select wire:model.live="refund.method" :label="__('Method')">
                 @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
             </flux:select>
-            <flux:input wire:model="refund.paid_on" type="date" :label="__('Paid on')" />
+            <x-date-input wire:model="refund.paid_on" :label="__('Paid on')" />
             <flux:input wire:model="refund.reference" :label="__('Reference')" />
             @if (($refund['method'] ?? '') === 'cheque')
                 <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
                 <x-bank-select wire:model="refund.bank_name" />
-                <flux:input wire:model="refund.cheque_date" type="date" :label="__('Cheque date')" />
+                <x-date-input wire:model="refund.cheque_date" :label="__('Cheque date')" />
             @endif
             @foreach (['amount', 'method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="refund.{{ $f }}" />@endforeach
             <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="payRefund">{{ __('Pay refund') }}</flux:button>

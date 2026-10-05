@@ -14,7 +14,7 @@
             <flux:select wire:model="form.category" :label="__('Category')">
                 @foreach ($categories as $c)<option value="{{ $c->value }}">{{ str($c->value)->headline() }}</option>@endforeach
             </flux:select>
-            <flux:input wire:model="form.expense_date" type="date" :label="__('Date')" />
+            <x-date-input wire:model="form.expense_date" :label="__('Date')" />
         </div>
         <flux:input wire:model="form.description" :label="__('Description')" />
         <div class="grid gap-4 sm:grid-cols-2">

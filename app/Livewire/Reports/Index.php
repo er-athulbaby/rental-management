@@ -11,27 +11,27 @@ class Index extends Component
 {
     use WithActor;
 
-    /** @return array<string, list<array{route: string, label: string}>> */
+    /** @return array<string, list<array{route: string, label: string, icon: string, about: string}>> */
     public static function catalogue(): array
     {
         return [
             'operational' => [
-                ['route' => 'reports.occupancy', 'label' => __('Unit availability and occupancy')],
-                ['route' => 'reports.expiring', 'label' => __('Agreements expiring')],
-                ['route' => 'reports.overstays', 'label' => __('Overstays: expired, not closed')],
-                ['route' => 'reports.approvals', 'label' => __('Pending approvals')],
-                ['route' => 'reports.id-documents', 'label' => __('ID documents expiring')],
-                ['route' => 'reports.cheques', 'label' => __('Cheques')],
+                ['route' => 'reports.occupancy', 'label' => __('Unit availability and occupancy'), 'icon' => 'home-modern', 'about' => __('Occupied, vacant and blocked units per building.')],
+                ['route' => 'reports.expiring', 'label' => __('Agreements expiring'), 'icon' => 'calendar-days', 'about' => __('Agreements ending soon, to renew or plan move-outs.')],
+                ['route' => 'reports.overstays', 'label' => __('Overstays: expired, not closed'), 'icon' => 'exclamation-triangle', 'about' => __('Tenants still in after their agreement ended.')],
+                ['route' => 'reports.approvals', 'label' => __('Pending approvals'), 'icon' => 'check-badge', 'about' => __('Requests waiting for a decision.')],
+                ['route' => 'reports.id-documents', 'label' => __('ID documents expiring'), 'icon' => 'identification', 'about' => __('CPR, passport and CR copies about to expire.')],
+                ['route' => 'reports.cheques', 'label' => __('Cheques'), 'icon' => 'banknotes', 'about' => __('Cheques to deposit, and bounced cheques to chase.')],
             ],
             'financial' => [
-                ['route' => 'reports.building-profitability', 'label' => __('Building profitability')],
-                ['route' => 'owner-payables.index', 'label' => __('Head-lease payments due')],
-                ['route' => 'owner-statements.index', 'label' => __('Owner statements')],
-                ['route' => 'reports.outstanding', 'label' => __('Outstanding by tenant')],
-                ['route' => 'reports.ageing', 'label' => __('Overdue ageing')],
-                ['route' => 'reports.collections', 'label' => __('Collections by date and method')],
-                ['route' => 'reports.deposits', 'label' => __('Deposits held')],
-                ['route' => 'reports.vat', 'label' => __('VAT summary')],
+                ['route' => 'reports.building-profitability', 'label' => __('Building profitability'), 'icon' => 'chart-bar', 'about' => __('Income against head lease and expenses, per building.')],
+                ['route' => 'owner-payables.index', 'label' => __('Head-lease payments due'), 'icon' => 'calendar', 'about' => __('Rent owed to owners, by due date.')],
+                ['route' => 'owner-statements.index', 'label' => __('Owner statements'), 'icon' => 'document-text', 'about' => __('Monthly statements and remittances to owners.')],
+                ['route' => 'reports.outstanding', 'label' => __('Outstanding by tenant'), 'icon' => 'user-group', 'about' => __('What each tenant owes, less their credit.')],
+                ['route' => 'reports.ageing', 'label' => __('Overdue ageing'), 'icon' => 'clock', 'about' => __('Overdue money by how long it has been late.')],
+                ['route' => 'reports.collections', 'label' => __('Collections by date and method'), 'icon' => 'arrow-trending-up', 'about' => __('Money received per day, by cash, card, transfer or cheque.')],
+                ['route' => 'reports.deposits', 'label' => __('Deposits held'), 'icon' => 'lock-closed', 'about' => __('Security deposits held per agreement unit.')],
+                ['route' => 'reports.vat', 'label' => __('VAT summary'), 'icon' => 'receipt-percent', 'about' => __('Output VAT by rate, for the return.')],
             ],
         ];
     }

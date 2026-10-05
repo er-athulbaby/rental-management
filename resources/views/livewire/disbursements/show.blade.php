@@ -33,12 +33,11 @@
             <div>{{ __('Cheque :n on :b, dated :d', ['n' => $out->cheque->cheque_no, 'b' => $out->cheque->bank_name, 'd' => $out->cheque->cheque_date->format('d/m/Y')]) }} · <flux:badge size="sm">{{ $out->cheque->status->label() }}</flux:badge></div>
             @if ($canClearCheque)
                 <form wire:submit="clearCheque" class="flex items-end gap-2">
-                    <flux:input wire:model="clearedOn" type="date" :label="__('Cleared on')" />
+                    <x-date-input wire:model="clearedOn" :label="__('Cleared on')" />
                     <flux:button type="submit">{{ __('Cleared') }}</flux:button>
                 </form>
             @endif
         </flux:card>
-        <flux:error name="clearedOn" />
     @endif
 
     <flux:modal name="pay" class="md:w-96">
@@ -47,12 +46,12 @@
             <flux:select wire:model.live="pay.method" :label="__('Method')">
                 @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
             </flux:select>
-            <flux:input wire:model="pay.paid_on" type="date" :label="__('Paid on')" />
+            <x-date-input wire:model="pay.paid_on" :label="__('Paid on')" />
             <flux:input wire:model="pay.reference" :label="__('Reference')" />
             @if (($pay['method'] ?? '') === 'cheque')
                 <flux:input wire:model="pay.cheque_no" :label="__('Cheque no.')" />
                 <x-bank-select wire:model="pay.bank_name" />
-                <flux:input wire:model="pay.cheque_date" type="date" :label="__('Cheque date')" />
+                <x-date-input wire:model="pay.cheque_date" :label="__('Cheque date')" />
             @endif
             @foreach (['method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="pay.{{ $f }}" />@endforeach
             <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="payNow">{{ __('Save') }}</flux:button>

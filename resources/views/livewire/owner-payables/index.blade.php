@@ -8,7 +8,7 @@
                 <flux:select.option :value="$b->id">{{ $b->code }} — {{ $b->name }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:input type="date" wire:model.live="dueBy" :label="__('Due by')" />
+        <x-date-input wire:model.live="dueBy" :label="__('Due by')" />
         @can('reports.financial')<div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>@endcan
     </div>
 
@@ -52,12 +52,12 @@
                     <flux:select.option :value="$m->value">{{ $m->label() }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:input type="date" wire:model="form.paid_on" :label="__('Paid on')" />
+            <x-date-input wire:model="form.paid_on" :label="__('Paid on')" />
             <flux:input wire:model="form.reference" :label="__('Reference')" />
             @if (($form['method'] ?? null) === 'cheque')
                 <flux:input wire:model="form.cheque_no" :label="__('Cheque number')" />
                 <x-bank-select wire:model="form.bank_name" />
-                <flux:input type="date" wire:model="form.cheque_date" :label="__('Cheque date')" />
+                <x-date-input wire:model="form.cheque_date" :label="__('Cheque date')" />
             @endif
             <flux:error name="form.owner_payable_id" />
             <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>

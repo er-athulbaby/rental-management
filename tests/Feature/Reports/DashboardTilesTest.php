@@ -1,8 +1,10 @@
 <?php
 
 use App\Actions\EnsureNumberSequences;
+use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
 use App\Livewire\Dashboard;
+use App\Livewire\Reports\AgeingReport;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\CompanySetting;
@@ -57,4 +59,25 @@ test('rent due sums net amounts: issued VAT-inclusive totals are not mixed with 
 
     $tiles = collect(Dashboard::tiles(matrixUser(RoleName::Management, $this->building)))->pluck('value', 'label');
     expect($tiles['Rent due this month'])->toBe('500.000');
+});
+
+test('the dashboard charts: collections for the last six months and occupancy today, each behind its report permission', function () {
+    $management = matrixUser(RoleName::Management, $this->building);
+    app(RecordPayment::class)->handle(matrixUser(RoleName::Finance, $this->building), $this->customer, ['received_on' => '2026-06-09', 'method' => 'cash', 'amount' => '150']);
+
+    $chart = Dashboard::collectionsChart($management);
+    expect(collect($chart['items'])->pluck('short')->all())->toBe(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'])
+        ->and(collect($chart['items'])->last()['display'])->toBe('150.000 BHD')
+        ->and(Dashboard::occupancy($management))->toBe(['units' => 2, 'occupied' => 1, 'percent' => 50.0]);
+
+    Livewire::actingAs($management)->test(Dashboard::class)->assertSee('Collected, last 6 months')->assertSee('Occupancy today')->assertSeeHtml('class="viz-ring"');
+
+    $leasing = matrixUser(RoleName::Leasing, $this->building);
+    expect(Dashboard::collectionsChart($leasing))->toBeNull();
+});
+
+test('reports draw their charts above the table', function () {
+    $html = Livewire::actingAs(matrixUser(RoleName::Management, $this->building))->test(AgeingReport::class)->html();
+
+    expect($html)->toContain('Overdue by age')->toContain('Largest overdue balances')->toContain('1–30 days');
 });
