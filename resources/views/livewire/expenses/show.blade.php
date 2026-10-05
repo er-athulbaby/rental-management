@@ -1,7 +1,7 @@
 <section class="w-full max-w-2xl space-y-8">
     <div class="space-y-1">
         <flux:heading size="xl" level="1">{{ $expense->description }}</flux:heading>
-        <flux:badge>{{ str($expense->status->value)->headline() }}</flux:badge>
+        <x-status-badge :status="$expense->status" />
     </div>
 
     <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">

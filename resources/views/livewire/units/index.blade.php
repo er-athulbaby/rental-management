@@ -37,7 +37,7 @@
                         <flux:table.cell>{{ $unit->unitType?->name ?? $unit->type }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $unit->list_rent }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm">{{ $unit->status()->label() }}</flux:badge>
+                            <x-status-badge :status="$unit->status()" />
                             @if ($next = $unit->nextTenantFrom())
                                 <span class="text-xs text-zinc-500">{{ __('next tenant from :date', ['date' => $next->format('d/m/Y')]) }}</span>
                             @endif

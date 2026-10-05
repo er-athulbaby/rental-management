@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ $cheque->bank_name }} #{{ $cheque->cheque_no }}</flux:heading>
-            <flux:badge>{{ $cheque->status->label() }}</flux:badge>
+            <x-status-badge :status="$cheque->status" />
         </div>
         @if ($canManage)
             <div class="flex flex-wrap gap-2">

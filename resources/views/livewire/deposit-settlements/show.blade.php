@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ __('Deposit settlement :n', ['n' => $s->label()]) }}</flux:heading>
-            <flux:badge>{{ $s->status->label() }}</flux:badge>
+            <x-status-badge :status="$s->status" />
         </div>
         @if ($canRefund)
             <flux:modal.trigger name="refund"><flux:button variant="primary">{{ __('Pay refund (:c BHD left)', ['c' => $left]) }}</flux:button></flux:modal.trigger>

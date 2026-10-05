@@ -29,7 +29,7 @@
                         <flux:table.cell>{{ $row->payee()->name_en }}</flux:table.cell>
                         <flux:table.cell>{{ $row->purpose->label() }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $row->amount }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $row->status->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$row->status" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

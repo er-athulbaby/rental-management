@@ -71,7 +71,7 @@
                         <flux:table.cell class="whitespace-nowrap">{{ $cheque->cheque_date->format('d/m/Y') }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $cheque->amount }}</flux:table.cell>
                         <flux:table.cell>{{ $cheque->invoice?->label() ?? '—' }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $cheque->status->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$cheque->status" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

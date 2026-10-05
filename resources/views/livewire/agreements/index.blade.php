@@ -37,7 +37,7 @@
                         <flux:table.cell>{{ $agreement->customer->name_en }}</flux:table.cell>
                         <flux:table.cell>{{ $agreement->agreementUnits->groupBy(fn ($au) => $au->unit->building->code)->map(fn ($units, $building) => $building.' · '.$units->pluck('unit.code')->unique()->implode(', '))->implode('; ') ?: '—' }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $agreement->start_date->format('d/m/Y') }} – {{ $agreement->end_date->format('d/m/Y') }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $agreement->status->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$agreement->status" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

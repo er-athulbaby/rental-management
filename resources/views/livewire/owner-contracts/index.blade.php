@@ -36,7 +36,7 @@
                         <flux:table.cell>{{ str($contract->type->value)->headline() }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $contract->start_date->format('d/m/Y') }} – {{ $contract->end_date->format('d/m/Y') }}</flux:table.cell>
                         <flux:table.cell>{{ $contract->units_count }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $contract->status->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$contract->status" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

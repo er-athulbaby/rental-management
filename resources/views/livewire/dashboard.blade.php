@@ -3,15 +3,15 @@
     @if ($tiles === [])
         <flux:text>{{ __('Welcome. Use the menu to get started.') }}</flux:text>
     @else
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             @foreach ($tiles as $tile)
                 <a href="{{ $tile['url'] }}" wire:navigate
-                    class="group block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600">
+                    class="group block min-w-0 rounded-xl border border-zinc-200 bg-white p-3 transition sm:p-4 hover:border-zinc-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600">
                     <span class="flex items-center justify-between gap-2 text-sm text-zinc-500">
                         {{ $tile['label'] }}
                         <flux:icon.arrow-up-right variant="micro" class="opacity-0 transition group-hover:opacity-100" />
                     </span>
-                    <span class="mt-2 block text-2xl font-semibold text-zinc-900 dark:text-white">{{ $tile['value'] }}</span>
+                    <span class="mt-2 block truncate text-xl font-semibold text-zinc-900 sm:text-2xl dark:text-white">{{ preg_match('/^-?\d+\.\d{3}$/', $tile['value']) ? number_format((float) $tile['value'], 3) : $tile['value'] }}</span>
                 </a>
             @endforeach
         </div>

@@ -71,7 +71,7 @@
                         <flux:table.cell class="whitespace-nowrap">{{ $invoice->period_start?->format('d/m/Y') }}{{ $invoice->period_start ? ' – '.$invoice->period_end?->format('d/m/Y') : '' }} · {{ __('due :d', ['d' => $invoice->due_date->format('d/m/Y')]) }}@if ($currentTab === 'overdue') · <span class="text-red-600 dark:text-red-400">{{ trans_choice(':n day overdue|:n days overdue', $n = (int) $invoice->due_date->diffInDays(now('Asia/Bahrain')->startOfDay()), ['n' => $n]) }}</span>@endif</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $invoice->total }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $invoice->status->value === 'issued' ? $invoice->balance : '—' }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm" :color="$invoice->displayLabel() === __('Overdue') ? 'red' : 'zinc'">{{ $invoice->displayLabel() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$invoice->status->value === 'issued' ? $invoice->displayLabel() : $invoice->status" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

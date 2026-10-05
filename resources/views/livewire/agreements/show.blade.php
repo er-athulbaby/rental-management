@@ -8,7 +8,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ $agreement->label() }}</flux:heading>
-            <flux:badge>{{ $agreement->status->label() }}</flux:badge>
+            <x-status-badge :status="$agreement->status" />
         </div>
         <div class="flex flex-wrap gap-2">
             @if ($canManage && $agreement->status === AgreementStatus::Draft)
@@ -133,9 +133,13 @@
     @endif
 
     @if (auth()->user()->can('agreements.manage') && in_array($agreement->status, [AgreementStatus::Active, AgreementStatus::Expired], true))
-        <flux:fieldset>
-            <flux:legend>{{ __('Record notice') }}</flux:legend>
-            <form wire:submit="recordNotice" class="mt-2 grid gap-3 sm:grid-cols-3 sm:items-end">
+        <div class="space-y-3">
+        <details wire:ignore.self class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" @if ($errors->hasAny(['noticeTarget', 'noticeDate', 'plannedExit'])) open @endif>
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
+                <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record notice') }}</span><span class="block text-xs text-zinc-500">{{ __('The tenant has said they are leaving, and when.') }}</span></span>
+                <flux:icon.chevron-down variant="mini" class="text-zinc-400 transition group-open:rotate-180" />
+            </summary>
+            <form wire:submit="recordNotice" class="grid gap-3 border-t border-zinc-200 p-4 sm:grid-cols-3 sm:items-end dark:border-zinc-700">
                 <flux:select wire:model="noticeTarget" :label="__('For')">
                     <option value="">{{ __('The whole agreement') }}</option>
                     @foreach ($agreement->agreementUnits as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
@@ -144,10 +148,13 @@
                 <x-date-input wire:model="plannedExit" :label="__('Planned exit')" />
                 <flux:button type="submit" class="sm:col-span-3 sm:justify-self-start">{{ __('Record notice') }}</flux:button>
             </form>
-        </flux:fieldset>
-        <flux:fieldset>
-            <flux:legend>{{ __('Record move-out') }}</flux:legend>
-            <form wire:submit="recordMoveOut" class="mt-2 grid gap-3 sm:grid-cols-2 sm:items-end">
+        </details>
+        <details wire:ignore.self class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" @if ($errors->hasAny(['moveOutTarget', 'moveOutDate', 'moveOutReadings', 'moveOutNotes'])) open @endif>
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
+                <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record move-out') }}</span><span class="block text-xs text-zinc-500">{{ __('The tenant has handed back the keys. This opens their deposit settlement.') }}</span></span>
+                <flux:icon.chevron-down variant="mini" class="text-zinc-400 transition group-open:rotate-180" />
+            </summary>
+            <form wire:submit="recordMoveOut" class="grid gap-3 border-t border-zinc-200 p-4 sm:grid-cols-2 sm:items-end dark:border-zinc-700">
                 <flux:select wire:model="moveOutTarget" :label="__('For')">
                     <option value="">{{ __('Every unit still in') }}</option>
                     @foreach ($agreement->agreementUnits->whereNull('move_out_date') as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
@@ -157,7 +164,8 @@
                 <flux:textarea wire:model="moveOutNotes" :label="__('Notes')" rows="2" />
                 <flux:button type="submit" class="sm:col-span-2 sm:justify-self-start">{{ __('Record move-out') }}</flux:button>
             </form>
-        </flux:fieldset>
+        </details>
+        </div>
     @endif
 
     @if ($invoices->isNotEmpty())
@@ -172,7 +180,7 @@
                                 <flux:table.cell>{{ $invoice->type->label() }}</flux:table.cell>
                                 <flux:table.cell class="whitespace-nowrap">{{ __('due :d', ['d' => $invoice->due_date->format('d/m/Y')]) }}</flux:table.cell>
                                 <flux:table.cell class="text-end tabular-nums">{{ $invoice->total }}</flux:table.cell>
-                                <flux:table.cell><flux:badge size="sm">{{ $invoice->displayLabel() }}</flux:badge></flux:table.cell>
+                                <flux:table.cell><x-status-badge :status="$invoice->displayLabel()" /></flux:table.cell>
                             </flux:table.row>
                         @endforeach
                     </flux:table.rows>

@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ $out->label() }}</flux:heading>
-            <flux:badge>{{ $out->status->label() }}</flux:badge>
+            <x-status-badge :status="$out->status" />
         </div>
         <div class="flex flex-wrap gap-2">
             @if ($canPay)
@@ -30,7 +30,7 @@
 
     @if ($out->cheque)
         <flux:card class="flex flex-wrap items-end justify-between gap-3">
-            <div>{{ __('Cheque :n on :b, dated :d', ['n' => $out->cheque->cheque_no, 'b' => $out->cheque->bank_name, 'd' => $out->cheque->cheque_date->format('d/m/Y')]) }} · <flux:badge size="sm">{{ $out->cheque->status->label() }}</flux:badge></div>
+            <div>{{ __('Cheque :n on :b, dated :d', ['n' => $out->cheque->cheque_no, 'b' => $out->cheque->bank_name, 'd' => $out->cheque->cheque_date->format('d/m/Y')]) }} · <x-status-badge :status="$out->cheque->status" /></div>
             @if ($canClearCheque)
                 <form wire:submit="clearCheque" class="flex items-end gap-2">
                     <x-date-input wire:model="clearedOn" :label="__('Cleared on')" />

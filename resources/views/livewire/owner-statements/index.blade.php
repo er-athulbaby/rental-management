@@ -32,7 +32,7 @@
                         <flux:table.cell><flux:link :href="route('owner-statements.show', $s)" wire:navigate>{{ $s->label() }}</flux:link> <span class="text-zinc-500">{{ $s->contract->number }}</span></flux:table.cell>
                         <flux:table.cell>{{ $s->contract->owner->name_en }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $s->closing_balance }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $s->status->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$s->status" /></flux:table.cell>
                     </flux:table.row>
                 @empty
                     <flux:table.row><flux:table.cell colspan="5">{{ __('No statements yet.') }}</flux:table.cell></flux:table.row>

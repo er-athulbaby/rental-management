@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ $payment->number }}</flux:heading>
-            <flux:badge>{{ str($payment->status->value)->headline() }}</flux:badge>
+            <x-status-badge :status="$payment->status" />
         </div>
         <div class="flex flex-wrap gap-2">
             <flux:button icon="document-arrow-down" :href="route('payments.receipt', $payment)" target="_blank">{{ __('Receipt') }}</flux:button>

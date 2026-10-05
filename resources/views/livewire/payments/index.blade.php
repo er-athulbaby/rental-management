@@ -40,7 +40,7 @@
                         <flux:table.cell class="whitespace-nowrap">{{ $payment->received_on->format('d/m/Y') }}</flux:table.cell>
                         <flux:table.cell>{{ $payment->methodSummary() }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $payment->amount }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ str($payment->status->value)->headline() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$payment->status" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>

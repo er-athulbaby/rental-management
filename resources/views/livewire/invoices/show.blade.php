@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ $invoice->label() }}</flux:heading>
-            <flux:badge>{{ $invoice->displayLabel() }}</flux:badge>
+            <x-status-badge :status="$invoice->displayLabel()" />
         </div>
         <div class="flex flex-wrap gap-2">
             @if ($canEdit && $invoice->type->value === 'manual')
@@ -94,7 +94,7 @@
         <div class="space-y-1">
             <flux:heading size="sm">{{ __('Credit notes') }}</flux:heading>
             @foreach ($invoice->creditNotes as $cn)
-                <div class="text-sm"><flux:link :href="route('invoices.show', $cn)" wire:navigate>{{ $cn->label() }}</flux:link> · {{ $cn->total }} · {{ $cn->status->label() }}</div>
+                <div class="flex items-center gap-2 text-sm"><flux:link :href="route('invoices.show', $cn)" wire:navigate>{{ $cn->number ?? __('Credit note #:id', ['id' => $cn->id]) }}</flux:link> <span class="tabular-nums">{{ $cn->total }}</span> <x-status-badge :status="$cn->status" /></div>
             @endforeach
         </div>
     @endif

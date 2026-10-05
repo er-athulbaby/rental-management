@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1">
             <flux:heading size="xl" level="1">{{ $contract->label() }}</flux:heading>
-            <flux:badge>{{ $contract->status->label() }}</flux:badge>
+            <x-status-badge :status="$contract->status" />
         </div>
         <div class="flex flex-wrap gap-2">
             @if ($contract->type === \App\Enums\OwnerContractType::Managed && auth()->user()->can('finance.view'))
@@ -107,7 +107,7 @@
                                 <flux:table.cell class="whitespace-nowrap">{{ $p->due_date->format('d/m/Y') }}</flux:table.cell>
                                 <flux:table.cell class="text-end tabular-nums">{{ $p->amount }}</flux:table.cell>
                                 <flux:table.cell>
-                                    <flux:badge size="sm">{{ $p->status->label() }}</flux:badge>
+                                    <x-status-badge :status="$p->status" />
                                     @if ($p->disbursement_id)
                                         <flux:link :href="route('disbursements.show', $p->disbursement_id)" wire:navigate>{{ __('Payment') }}</flux:link>
                                     @endif

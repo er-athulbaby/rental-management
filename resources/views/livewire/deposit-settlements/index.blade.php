@@ -22,7 +22,7 @@
                         <flux:table.cell><flux:link :href="route('deposit-settlements.show', $row)" wire:navigate>{{ $row->label() }}</flux:link></flux:table.cell>
                         <flux:table.cell>{{ $row->agreement->label() }}</flux:table.cell>
                         <flux:table.cell>{{ $row->agreement->customer->name_en }}</flux:table.cell>
-                        <flux:table.cell><flux:badge size="sm">{{ $row->status->label() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><x-status-badge :status="$row->status" /></flux:table.cell>
                     </flux:table.row>
                 @empty
                     <flux:table.row><flux:table.cell colspan="4" class="whitespace-normal text-zinc-500">{{ __('Nothing to settle. A settlement opens by itself when a tenant moves out or an agreement ends, to work out the deposit refund less any deductions.') }}</flux:table.cell></flux:table.row>

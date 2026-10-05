@@ -20,27 +20,47 @@
 
     <form wire:submit="save" class="space-y-4">
         <fieldset @disabled(! $canEdit) class="space-y-4">
-            <flux:radio.group wire:model.live="form.type" :label="__('Tenant type')" variant="segmented">
-                <flux:radio value="individual" :label="__('Individual')" />
-                <flux:radio value="company" :label="__('Company')" />
-            </flux:radio.group>
-            <flux:input wire:model="form.name_en" :label="__('Name (English)')" required />
-            <flux:input wire:model="form.name_ar" :label="__('Name (Arabic, used in contracts)')" dir="rtl" />
-            <div class="grid gap-4 sm:grid-cols-2">
-                <flux:select wire:model="form.id_type" :label="__('ID type')">
-                    @foreach ($idTypes as $idType)<option value="{{ $idType->value }}">{{ $idType->label() }}</option>@endforeach
-                </flux:select>
-                <flux:input wire:model="form.id_number" :label="__('ID number')" required />
-                <flux:input wire:model="form.mobile" :label="__('Mobile')" type="tel" required />
-                <flux:input wire:model="form.email" :label="__('Email')" type="email" />
-                <x-nationality-select wire:model="form.nationality" :current="$customer?->nationality" />
-                @if (($form['type'] ?? '') === 'company')
-                    <flux:input wire:model="form.contact_person" :label="__('Contact person')" />
-                @endif
-                <flux:input wire:model="form.emergency_contact_name" :label="__('Emergency contact')" />
-                <flux:input wire:model="form.emergency_contact_phone" :label="__('Emergency phone')" type="tel" />
-            </div>
-            <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" />
+            <flux:fieldset class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                <flux:legend>{{ __('Identity') }}</flux:legend>
+                <div class="space-y-4">
+                    <flux:radio.group wire:model.live="form.type" :label="__('Tenant type')" variant="segmented">
+                        <flux:radio value="individual" :label="__('Individual')" />
+                        <flux:radio value="company" :label="__('Company')" />
+                    </flux:radio.group>
+                    <flux:input wire:model="form.name_en" :label="__('Name (English)')" autocomplete="name" required />
+                    <flux:input wire:model="form.name_ar" :label="__('Name (Arabic, used in contracts)')" dir="rtl" />
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <flux:select wire:model="form.id_type" :label="__('ID type')">
+                            @foreach ($idTypes as $idType)<option value="{{ $idType->value }}">{{ $idType->label() }}</option>@endforeach
+                        </flux:select>
+                        <flux:input wire:model="form.id_number" :label="__('ID number')" required />
+                        <x-nationality-select wire:model="form.nationality" :current="$customer?->nationality" />
+                    </div>
+                </div>
+            </flux:fieldset>
+
+            <flux:fieldset class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                <flux:legend>{{ __('Contact') }}</flux:legend>
+                <div class="space-y-4">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <flux:input wire:model="form.mobile" :label="__('Mobile')" type="tel" autocomplete="tel" required />
+                        <flux:input wire:model="form.email" :label="__('Email')" type="email" autocomplete="email" />
+                        @if (($form['type'] ?? '') === 'company')
+                            <flux:input wire:model="form.contact_person" :label="__('Contact person')" />
+                        @endif
+                    </div>
+                    <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" autocomplete="street-address" />
+                </div>
+            </flux:fieldset>
+
+            <flux:fieldset class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                <flux:legend>{{ __('Emergency contact') }}</flux:legend>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <flux:input wire:model="form.emergency_contact_name" :label="__('Name')" />
+                    <flux:input wire:model="form.emergency_contact_phone" :label="__('Phone')" type="tel" />
+                </div>
+            </flux:fieldset>
+
             <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
         </fieldset>
         @if ($canEdit)

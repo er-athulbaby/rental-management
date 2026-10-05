@@ -5,7 +5,7 @@
             <flux:text>{{ $statement->contract->owner->name_en }} · <flux:link :href="route('owner-contracts.show', $statement->owner_contract_id)" wire:navigate>{{ $statement->contract->number }}</flux:link> · {{ $statement->period_start->format('d/m/Y') }} – {{ $statement->period_end->format('d/m/Y') }}</flux:text>
         </div>
         <div class="flex flex-wrap gap-2">
-            <flux:badge>{{ $statement->status->label() }}</flux:badge>
+            <x-status-badge :status="$statement->status" />
             <flux:button size="sm" :href="route('owner-statements.pdf', $statement)" target="_blank">{{ __('PDF') }}</flux:button>
             <flux:button size="sm" :href="route('owner-statements.export', $statement)">{{ __('Excel') }}</flux:button>
             @if ($canSubmit)
