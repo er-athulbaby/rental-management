@@ -98,7 +98,10 @@
 
             <flux:spacer />
 
-            <flux:text size="sm" class="px-2">{{ config('app.version') }}</flux:text>
+            <div class="px-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                <div>{{ __('Version :v', ['v' => config('app.version')]) }}</div>
+                <div>{{ __('Developed by') }} <a href="https://devera.me" target="_blank" rel="noopener" class="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-white">DeVerra Technologies</a></div>
+            </div>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>

@@ -1,6 +1,7 @@
 # Go-live runbook
 
 One install per company (spec D2). Times are Asia/Bahrain. Vendor Support runs the import; Finance and Management sign off the figures.
+The full checklist for onboarding a new company, from empty server to handover, is [`new-company-setup.md`](new-company-setup.md).
 
 ## Key dates
 
