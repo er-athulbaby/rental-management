@@ -189,10 +189,10 @@ class Builder extends Component
     {
         $def = $this->def;
         $fields = $this->fields();
-        $def['groups'] = array_values(array_filter((array) ($def['groups'] ?? []), fn ($g) => is_array($g) && filled($g['field'] ?? null)));
+        $def['groups'] = array_values(array_filter((array) ($def['groups'] ?? []), fn ($g) => is_array($g) && is_string($g['field'] ?? null) && $g['field'] !== ''));
         foreach ($def['groups'] as $i => $g) {
             $isDate = ($fields[$g['field']] ?? null)?->type === FieldType::Date;
-            $def['groups'][$i]['bucket'] = $g['bucket'] ?? ($isDate ? 'month' : null);
+            $def['groups'][$i]['bucket'] = is_string($g['bucket'] ?? null) ? $g['bucket'] : ($isDate ? 'month' : null);
         }
         $def['totals'] = array_filter((array) ($def['totals'] ?? []), fn ($fn, $key) => filled($fn) && in_array($key, (array) ($def['columns'] ?? []), true), ARRAY_FILTER_USE_BOTH);
         $def['filters'] = array_values((array) ($def['filters'] ?? []));

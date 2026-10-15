@@ -9,8 +9,10 @@ use App\Models\Customer;
 use App\Models\SavedReport;
 use App\Models\Unit;
 use App\Models\User;
+use App\Reports\Builder\Engine;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
+use App\Reports\Builder\ReportResult;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Livewire\Livewire;
@@ -140,11 +142,53 @@ test('number and money between filters show their placeholders', function () {
         ->assertSeeHtml('placeholder="From"')->assertSeeHtml('placeholder="To"');
 });
 
-test('grouping shows subtotal rows and Summary only hides detail rows', function () {
+test('grouping shows a subtotal row with its total, and Summary only hides detail rows', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)
         ->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.totals', ['balance' => 'sum'])
-        ->assertSee('AAA')->assertSee('400.000')->assertSee('Alpha Tenant')
-        ->set('def.summary_only', true)->assertDontSee('Alpha Tenant');
+        ->assertSeeHtml('data-group-level="1"')->assertSeeHtmlInOrder(['data-group-level="1"', 'AAA', '(1)', '400.000', 'Alpha Tenant', 'Total (1)'])
+        ->assertSeeHtml('aria-expanded')->assertSee('Collapse AAA')
+        ->set('def.summary_only', true)->assertSeeHtml('data-group-level="1"')->assertDontSee('Alpha Tenant');
+});
+
+test('two levels with a date bucket show level-2 rows labelled by month', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null], ['field' => 'due_date', 'bucket' => null]])->set('def.totals', ['balance' => 'sum'])
+        ->assertSeeHtmlInOrder(['data-group-level="1"', 'AAA', 'data-group-level="2"', 'Oct 2026', '400.000', 'Alpha Tenant']);
+});
+
+test('an invoice spanning buildings shows under Multiple', function () {
+    $other = Building::factory()->create(['code' => 'BBB']);
+    $this->finance->buildings()->attach($other->id);
+    $tenant = Customer::factory()->create(['name_en' => 'Gamma Tenant']);
+    $ag = activeAgreement(['customer_id' => $tenant->id, 'start_date' => '2026-09-01', 'end_date' => '2027-08-31'],
+        [Unit::factory()->for($this->building)->create(), Unit::factory()->for($other)->create()]);
+    issuedInvoice($tenant, [['net' => '10.000', 'au' => $ag->agreementUnits[0]], ['net' => '20.000', 'au' => $ag->agreementUnits[1]]], '2026-10-14', $ag);
+
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.totals', ['balance' => 'sum'])
+        ->assertSeeHtmlInOrder(['data-group-level="1"', 'Multiple', '(1)', '30.000', 'Gamma Tenant']);
+});
+
+test('the groups-truncated note shows when the engine says so', function () {
+    app()->instance(Engine::class, new class extends Engine
+    {
+        public function run(User $user, ReportDefinition $def, ?int $limit = self::DETAIL_LIMIT): ReportResult
+        {
+            $r = parent::run($user, $def, $limit);
+
+            return new ReportResult($r->columns, $r->rows, $r->rowCount, $r->truncated, $r->grandTotals, $r->groups, true, $r->periodLabel);
+        }
+    });
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null]])->assertSee('Showing the first 1,000 groups — export for all');
+});
+
+test('tampered group fields and buckets never crash the page', function () {
+    foreach ([['field' => ['x']], ['field' => 'building', 'bucket' => ['x']], ['field' => 'due_date', 'bucket' => ['x']], 'x'] as $group) {
+        Livewire::actingAs($this->finance)->test(Builder::class)->set('def.groups.0', $group)->assertOk();
+    }
+    Livewire::actingAs($this->finance)->test(Builder::class)->set('def.groups.0.field', ['x'])->assertOk();
+    Livewire::actingAs($this->finance)->test(Builder::class)->set('def.totals', ['balance' => ['x']])->assertOk();
 });
 
 test('empty picker rows are dropped and a date group defaults to month', function () {

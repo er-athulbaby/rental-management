@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /** Runs a validated definition (spec §5). Read-only; the database does all filtering, sorting and totals. */
-final class Engine
+class Engine
 {
     public const int DETAIL_LIMIT = 500;
 

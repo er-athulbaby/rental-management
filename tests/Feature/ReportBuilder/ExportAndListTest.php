@@ -7,6 +7,7 @@ use App\Livewire\Reports\Index;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\SavedReport;
 use App\Models\Unit;
 use App\Reports\Builder\Engine;
@@ -87,5 +88,11 @@ test('the Excel file carries group subtotal rows', function () {
     ExcelWriter::write($result, $path);
     $rows = SimpleExcelReader::create($path)->getRows()->all();
 
-    expect(collect($rows)->pluck('Invoice')->filter(fn ($v) => str_starts_with((string) $v, 'Subtotal'))->count())->toBeGreaterThan(0);
+    $invoice = Invoice::query()->firstOrFail();
+    $lines = collect($rows)->map(fn ($r) => [$r['Invoice'], $r['Balance']])->all();
+    $subtotal = collect($lines)->search(fn ($l) => str_starts_with((string) $l[0], 'Subtotal'));
+
+    expect($lines[$subtotal])->toEqual(['Subtotal: Overdue (1)', 400])
+        ->and($lines[$subtotal + 1][0])->toBe($invoice->number)
+        ->and(str_starts_with((string) end($lines)[0], 'Total'))->toBeTrue()->and(end($lines)[1])->toEqual(400);
 });
