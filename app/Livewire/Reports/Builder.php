@@ -123,7 +123,9 @@ class Builder extends Component
     {
         $user = $this->actor();
         $definition = ReportDefinition::fromArray($this->def, $user)->toArray();
-        $report = SavedReport::create(['name' => mb_substr(($this->name !== '' ? $this->name : __('Untitled report')).' '.__('(copy)'), 0, 120),
+        $suffix = ' '.__('(copy)');
+        $base = mb_substr($this->name !== '' ? $this->name : __('Untitled report'), 0, 120 - mb_strlen($suffix));
+        $report = SavedReport::create(['name' => $base.$suffix,
             'subject' => $definition['subject'], 'definition' => $definition, 'visibility' => 'private', 'created_by' => $user->id, 'updated_by' => $user->id]);
         Audit::log('report.saved', $report, properties: ['name' => $report->name, 'copied_from' => $this->reportId], causer: $user);
         $this->redirectRoute('reports.builder', $report, navigate: true);
