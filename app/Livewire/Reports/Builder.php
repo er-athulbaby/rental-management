@@ -168,6 +168,7 @@ class Builder extends Component
     {
         $report = SavedReport::findOrFail((int) $this->reportId);
         abort_unless($this->actor()->can('delete', $report), 403);
+        $report->schedules()->delete();
         $report->delete();
         Audit::log('report.deleted', $report, properties: ['name' => $report->name], causer: $this->actor());
         $this->redirectRoute('reports.index', navigate: true);
