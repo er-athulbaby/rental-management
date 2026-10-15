@@ -50,6 +50,7 @@ return [
             'digests_finance' => env('HEARTBEAT_DIGESTS_FINANCE'),
             'digests_management' => env('HEARTBEAT_DIGESTS_MANAGEMENT'),
             'digests_documents' => env('HEARTBEAT_DIGESTS_DOCUMENTS'),
+            'report_schedules' => env('HEARTBEAT_REPORT_SCHEDULES'),
         ],
     ],
 

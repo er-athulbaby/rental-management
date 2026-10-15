@@ -203,7 +203,7 @@ Secrets come from the vault; never commit them.
 | `BACKUP_NOTIFY_EMAIL` | your ops mailbox |
 | `BACKUP_S3_KEY` `_SECRET` `_REGION` `_BUCKET` `_ENDPOINT` | this company's bucket |
 | `DB_DUMP_BINARY_PATH` | `/usr/bin` |
-| `HEARTBEAT_*` (12 keys) | one ping URL per scheduled job, see `.env.example` |
+| `HEARTBEAT_*` (13 keys) | one ping URL per scheduled job, see `.env.example` |
 
 The timezone is fixed to Asia/Bahrain in the code; there is no setting for it.
 
