@@ -5,12 +5,16 @@ namespace App\Livewire\Reports;
 use App\Audit\Audit;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
+use App\Models\ReportDelivery;
+use App\Models\ReportSchedule;
 use App\Models\SavedReport;
+use App\Models\User;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\FieldType;
 use App\Reports\Builder\Formatter;
+use App\Reports\Builder\NextRun;
 use App\Reports\Builder\Period;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
@@ -19,8 +23,10 @@ use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -40,6 +46,11 @@ class Builder extends Component
     public ?int $reportId = null;
 
     public string $name = '';
+
+    /** @var array<string, mixed> client-controlled: validated in addSchedule() */
+    public array $schedule = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
+
+    public string $staffSearch = '';
 
     public function mount(?SavedReport $report = null): void
     {
@@ -174,6 +185,70 @@ class Builder extends Component
         $this->redirectRoute('reports.index', navigate: true);
     }
 
+    /** Day follows the frequency: weekly 0-6, monthly 1-28 or 0 for the last day, daily none. */
+    public function updatedSchedule(mixed $value, ?string $key = null): void
+    {
+        if ($key === 'frequency') {
+            $this->schedule['day'] = match ($value) {
+                'weekly' => 0,
+                'monthly' => 1,
+                default => null,
+            };
+        }
+    }
+
+    public function addSchedule(): void
+    {
+        $report = SavedReport::findOrFail((int) $this->reportId);
+        abort_unless($this->actor()->can('update', $report), 403);
+        $frequency = $this->schedule['frequency'] ?? null;
+        $this->validate([
+            'schedule.frequency' => ['required', 'in:daily,weekly,monthly'],
+            'schedule.day' => $frequency === 'daily' ? ['nullable'] : ['required', 'integer', $frequency === 'weekly' ? 'between:0,6' : 'between:0,28'],
+            'schedule.hour' => ['required', 'integer', 'between:0,23'],
+            'schedule.recipients' => ['required', 'array', 'min:1', 'max:50'],
+            'schedule.recipients.*' => ['integer', Rule::in($this->staffIds())],
+        ], ['schedule.recipients.*.in' => __('Pick staff from the list.'), 'schedule.recipients.required' => __('Pick at least one person.'),
+            'schedule.day.required' => __('Pick a day.')]);
+        $data = ['frequency' => (string) $frequency, 'day' => $frequency === 'daily' ? null : (int) $this->schedule['day'], 'hour' => (int) $this->schedule['hour']];
+        $recipients = array_values(array_unique(array_map('intval', $this->schedule['recipients'])));
+        $schedule = ReportSchedule::create([...$data, 'saved_report_id' => $report->id, 'created_by' => $this->actor()->id,
+            'next_run_at' => NextRun::after($data, now()->toImmutable())]);
+        $schedule->recipients()->sync($recipients);
+        Audit::log('report.scheduled', $report, properties: ['schedule' => $schedule->id, ...$data, 'recipients' => $recipients], causer: $this->actor());
+        $this->schedule = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
+        Flux::toast(variant: 'success', text: __('Scheduled.'));
+    }
+
+    public function removeSchedule(int $id): void
+    {
+        $report = SavedReport::findOrFail((int) $this->reportId);
+        abort_unless($this->actor()->can('update', $report), 403);
+        $report->schedules()->whereKey($id)->delete();
+    }
+
+    /** Clears the pause and failure count, then waits for the next due time. */
+    public function resumeSchedule(int $id): void
+    {
+        $report = SavedReport::findOrFail((int) $this->reportId);
+        abort_unless($this->actor()->can('update', $report), 403);
+        $schedule = $report->schedules()->whereKey($id)->first();
+        $schedule?->update(['paused_at' => null, 'consecutive_failures' => 0, 'next_run_at' => NextRun::after($schedule, now()->toImmutable())]);
+    }
+
+    /** @return list<int> active staff who may receive reports: never Vendor Support or the system user (the job skips them too) */
+    private function staffIds(): array
+    {
+        return array_values($this->staff()->pluck('id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    /** @return Collection<int, User> */
+    private function staff(): Collection
+    {
+        return User::query()->where('active', true)->where('is_system', false)->orderBy('name')->get(['id', 'name', 'email'])
+            ->reject(fn (User $u) => $u->isVendorSupport())->values();
+    }
+
     public function export(): BinaryFileResponse
     {
         $user = $this->actor();
@@ -295,7 +370,17 @@ class Builder extends Component
             $errors = $e->errors();
         }
 
+        $schedules = $this->reportId === null ? collect() : SavedReport::findOrFail($this->reportId)->schedules()->with('recipients:id,name')->orderBy('id')->get();
+        $lastDelivery = ReportDelivery::whereIn('report_schedule_id', $schedules->pluck('id'))->orderByDesc('due_at')->get()->unique('report_schedule_id')->keyBy('report_schedule_id');
+        $picked = array_filter((array) ($this->schedule['recipients'] ?? []), 'is_scalar');
+        $term = mb_strtolower(trim($this->staffSearch));
+        $staff = $this->staff()->filter(fn (User $u) => $term === '' || str_contains(mb_strtolower($u->name.' '.$u->email), $term)
+            || in_array($u->id, $picked, false))->take(50);
+
         return view('livewire.reports.builder', [
+            'schedules' => $schedules,
+            'lastDelivery' => $lastDelivery,
+            'staff' => $staff,
             'subjects' => Registry::forUser($user),
             'subject' => $subject,
             'fields' => $fields,
