@@ -19,6 +19,7 @@ final class Engine
         $range = QueryCompiler::periodRange($def, CarbonImmutable::now('Asia/Bahrain'));
 
         $grand = $this->totals(clone $query, $fields, $def->totals);
+        $groups = Aggregator::groups(clone $query, $fields, $def);
         $rows = [];
         $truncated = false;
         if (! $def->summaryOnly) {
@@ -40,6 +41,7 @@ final class Engine
             rowCount: (int) $grand['count'],
             truncated: $truncated,
             grandTotals: $grand,
+            groups: $groups,
             periodLabel: $range === null ? null : Period::label(...$range),
         );
     }
