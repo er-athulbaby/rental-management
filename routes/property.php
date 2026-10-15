@@ -73,6 +73,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('disbursements/{disbursement}', Disbursements\Show::class)->middleware('can:finance.view')->name('disbursements.show');
     Route::livewire('head-lease-payments', OwnerPayables\Index::class)->middleware('can:finance.view')->name('owner-payables.index');
     Route::livewire('reports', Reports\Index::class)->name('reports.index');
+    Route::livewire('reports/builder/{report?}', Reports\Builder::class)->name('reports.builder');
     Route::livewire('reports/occupancy', Reports\OccupancyReport::class)->middleware('can:reports.operational')->name('reports.occupancy');
     Route::livewire('reports/expiring', Reports\ExpiringAgreementsReport::class)->middleware('can:reports.operational')->name('reports.expiring');
     Route::livewire('reports/overstays', Reports\OverstaysReport::class)->middleware('can:reports.operational')->name('reports.overstays');

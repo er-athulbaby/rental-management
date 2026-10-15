@@ -164,6 +164,9 @@ final readonly class ReportDefinition
         }
 
         $building = $data['building_id'] ?? null;
+        if ($building === '') {
+            $building = null; // an empty select means all buildings
+        }
         if ($building !== null && (! is_scalar($building) || ! ctype_digit((string) $building))) {
             $errors['building_id'] = __('Choose a building.');
         }
