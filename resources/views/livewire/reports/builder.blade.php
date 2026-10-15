@@ -101,20 +101,29 @@
                                 @elseif (($filter['op'] ?? '') === 'between')
                                     <div class="grid grid-cols-2 gap-1">
                                         @if ($ff->type->value === 'date')
-                                            <x-date-input wire:model.live="def.filters.{{ $i }}.value.0" />
-                                            <x-date-input wire:model.live="def.filters.{{ $i }}.value.1" />
+                                            <x-date-input wire:model.live="def.filters.{{ $i }}.value.0" :aria-label="__('From')" />
+                                            <x-date-input wire:model.live="def.filters.{{ $i }}.value.1" :aria-label="__('To')" />
                                         @else
-                                            <flux:input wire:model.live.debounce.500ms="def.filters.{{ $i }}.value.0" size="sm" inputmode="decimal" />
-                                            <flux:input wire:model.live.debounce.500ms="def.filters.{{ $i }}.value.1" size="sm" inputmode="decimal" />
+                                            <flux:input wire:model.live.debounce.500ms="def.filters.{{ $i }}.value.0" size="sm" inputmode="decimal" :placeholder="__('From')" :aria-label="__('From')" />
+                                            <flux:input wire:model.live.debounce.500ms="def.filters.{{ $i }}.value.1" size="sm" inputmode="decimal" :placeholder="__('To')" :aria-label="__('To')" />
                                         @endif
                                     </div>
                                 @elseif (! in_array($filter['op'] ?? '', ['empty', 'not_empty', 'yes', 'no', ''], true))
                                     @if ($ff->type->value === 'date')
-                                        <x-date-input wire:model.live="def.filters.{{ $i }}.value" />
+                                        <x-date-input wire:model.live="def.filters.{{ $i }}.value" :aria-label="__('Value')" />
                                     @else
-                                        <flux:input wire:model.live.debounce.500ms="def.filters.{{ $i }}.value" size="sm" :inputmode="$ff->type->numeric() ? 'decimal' : 'text'" />
+                                        <flux:input wire:model.live.debounce.500ms="def.filters.{{ $i }}.value" size="sm" :inputmode="$ff->type->numeric() ? 'decimal' : 'text'" :aria-label="__('Value')"
+                                            :placeholder="match (true) {
+                                                $ff->type->value === 'money' => __('Amount in BHD, e.g. 100.000'),
+                                                $ff->type->value === 'number' => __('Number, e.g. 30'),
+                                                ($filter['op'] ?? '') === 'contains' => __('Type part of the :label', ['label' => $ff->label]),
+                                                default => __('Exact :label', ['label' => $ff->label]),
+                                            }" />
                                     @endif
                                 @endif
+                            @endif
+                            @if ($ff && ($filter['op'] ?? '') !== '')
+                                <flux:text class="text-xs text-zinc-500">{{ $ff->label }} {{ $opLabels[$filter['op']] ?? '' }}@if ($ff->type->value === 'enum') {{ __('the ticked values') }}@else …@endif</flux:text>
                             @endif
                             @foreach (['field', 'op', 'value'] as $part)
                                 @isset($defErrors["filters.$i.$part"])<flux:text class="text-xs text-red-600">{{ $defErrors["filters.$i.$part"][0] }}</flux:text>@endisset

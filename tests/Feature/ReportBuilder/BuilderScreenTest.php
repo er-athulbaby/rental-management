@@ -76,7 +76,23 @@ test('changing a filter field resets its operator and value', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)
         ->call('addFilter')->set('def.filters.0.field', 'balance')->set('def.filters.0.op', 'gt')->set('def.filters.0.value', '500')
         ->set('def.filters.0.field', 'tenant')
-        ->assertSet('def.filters.0.op', '')->assertSet('def.filters.0.value', null);
+        ->assertSet('def.filters.0.op', 'contains')->assertSet('def.filters.0.value', null);
+});
+
+test('choosing a filter field picks a sensible default comparison for its type', function () {
+    $t = Livewire::actingAs($this->finance)->test(Builder::class)->call('addFilter');
+    $t->set('def.filters.0.field', 'number')->assertSet('def.filters.0.op', 'contains')
+        ->set('def.filters.0.field', 'balance')->assertSet('def.filters.0.op', 'gte')
+        ->set('def.filters.0.field', 'status')->assertSet('def.filters.0.op', 'in')->assertSet('def.filters.0.value', [])
+        ->set('def.filters.0.field', 'due_date')->assertSet('def.filters.0.op', 'between')->assertSet('def.filters.0.value', [null, null])
+        ->set('def.filters.0.field', '')->assertSet('def.filters.0.op', '');
+});
+
+test('filter rows say what value they want', function () {
+    $t = Livewire::actingAs($this->finance)->test(Builder::class)->call('addFilter');
+    $t->set('def.filters.0.field', 'number')->assertSeeHtml('Type part of the Invoice')->assertSee('Invoice contains')
+        ->set('def.filters.0.op', 'is')->assertSeeHtml('Exact Invoice')
+        ->set('def.filters.0.field', 'balance')->assertSeeHtml('Amount in BHD')->assertSee('Balance ≥');
 });
 
 test('columns can be moved and filters removed', function () {

@@ -92,15 +92,26 @@ class Builder extends Component
         $this->def['filters'] = array_values($filters);
     }
 
-    /** Changing a filter's field resets its operator and value. $key is null when Livewire replaces the whole array. */
+    /** Changing a filter's field resets its value and picks a default operator for the new field's type. $key is null when Livewire replaces the whole array. */
     public function updatedDef(mixed $value, ?string $key = null): void
     {
         if ($key !== null && preg_match('/^filters\.(\d+)\.field$/', $key, $m) === 1) {
-            $this->def['filters'][(int) $m[1]]['op'] = '';
             // An enum filter's checkbox group needs an array to bind to.
             $name = $this->def['filters'][(int) $m[1]]['field'] ?? null;
             $field = is_string($name) ? ($this->fields()[$name] ?? null) : null;
-            $this->def['filters'][(int) $m[1]]['value'] = $field?->type === FieldType::Enum ? [] : null;
+            $this->def['filters'][(int) $m[1]]['op'] = match ($field?->type) {
+                FieldType::Text => 'contains',
+                FieldType::Enum => 'in',
+                FieldType::Money, FieldType::Number => 'gte',
+                FieldType::Date => 'between',
+                FieldType::Boolean => 'yes',
+                null => '',
+            };
+            $this->def['filters'][(int) $m[1]]['value'] = match ($field?->type) {
+                FieldType::Enum => [],
+                FieldType::Date => [null, null],
+                default => null,
+            };
         }
     }
 
