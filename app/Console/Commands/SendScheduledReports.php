@@ -7,7 +7,7 @@ use App\Models\ReportDelivery;
 use App\Models\ReportSchedule;
 use App\Reports\Builder\NextRun;
 use Illuminate\Console\Command;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /** Spec §7: claim every due, unpaused schedule once (unique schedule + due time), queue its send, move it on. */
@@ -38,7 +38,7 @@ class SendScheduledReports extends Command
 
                     return $delivery;
                 });
-            } catch (QueryException) {
+            } catch (UniqueConstraintViolationException) {
                 // Already claimed for this due time: never send twice. Move on so it is not found again every run.
                 $schedule->update(['next_run_at' => NextRun::after($schedule, now()->toImmutable())]);
 
