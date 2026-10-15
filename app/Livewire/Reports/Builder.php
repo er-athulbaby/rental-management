@@ -113,13 +113,17 @@ class Builder extends Component
                 default => null,
             };
         }
+        // A new group field forgets the old bucket; normalised() supplies "month" for dates.
+        if ($key !== null && preg_match('/^groups\.(\d+)\.field$/', $key, $m) === 1) {
+            $this->def['groups'][(int) $m[1]]['bucket'] = null;
+        }
     }
 
     public function save(): void
     {
         $user = $this->actor();
         $this->validate(['name' => ['required', 'string', 'max:120']], ['name.required' => __('Give the report a name.')]);
-        $definition = ReportDefinition::fromArray($this->def, $user)->toArray(); // ValidationException shows on the page
+        $definition = ReportDefinition::fromArray($this->normalised(), $user)->toArray(); // ValidationException shows on the page
 
         if ($this->reportId === null) {
             $report = SavedReport::create(['name' => $this->name, 'subject' => $definition['subject'], 'definition' => $definition,
@@ -137,7 +141,7 @@ class Builder extends Component
     public function saveAsCopy(): void
     {
         $user = $this->actor();
-        $definition = ReportDefinition::fromArray($this->def, $user)->toArray();
+        $definition = ReportDefinition::fromArray($this->normalised(), $user)->toArray();
         $suffix = ' '.__('(copy)');
         $base = mb_substr($this->name !== '' ? $this->name : __('Untitled report'), 0, 120 - mb_strlen($suffix));
         $report = SavedReport::create(['name' => $base.$suffix,
@@ -167,7 +171,7 @@ class Builder extends Component
     public function export(): BinaryFileResponse
     {
         $user = $this->actor();
-        $def = ReportDefinition::fromArray($this->def, $user);
+        $def = ReportDefinition::fromArray($this->normalised(), $user);
         $result = app(Engine::class)->run($user, $def, limit: null);
         Audit::log('report.exported', properties: ['report' => 'builder:'.$def->subject, 'saved_report_id' => $this->reportId,
             'building' => $def->buildingId, 'period' => $result->periodLabel], causer: $user);
@@ -178,6 +182,22 @@ class Builder extends Component
         ExcelWriter::write($result, $path);
 
         return response()->download($path, (Str::slug($this->name) ?: $def->subject).'-'.now('Asia/Bahrain')->toDateString().'.xlsx')->deleteFileAfterSend();
+    }
+
+    /** @return array<string, mixed> the edited definition with empty picker rows removed */
+    private function normalised(): array
+    {
+        $def = $this->def;
+        $fields = $this->fields();
+        $def['groups'] = array_values(array_filter((array) ($def['groups'] ?? []), fn ($g) => is_array($g) && filled($g['field'] ?? null)));
+        foreach ($def['groups'] as $i => $g) {
+            $isDate = ($fields[$g['field']] ?? null)?->type === FieldType::Date;
+            $def['groups'][$i]['bucket'] = $g['bucket'] ?? ($isDate ? 'month' : null);
+        }
+        $def['totals'] = array_filter((array) ($def['totals'] ?? []), fn ($fn, $key) => filled($fn) && in_array($key, (array) ($def['columns'] ?? []), true), ARRAY_FILTER_USE_BOTH);
+        $def['filters'] = array_values((array) ($def['filters'] ?? []));
+
+        return $def;
     }
 
     /** @return list<string> */
@@ -212,7 +232,7 @@ class Builder extends Component
         $result = null;
         $errors = [];
         try {
-            $result = app(Engine::class)->run($user, ReportDefinition::fromArray($this->def, $user));
+            $result = app(Engine::class)->run($user, ReportDefinition::fromArray($this->normalised(), $user));
         } catch (ValidationException $e) {
             $errors = $e->errors();
         }

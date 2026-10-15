@@ -1,16 +1,23 @@
 <?php
 
+use App\Actions\EnsureNumberSequences;
 use App\Enums\RoleName;
 use App\Livewire\Reports\Builder;
 use App\Livewire\Reports\Index;
 use App\Models\Building;
 use App\Models\CompanySetting;
+use App\Models\Customer;
 use App\Models\SavedReport;
+use App\Models\Unit;
+use App\Reports\Builder\Engine;
+use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\SimpleExcel\SimpleExcelReader;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -66,4 +73,19 @@ test('opening and exporting a saved report set last_run_at but not updated_at', 
 test('a report name made only of symbols still gives a usable filename', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)->set('name', '!!!')
         ->call('export')->assertFileDownloaded('invoices-'.now('Asia/Bahrain')->toDateString().'.xlsx');
+});
+
+test('the Excel file carries group subtotal rows', function () {
+    app(EnsureNumberSequences::class)(2026);
+    $this->travelTo(CarbonImmutable::parse('2026-10-15 10:00', 'Asia/Bahrain'));
+    $tenant = Customer::factory()->create();
+    $agreement = activeAgreement(['customer_id' => $tenant->id, 'start_date' => '2026-09-01', 'end_date' => '2027-08-31'], [Unit::factory()->for($this->finance->buildings->first() ?? Building::factory()->create())->create()]);
+    issuedInvoice($tenant, [['net' => '400.000', 'au' => $agreement->agreementUnits->first()]], '2026-10-01', $agreement);
+    $result = app(Engine::class)->run($this->finance, ReportDefinition::fromArray(['subject' => 'invoices',
+        'columns' => ['number', 'balance'], 'groups' => [['field' => 'status']], 'totals' => ['balance' => 'sum']], $this->finance), limit: null);
+    $path = sys_get_temp_dir().'/t-'.uniqid().'.xlsx';
+    ExcelWriter::write($result, $path);
+    $rows = SimpleExcelReader::create($path)->getRows()->all();
+
+    expect(collect($rows)->pluck('Invoice')->filter(fn ($v) => str_starts_with((string) $v, 'Subtotal'))->count())->toBeGreaterThan(0);
 });

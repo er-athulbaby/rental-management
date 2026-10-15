@@ -29,6 +29,9 @@ final class Engine
         $truncated = false;
         if (! $def->summaryOnly) {
             $detail = (clone $query)->select(array_map(fn (string $k) => Sql::raw("{$fields[$k]->sql} as `{$k}`"), $def->columns));
+            foreach ($def->groups as $i => $g) { // lets the view and Excel file each row under its group
+                $detail->addSelect(Sql::raw(Grouping::expression($fields[$g['field']], $g['bucket'])." as `__g{$i}`"));
+            }
             $this->order($detail, $def, $fields);
             if ($limit !== null) {
                 $detail->limit($limit + 1);

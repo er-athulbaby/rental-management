@@ -18,6 +18,46 @@ final class Grouping
         };
     }
 
+    /**
+     * The group keys a detail row belongs to (the `__g0`, `__g1` columns the Engine adds).
+     *
+     * @param  array<string, mixed>  $row
+     * @return list<string|null>
+     */
+    public static function rowKeys(array $row): array
+    {
+        $keys = [];
+        for ($i = 0; array_key_exists("__g{$i}", $row); $i++) {
+            $keys[] = $row["__g{$i}"] === null ? null : (string) $row["__g{$i}"];
+        }
+
+        return $keys;
+    }
+
+    /**
+     * @param  list<string|null>  $keys
+     */
+    public static function keyId(array $keys): string
+    {
+        return json_encode($keys, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Detail rows indexed by their group keys (json), for the deepest-level group lookup.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public static function rowsByGroup(array $rows): array
+    {
+        $by = [];
+        foreach ($rows as $row) {
+            $by[self::keyId(self::rowKeys($row))][] = $row;
+        }
+
+        return $by;
+    }
+
     /** How a group key reads: month 2026-10 → "Oct 2026", quarter → "Q4 2026", enum values → their labels. */
     public static function label(Field $field, ?string $bucket, ?string $raw): string
     {

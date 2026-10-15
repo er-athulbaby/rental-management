@@ -12,8 +12,21 @@ final class ExcelWriter
         $writer = SimpleExcelWriter::create($path);
         $labels = array_map(fn (Field $f) => $f->label, $result->columns);
         $writer->addHeader($labels);
-        foreach ($result->rows as $row) {
-            $writer->addRow(self::line($result->columns, $row));
+        if ($result->groups === []) {
+            foreach ($result->rows as $row) {
+                $writer->addRow(self::line($result->columns, $row));
+            }
+        } else {
+            $deepest = collect($result->groups)->max('level');
+            $byGroup = Grouping::rowsByGroup($result->rows);
+            foreach ($result->groups as $g) {
+                $writer->addRow(self::subtotal($result->columns, $g));
+                if ($g['level'] === $deepest) {
+                    foreach ($byGroup[Grouping::keyId($g['keys'])] ?? [] as $row) {
+                        $writer->addRow(self::line($result->columns, $row));
+                    }
+                }
+            }
         }
         $total = [];
         foreach ($result->columns as $i => $col) {
@@ -26,6 +39,26 @@ final class ExcelWriter
         }
         $writer->addRow($total);
         $writer->close();
+    }
+
+    /**
+     * @param  list<Field>  $columns
+     * @param  array<string, mixed>  $group
+     * @return array<string, mixed>
+     */
+    private static function subtotal(array $columns, array $group): array
+    {
+        $line = [];
+        foreach ($columns as $i => $col) {
+            $line[$col->label] = $i === 0 ? ($group['level'] === 2 ? '  ' : '').__('Subtotal: :label (:n)', ['label' => $group['label'], 'n' => $group['totals']['count']]) : '';
+            foreach ($group['totals'] as $key => $value) {
+                if (str_starts_with($key, $col->key.':')) {
+                    $line[$col->label] = is_numeric($value) ? (float) $value : (string) $value;
+                }
+            }
+        }
+
+        return $line;
     }
 
     /**

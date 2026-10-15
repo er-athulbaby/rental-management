@@ -139,3 +139,17 @@ test('number and money between filters show their placeholders', function () {
         ->set('def.filters.0.field', 'balance')->set('def.filters.0.op', 'between')
         ->assertSeeHtml('placeholder="From"')->assertSeeHtml('placeholder="To"');
 });
+
+test('grouping shows subtotal rows and Summary only hides detail rows', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.totals', ['balance' => 'sum'])
+        ->assertSee('AAA')->assertSee('400.000')->assertSee('Alpha Tenant')
+        ->set('def.summary_only', true)->assertDontSee('Alpha Tenant');
+});
+
+test('empty picker rows are dropped and a date group defaults to month', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => '']])->set('def.totals', ['balance' => ''])
+        ->assertDontSee('Choose a field to group by.')->assertSee('Alpha Tenant')
+        ->set('def.groups', [['field' => 'due_date']])->assertDontSee('Group dates by')->assertSee('Oct 2026');
+});

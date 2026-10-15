@@ -143,7 +143,44 @@
                     <option value="desc">{{ __('Descending') }}</option>
                 </flux:select>
             </div>
-            {{-- Group by, totals, compare, chart: Tasks 11–14 --}}
+
+            <flux:fieldset>
+                <flux:legend>{{ __('Group by') }}</flux:legend>
+                @foreach ([0, 1] as $level)
+                    @php($g = is_array($def['groups'][$level] ?? null) ? $def['groups'][$level] : null)
+                    @if ($level === 0 || is_array($def['groups'][0] ?? null) && filled($def['groups'][0]['field'] ?? null))
+                        <div class="flex gap-1" wire:key="group-{{ $level }}">
+                            <flux:select wire:model.live="def.groups.{{ $level }}.field" size="sm" :aria-label="__('Group level :n', ['n' => $level + 1])">
+                                <option value="">{{ $level === 0 ? __('No grouping') : __('No second level') }}</option>
+                                @foreach ($fields as $f)@if ($f->groupable)<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
+                            </flux:select>
+                            @if ($g && ($fields[$g['field'] ?? ''] ?? null)?->type->value === 'date')
+                                <flux:select wire:model.live="def.groups.{{ $level }}.bucket" size="sm" :aria-label="__('Date grouping')">
+                                    @foreach (['day' => __('Day'), 'month' => __('Month'), 'quarter' => __('Quarter'), 'year' => __('Year')] as $b => $l)<option value="{{ $b }}" @selected(($g['bucket'] ?? 'month') === $b)>{{ $l }}</option>@endforeach
+                                </flux:select>
+                            @endif
+                        </div>
+                    @endif
+                @endforeach
+                <flux:checkbox wire:model.live="def.summary_only" :label="__('Summary only (hide detail rows)')" />
+            </flux:fieldset>
+
+            <flux:fieldset>
+                <flux:legend>{{ __('Totals') }}</flux:legend>
+                @foreach (is_array($def['columns'] ?? null) ? $def['columns'] : [] as $key)
+                    @if (($fields[$key] ?? null)?->type->numeric())
+                        <div class="flex items-center justify-between gap-2 text-sm">
+                            <span>{{ $fields[$key]->label }}</span>
+                            <flux:select wire:model.live="def.totals.{{ $key }}" size="sm" class="max-w-32" :aria-label="__('Total for :c', ['c' => $fields[$key]->label])">
+                                <option value="">{{ __('None') }}</option>
+                                <option value="sum">{{ __('Sum') }}</option><option value="avg">{{ __('Average') }}</option>
+                                <option value="min">{{ __('Minimum') }}</option><option value="max">{{ __('Maximum') }}</option>
+                            </flux:select>
+                        </div>
+                    @endif
+                @endforeach
+            </flux:fieldset>
+            {{-- Compare, chart: Tasks 13–14 --}}
         </aside>
 
         <section class="min-w-0 space-y-3">
@@ -155,8 +192,9 @@
                 <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm text-zinc-500">
                     <span>{{ trans_choice(':n row|:n rows', $result->rowCount, ['n' => number_format($result->rowCount)]) }}@if ($result->periodLabel) · {{ $result->periodLabel }}@endif</span>
                     @if ($result->truncated)<span>{{ __('Showing the first :n — export to Excel for all.', ['n' => App\Reports\Builder\Engine::DETAIL_LIMIT]) }}</span>@endif
+                    @if ($result->groupsTruncated)<span>{{ __('Showing the first 1,000 groups — export for all') }}</span>@endif
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto" x-data="{ closed: {} }">
                     <flux:table>
                         <flux:table.columns>
                             @foreach ($result->columns as $col)
@@ -164,15 +202,56 @@
                             @endforeach
                         </flux:table.columns>
                         <flux:table.rows>
-                            @forelse ($result->rows as $i => $row)
-                                <flux:table.row :key="'r'.$i">
-                                    @foreach ($result->columns as $col)
-                                        <flux:table.cell @class(['text-end tabular-nums' => $col->type->numeric()])>{{ Formatter::display($col, $row[$col->key] ?? null) }}</flux:table.cell>
+                            @if ($result->groups !== [])
+                                @php($deepest = collect($result->groups)->max('level'))
+                                @php($byGroup = App\Reports\Builder\Grouping::rowsByGroup($result->rows))
+                                @php($parent = 0)
+                                @foreach ($result->groups as $gi => $g)
+                                    @php($parent = $g['level'] === 1 ? $gi : $parent)
+                                    <flux:table.row :key="'g'.$gi" class="cursor-pointer bg-zinc-50 font-medium dark:bg-zinc-800/60"
+                                        @click="closed['g{{ $gi }}'] = ! closed['g{{ $gi }}']"
+                                        x-show="{{ $g['level'] === 2 ? "! closed['g{$parent}']" : 'true' }}">
+                                        @foreach ($result->columns as $ci => $col)
+                                            <flux:table.cell @class(['text-end tabular-nums' => $col->type->numeric(), 'ps-8' => $ci === 0 && $g['level'] === 2])>
+                                                @if ($ci === 0)
+                                                    <span class="inline-block w-3 text-zinc-500" x-text="closed['g{{ $gi }}'] ? '▸' : '▾'"></span>
+                                                    {{ $g['label'] }} <span class="text-xs font-normal text-zinc-500">({{ number_format($g['totals']['count']) }})</span>
+                                                @else
+                                                    @foreach ($g['totals'] as $tk => $tv)@if (str_starts_with($tk, $col->key.':')){{ Formatter::total($col, explode(':', $tk)[1], $tv) }}@endif @endforeach
+                                                @endif
+                                            </flux:table.cell>
+                                        @endforeach
+                                    </flux:table.row>
+                                    @if ($g['level'] === $deepest)
+                                        @foreach ($byGroup[App\Reports\Builder\Grouping::keyId($g['keys'])] ?? [] as $ri => $row)
+                                            <flux:table.row :key="'g'.$gi.'r'.$ri" x-show="! closed['g{{ $parent }}'] && ! closed['g{{ $gi }}']">
+                                                @foreach ($result->columns as $col)
+                                                    <flux:table.cell @class(['text-end tabular-nums' => $col->type->numeric()])>{{ Formatter::display($col, $row[$col->key] ?? null) }}</flux:table.cell>
+                                                @endforeach
+                                            </flux:table.row>
+                                        @endforeach
+                                    @endif
+                                @endforeach
+                            @else
+                                @forelse ($result->rows as $i => $row)
+                                    <flux:table.row :key="'r'.$i">
+                                        @foreach ($result->columns as $col)
+                                            <flux:table.cell @class(['text-end tabular-nums' => $col->type->numeric()])>{{ Formatter::display($col, $row[$col->key] ?? null) }}</flux:table.cell>
+                                        @endforeach
+                                    </flux:table.row>
+                                @empty
+                                    <flux:table.row><flux:table.cell :colspan="count($result->columns)">{{ __('No rows match.') }}</flux:table.cell></flux:table.row>
+                                @endforelse
+                            @endif
+                            @if ($result->rows !== [] || $result->groups !== [])
+                                <flux:table.row class="font-semibold">
+                                    @foreach ($result->columns as $ci => $col)
+                                        <flux:table.cell @class(['text-end tabular-nums' => $col->type->numeric()])>
+                                            @if ($ci === 0){{ __('Total') }} ({{ number_format($result->rowCount) }})@else @foreach ($result->grandTotals as $tk => $tv)@if (str_starts_with($tk, $col->key.':')){{ Formatter::total($col, explode(':', $tk)[1], $tv) }}@endif @endforeach @endif
+                                        </flux:table.cell>
                                     @endforeach
                                 </flux:table.row>
-                            @empty
-                                <flux:table.row><flux:table.cell :colspan="count($result->columns)">{{ __('No rows match.') }}</flux:table.cell></flux:table.row>
-                            @endforelse
+                            @endif
                         </flux:table.rows>
                     </flux:table>
                 </div>
