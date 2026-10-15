@@ -47,7 +47,7 @@ final class Tenants extends Subject
             - (SELECT COALESCE(SUM(ca.amount), 0) FROM payment_allocations ca JOIN payments cp2 ON cp2.id = ca.payment_id
                 WHERE cp2.customer_id = customers.id AND cp2.status = 'confirmed')
             - (SELECT COALESCE(SUM(cd.amount), 0) FROM disbursements cd JOIN payments cp3 ON cd.source_type = 'payment' AND cd.source_id = cp3.id
-                WHERE cp3.customer_id = customers.id AND cd.purpose = 'credit_refund' AND cd.status = 'paid'))";
+                WHERE cp3.customer_id = customers.id AND cp3.status = 'confirmed' AND cd.purpose = 'credit_refund' AND cd.status = 'paid'))";
 
         return [
             Field::text('name', __('Tenant'), __('Tenant'), 'customers.name_en', groupable: false),

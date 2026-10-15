@@ -4,6 +4,7 @@ use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
 use App\Billing\CustomerCredit;
 use App\Enums\RoleName;
+use App\Models\AgreementUnit;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -60,4 +61,16 @@ test('expenses, payments out and owner statements run for every field', function
     foreach (['expenses', 'payments_out', 'owner_statements'] as $key) {
         expect(app(Engine::class)->run($this->management, ReportDefinition::fresh(Registry::get($key), $this->management))->columns)->not->toBeEmpty();
     }
+});
+
+test('deposits held are summed as at the end of the chosen day', function () {
+    $au = AgreementUnit::query()->whereHas('agreement', fn ($q) => $q->where('customer_id', $this->tenant->id))->firstOrFail();
+    foreach ([['received', '300.000', '2026-10-10 12:00'], ['received', '100.000', '2026-10-14 23:30'], ['refunded', '-50.000', '2026-10-15 09:00']] as [$type, $amount, $at]) {
+        DepositMovement::query()->create(['agreement_unit_id' => $au->id, 'type' => $type, 'amount' => $amount, 'source_type' => 'test', 'source_id' => 1,
+            'posted_at' => CarbonImmutable::parse($at, 'Asia/Bahrain')]);
+    }
+    $run = fn (string $asAt) => collect(app(Engine::class)->run($this->management, ReportDefinition::fromArray(['subject' => 'deposits_held', 'columns' => ['tenant', 'held', 'agreed'], 'as_at' => $asAt], $this->management))->rows)->firstWhere('tenant', 'Alpha Tenant');
+
+    expect($run('2026-10-14'))->toMatchArray(['held' => '400.000', 'agreed' => '400.000'])
+        ->and($run('2026-10-15'))->toMatchArray(['held' => '350.000', 'agreed' => '400.000']);
 });
