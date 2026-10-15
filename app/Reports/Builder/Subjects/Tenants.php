@@ -59,8 +59,9 @@ final class Tenants extends Subject
     protected function define(CarbonImmutable $asAt): array
     {
         // Only buildings the viewer can see (the id is an integer from code, never user input).
-        $scope = $this->viewer === null || $this->viewer->can(PermissionName::BuildingsViewAll) ? ''
-            : ' AND tu.building_id IN (SELECT bu.building_id FROM building_user bu WHERE bu.user_id = '.(int) $this->viewer->getKey().')';
+        $scope = $this->viewer === null ? ' AND 1 = 0' // no viewer: show nothing rather than everything
+            : ($this->viewer->can(PermissionName::BuildingsViewAll) ? ''
+                : ' AND tu.building_id IN (SELECT bu.building_id FROM building_user bu WHERE bu.user_id = '.(int) $this->viewer->getKey().')');
         $balance = "(SELECT COALESCE(SUM(oi.balance), 0) FROM invoices oi WHERE oi.customer_id = customers.id AND oi.status = 'issued'
             AND oi.type <> 'credit_note' AND oi.balance > 0)";
         $credit = "((SELECT COALESCE(SUM(cp.amount), 0) FROM payments cp WHERE cp.customer_id = customers.id AND cp.status = 'confirmed')
