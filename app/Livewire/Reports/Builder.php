@@ -19,6 +19,7 @@ use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -29,6 +30,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class Builder extends Component
 {
     use WithActor;
+
+    public const int CHART_LIMIT = 50;
 
     /** @var array<string, mixed> */
     public array $def = [];
@@ -222,15 +225,19 @@ class Builder extends Component
         [$key, $fn] = $total === 'count' ? ['', 'count'] : explode(':', $total, 2);
         $field = $fields[$key] ?? null;
         $by = $fields[$def->groups[0]['field']]->label ?? '';
+        $level1 = array_values(array_filter($result->groups, fn ($g) => $g['level'] === 1));
+        $capped = count($level1) > self::CHART_LIMIT;
         $items = array_map(fn ($g) => ['label' => $g['label'], 'short' => $g['label'], 'value' => (float) $g['totals'][$total],
             'display' => Formatter::total($field, $fn, $g['totals'][$total])],
-            array_values(array_filter($result->groups, fn ($g) => $g['level'] === 1)));
+            array_slice($level1, 0, self::CHART_LIMIT));
 
         return [
-            'type' => $def->chart['type'],
+            // Spec §5: columns when level 1 is a date bucket, bars for categories.
+            'type' => ($fields[$def->groups[0]['field']] ?? null)?->type === FieldType::Date ? 'columns' : 'bars',
             'title' => ($total === 'count' ? __('Count') : $field?->label.' ('.__($fn).')').' '.__('by').' '.$by,
             'items' => $items,
-        ];
+        ] + ($capped || $result->groupsTruncated
+            ? ['caption' => __('Chart shows the first :n groups — see the table for all', ['n' => Number::format(count($items))])] : []);
     }
 
     /** @return list<string> */

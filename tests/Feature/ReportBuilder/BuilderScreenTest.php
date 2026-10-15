@@ -225,3 +225,47 @@ test('a tampered chart never crashes the page', function () {
 test('a tampered column entry that is an array does not crash the page', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)->set('def.columns.0', ['x'])->assertOk()->set('def.sort.field', ['x'])->assertOk();
 });
+
+test('two group levels plot only the level-1 rows', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null], ['field' => 'due_date', 'bucket' => 'month']])->set('def.totals', ['balance' => 'sum'])
+        ->set('def.chart', ['type' => 'bars', 'total' => 'balance:sum'])
+        ->assertSeeHtml('<figure class="viz')->assertSeeHtml('aria-label="Balance (sum) by Building: AAA: 400.000"');
+});
+
+test('a date bucket at level 1 draws columns, a category draws bars', function () {
+    $t = Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'due_date', 'bucket' => 'month']])->set('def.chart', ['type' => 'bars', 'total' => 'count'])
+        ->assertSeeHtml('flex h-40 items-end')->assertDontSeeHtml('space-y-2" role="img"');
+    $t->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.chart', ['type' => 'columns', 'total' => 'count'])
+        ->assertSeeHtml('space-y-2" role="img"')->assertDontSeeHtml('flex h-40 items-end');
+});
+
+test('the chart plots at most 50 groups and says so, also when the engine truncated the groups', function () {
+    $stub = fn (int $n, bool $truncated) => new class($n, $truncated) extends Engine
+    {
+        public function __construct(private int $n, private bool $truncated) {}
+
+        public function run(User $user, ReportDefinition $def, ?int $limit = self::DETAIL_LIMIT): ReportResult
+        {
+            $r = parent::run($user, $def, $limit);
+            $groups = array_map(fn ($i) => ['level' => 1, 'keys' => [$i], 'label' => "G$i", 'totals' => ['count' => $i]], range(1, $this->n));
+
+            return new ReportResult($r->columns, $r->rows, $r->rowCount, $r->truncated, $r->grandTotals, $groups, $this->truncated, $r->periodLabel);
+        }
+    };
+    $set = fn () => Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.chart', ['type' => 'bars', 'total' => 'count']);
+
+    app()->instance(Engine::class, $stub(51, false));
+    $set()->assertSee('Chart shows the first 50 groups — see the table for all')->assertSeeHtml('aria-label="Count by Building: G1: 1;')->assertDontSee('G51: 51;', false);
+    app()->instance(Engine::class, $stub(3, true));
+    $set()->assertSee('Chart shows the first 3 groups — see the table for all');
+    app()->instance(Engine::class, $stub(3, false));
+    $set()->assertDontSee('Chart shows the first');
+});
+
+test('a tampered array chart total does not crash the page', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)->set('def.groups', [['field' => 'building', 'bucket' => null]])
+        ->set('def.chart', ['type' => 'bars', 'total' => ['x']])->assertOk()->assertDontSee('Finish the settings');
+});
