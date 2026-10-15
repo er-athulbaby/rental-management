@@ -37,3 +37,28 @@ test('a subject the user may not use is refused', function () {
     expect(fn () => ReportDefinition::fromArray(['subject' => 'invoices', 'columns' => ['number']], $leasing))
         ->toThrow(ValidationException::class);
 });
+
+test('malformed input gives validation errors, never server errors', function (array $bad, string $key) {
+    expect(fn () => ReportDefinition::fromArray([...['subject' => 'invoices', 'columns' => ['number']], ...$bad], $this->finance))
+        ->toThrow(fn (ValidationException $e) => expect($e->errors())->toHaveKey($key));
+})->with([
+    'garbage as_at' => [['as_at' => 'not-a-date'], 'as_at'],
+    'impossible as_at' => [['as_at' => '2026-02-30'], 'as_at'],
+    'array as_at' => [['as_at' => ['x']], 'as_at'],
+    'array filter field' => [['filters' => [['field' => ['x'], 'op' => 'is', 'value' => 'a']]], 'filters.0.field'],
+    'array group field' => [['groups' => [['field' => ['x']]]], 'groups.0.field'],
+    'nested column' => [['columns' => [['x']]], 'columns'],
+    'duplicate columns' => [['columns' => ['number', 'number']], 'columns'],
+    'nested enum value' => [['filters' => [['field' => 'status', 'op' => 'in', 'value' => [['x']]]]], 'filters.0.value'],
+    'array preset' => [['period' => ['field' => 'due_date', 'preset' => ['x']]], 'period.preset'],
+    'impossible custom date' => [['period' => ['field' => 'due_date', 'preset' => 'custom', 'from' => '2026-02-30', 'to' => '2026-03-01']], 'period.from'],
+]);
+
+test('period and bucket are stored only where they mean something', function () {
+    $def = ReportDefinition::fromArray(['subject' => 'invoices', 'columns' => ['number'],
+        'period' => ['field' => 'due_date', 'preset' => 'this_month', 'from' => '2026-01-01', 'to' => '2026-01-31'],
+        'groups' => [['field' => 'status', 'bucket' => 'month']]], $this->finance);
+
+    expect($def->periodFrom)->toBeNull()->and($def->periodTo)->toBeNull()
+        ->and($def->groups[0]['bucket'])->toBeNull();
+});

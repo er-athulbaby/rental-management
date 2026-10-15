@@ -78,7 +78,8 @@ final readonly class ReportDefinition
         Validator::make($data, ['subject' => ['required', 'string', 'in:'.implode(',', array_keys($subjects))]],
             ['subject.in' => __('You cannot report on this subject.')])->validate();
         $subject = $subjects[$data['subject']];
-        $asAt = filled($data['as_at'] ?? null) ? (string) $data['as_at'] : null;
+        $rawAsAt = $data['as_at'] ?? null;
+        $asAt = self::isDate($rawAsAt) ? $rawAsAt : null;
         $fields = $subject->fields($user, CarbonImmutable::parse($asAt ?? 'today', 'Asia/Bahrain'));
         $keys = array_keys($fields);
         $numeric = array_keys(array_filter($fields, fn (Field $f) => $f->type->numeric()));
@@ -86,7 +87,7 @@ final readonly class ReportDefinition
 
         $errors = [];
         $columns = array_values((array) ($data['columns'] ?? []));
-        if ($columns === [] || count($columns) > self::MAX_COLUMNS || array_diff($columns, $keys) !== []) {
+        if ($columns === [] || count($columns) > self::MAX_COLUMNS || array_filter($columns, fn ($c) => ! is_string($c)) !== [] || array_diff($columns, $keys) !== [] || count(array_unique($columns)) !== count($columns)) {
             $errors['columns'] = __('Choose between 1 and :n of the listed columns.', ['n' => self::MAX_COLUMNS]);
         }
 
@@ -95,13 +96,13 @@ final readonly class ReportDefinition
             $errors['filters'] = __('At most :n filters.', ['n' => self::MAX_FILTERS]);
         }
         foreach ($filters as $i => $filter) {
-            $field = $fields[$filter['field'] ?? ''] ?? null;
+            $field = is_array($filter) && is_string($filter['field'] ?? null) ? ($fields[$filter['field']] ?? null) : null;
             if ($field === null || ! $field->filterable) {
                 $errors["filters.$i.field"] = __('Choose a field to filter on.');
 
                 continue;
             }
-            if (! in_array($filter['op'] ?? '', self::operators()[$field->type->value], true)) {
+            if (! is_string($filter['op'] ?? null) || ! in_array($filter['op'], self::operators()[$field->type->value], true)) {
                 $errors["filters.$i.op"] = __('Choose how to compare.');
 
                 continue;
@@ -116,13 +117,13 @@ final readonly class ReportDefinition
             if (! in_array($period['field'] ?? null, $subject->periodFields(), true)) {
                 $errors['period.field'] = __('Choose the date the period uses.');
             }
-            if (! array_key_exists($period['preset'] ?? '', Period::presets())) {
+            if (! is_string($period['preset'] ?? null) || ! array_key_exists($period['preset'], Period::presets())) {
                 $errors['period.preset'] = __('Choose a period.');
             } elseif ($period['preset'] === 'custom' && (! self::isDate($period['from'] ?? null) || ! self::isDate($period['to'] ?? null) || $period['from'] > $period['to'])) {
                 $errors['period.from'] = __('Enter a valid from and to date.');
             }
         }
-        if ($asAt !== null && ! self::isDate($asAt)) {
+        if (filled($rawAsAt) && $asAt === null) {
             $errors['as_at'] = __('Enter a valid date.');
         }
 
@@ -131,7 +132,7 @@ final readonly class ReportDefinition
             $errors['groups'] = __('At most :n group levels.', ['n' => self::MAX_GROUPS]);
         }
         foreach ($groups as $i => $group) {
-            $field = $fields[$group['field'] ?? ''] ?? null;
+            $field = is_array($group) && is_string($group['field'] ?? null) ? ($fields[$group['field']] ?? null) : null;
             if ($field === null || ! in_array($field->key, $groupable, true)) {
                 $errors["groups.$i.field"] = __('Choose a field to group by.');
             } elseif ($field->type === FieldType::Date && ! in_array($group['bucket'] ?? null, self::BUCKETS, true)) {
@@ -157,15 +158,17 @@ final readonly class ReportDefinition
         }
 
         $chart = $data['chart'] ?? null;
-        if ($chart !== null && (! in_array($chart['type'] ?? null, ['bars', 'columns'], true) || $groups === []
+        if ($chart !== null && (! is_array($chart) || ! in_array($chart['type'] ?? null, ['bars', 'columns'], true) || $groups === []
             || ! self::validTotalKey((string) ($chart['total'] ?? ''), $totals))) {
             $errors['chart'] = __('A chart needs a grouped report and one of its totals.');
         }
 
         $building = $data['building_id'] ?? null;
-        if ($building !== null && ! ctype_digit((string) $building)) {
+        if ($building !== null && (! is_scalar($building) || ! ctype_digit((string) $building))) {
             $errors['building_id'] = __('Choose a building.');
         }
+
+        $periodOn = $period !== [] && $subject->periodFields() !== [];
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
@@ -175,13 +178,13 @@ final readonly class ReportDefinition
             subject: $subject->key(),
             columns: $columns,
             filters: array_map(fn (array $f) => ['field' => (string) $f['field'], 'op' => (string) $f['op'], 'value' => $f['value'] ?? null], $filters),
-            periodField: $period['field'] ?? null,
-            periodPreset: $period['preset'] ?? null,
-            periodFrom: $period['from'] ?? null,
-            periodTo: $period['to'] ?? null,
+            periodField: $periodOn ? $period['field'] : null,
+            periodPreset: $periodOn ? $period['preset'] : null,
+            periodFrom: $periodOn && $period['preset'] === 'custom' ? $period['from'] : null,
+            periodTo: $periodOn && $period['preset'] === 'custom' ? $period['to'] : null,
             asAt: $asAt,
             buildingId: $building === null ? null : (int) $building,
-            groups: array_map(fn (array $g) => ['field' => (string) $g['field'], 'bucket' => $g['bucket'] ?? null], $groups),
+            groups: array_map(fn (array $g) => ['field' => (string) $g['field'], 'bucket' => ($fields[$g['field']]->type === FieldType::Date) ? $g['bucket'] : null], $groups),
             totals: $totals,
             sort: ['field' => (string) $sort['field'], 'dir' => (string) $sort['dir']],
             summaryOnly: (bool) ($data['summary_only'] ?? false) && $groups !== [],
@@ -228,7 +231,7 @@ final readonly class ReportDefinition
 
     private static function isDate(mixed $v): bool
     {
-        return is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1 && strtotime($v) !== false;
+        return is_string($v) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
     }
 
     private static function isAmount(mixed $v): bool
@@ -242,7 +245,7 @@ final readonly class ReportDefinition
         return match ($field->type) {
             FieldType::Text => in_array($op, ['empty', 'not_empty'], true) || (is_string($value) && $value !== '' && mb_strlen($value) <= 100)
                 ? null : __('Enter up to 100 characters.'),
-            FieldType::Enum => is_array($value) && $value !== [] && array_diff($value, array_keys($field->options)) === []
+            FieldType::Enum => is_array($value) && $value !== [] && array_filter($value, fn ($v) => ! is_string($v)) === [] && array_diff($value, array_keys($field->options)) === []
                 ? null : __('Pick one or more of the listed values.'),
             FieldType::Money, FieldType::Number => $op === 'between'
                 ? (is_array($value) && self::isAmount($value[0] ?? null) && self::isAmount($value[1] ?? null) ? null : __('Enter two numbers.'))
