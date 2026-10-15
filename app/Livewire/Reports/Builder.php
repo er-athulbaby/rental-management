@@ -201,6 +201,7 @@ class Builder extends Component
         }
         $def['totals'] = array_filter((array) ($def['totals'] ?? []), fn ($fn, $key) => filled($fn) && in_array($key, (array) ($def['columns'] ?? []), true), ARRAY_FILTER_USE_BOTH);
         $def['filters'] = array_values((array) ($def['filters'] ?? []));
+        $def['compare'] = is_string($def['compare'] ?? null) && $def['compare'] !== '' ? $def['compare'] : null;
         // A chart needs grouping and a total that still exists; otherwise there is simply no chart.
         $chart = $def['chart'] ?? null;
         $total = is_array($chart) && is_string($chart['total'] ?? null) ? $chart['total'] : 'count';
@@ -226,10 +227,22 @@ class Builder extends Component
         $field = $fields[$key] ?? null;
         $by = $fields[$def->groups[0]['field']]->label ?? '';
         $level1 = array_values(array_filter($result->groups, fn ($g) => $g['level'] === 1));
+        $cmp = $result->comparison;
+        if ($cmp !== null) { // each group becomes a pair: this period, then the comparison period in a second shade
+            $level1 = array_map(fn ($r) => ['label' => $r['label'], 'current' => $r['current'][$total] ?? 0, 'previous' => $r['previous'][$total] ?? 0], $cmp['rows']);
+        }
         $capped = count($level1) > self::CHART_LIMIT;
-        $items = array_map(fn ($g) => ['label' => $g['label'], 'short' => $g['label'], 'value' => (float) $g['totals'][$total],
-            'display' => Formatter::total($field, $fn, $g['totals'][$total])],
-            array_slice($level1, 0, self::CHART_LIMIT));
+        $cell = fn (string $label, mixed $raw, array $extra = []) => ['label' => $label, 'short' => $label, 'value' => (float) $raw, 'display' => Formatter::total($field, $fn, $raw)] + $extra;
+        $items = [];
+        foreach (array_slice($level1, 0, self::CHART_LIMIT) as $g) {
+            if ($cmp === null) {
+                $items[] = $cell($g['label'], $g['totals'][$total]);
+            } else {
+                $items[] = $cell($g['label'], $g['current']);
+                $items[] = $cell($g['label'].' ('.__('previous').')', $g['previous'], ['color' => '--viz-age-1']);
+            }
+        }
+        $n = $cmp === null ? count($items) : intdiv(count($items), 2);
 
         return [
             // Spec §5: columns when level 1 is a date bucket, bars for categories.
@@ -237,7 +250,8 @@ class Builder extends Component
             'title' => ($total === 'count' ? __('Count') : $field?->label.' ('.__($fn).')').' '.__('by').' '.$by,
             'items' => $items,
         ] + ($capped || $result->groupsTruncated
-            ? ['caption' => __('Chart shows the first :n groups — see the table for all', ['n' => Number::format(count($items))])] : []);
+            ? ['caption' => __('Chart shows the first :n groups — see the table for all', ['n' => Number::format($n)])] : [])
+          + ($cmp === null ? [] : ['legend' => [['label' => $cmp['label'], 'color' => '--viz-1'], ['label' => $cmp['compareLabel'], 'color' => '--viz-age-1']]]);
     }
 
     /** @return list<string> */

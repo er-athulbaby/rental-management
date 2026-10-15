@@ -38,7 +38,34 @@ final class ExcelWriter
             }
         }
         $writer->addRow($total);
+        if ($result->comparison !== null) {
+            self::comparison($writer, $result);
+        }
         $writer->close();
+    }
+
+    /** A blank row, then Compared | per total: this period, comparison period, change, change %. Plain lists, so the main header does not apply. */
+    private static function comparison(SimpleExcelWriter $writer, ReportResult $result): void
+    {
+        $cmp = $result->comparison ?? [];
+        $labels = collect($result->columns)->mapWithKeys(fn (Field $f) => [$f->key => $f->label]);
+        $keys = array_map(strval(...), array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]));
+        $writer->addRow([]);
+        $writer->addRow([__('Comparison')]);
+        $head = [__('Compared')];
+        foreach ($keys as $k) {
+            $name = $k === 'count' ? __('Rows') : ($labels[explode(':', $k)[0]] ?? $k).' ('.__(explode(':', $k)[1] ?? '').')';
+            array_push($head, "{$name}: {$cmp['label']}", "{$name}: {$cmp['compareLabel']}", "{$name}: ".__('Change'), "{$name}: ".__('Change %'));
+        }
+        $writer->addRow($head);
+        foreach ($cmp['rows'] as $r) {
+            $line = [$r['label']];
+            foreach ($keys as $k) {
+                $ch = Comparison::change($r['current'][$k] ?? 0, $r['previous'][$k] ?? 0);
+                array_push($line, (float) ($r['current'][$k] ?? 0), (float) ($r['previous'][$k] ?? 0), (float) $ch['diff'], $ch['pct'] === null ? '' : (float) $ch['pct']);
+            }
+            $writer->addRow($line);
+        }
     }
 
     /**

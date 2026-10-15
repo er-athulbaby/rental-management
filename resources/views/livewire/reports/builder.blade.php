@@ -195,7 +195,13 @@
                     </flux:select>
                 </div>
             @endif
-            {{-- Compare: Task 14 --}}
+            @if ($subject->periodFields() !== [])
+                <flux:select wire:model.live="def.compare" :label="__('Compare with')">
+                    <option value="">{{ __('Nothing') }}</option>
+                    <option value="previous">{{ __('Previous period') }}</option>
+                    <option value="last_year">{{ __('Same period last year') }}</option>
+                </flux:select>
+            @endif
         </aside>
 
         <section class="min-w-0 space-y-3">
@@ -210,6 +216,37 @@
                     @if ($result->groupsTruncated)<span>{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</span>@endif
                 </div>
                 @if ($chart)<x-report-chart :chart="$chart" />@endif
+                @if ($result->comparison)
+                    @php($cmp = $result->comparison)
+                    @php($tkeys = array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]))
+                    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <flux:table>
+                            <flux:table.columns>
+                                <flux:table.column>{{ __('Compared') }}</flux:table.column>
+                                @foreach ($tkeys as $tk)
+                                    @php($tl = $tk === 'count' ? __('Rows') : (($fields[explode(':', $tk)[0]] ?? null)?->label ?? $tk).' ('.__(explode(':', $tk)[1] ?? '').')')
+                                    <flux:table.column align="end">{{ $tl }}<br><span class="text-xs font-normal">{{ $cmp['label'] }} · {{ $cmp['compareLabel'] }} · {{ __('Change') }}</span></flux:table.column>
+                                @endforeach
+                            </flux:table.columns>
+                            <flux:table.rows>
+                                @foreach ($cmp['rows'] as $ri => $cr)
+                                    <flux:table.row :key="'c'.$ri">
+                                        <flux:table.cell>{{ $cr['label'] }}</flux:table.cell>
+                                        @foreach ($tkeys as $tk)
+                                            @php($ch = App\Reports\Builder\Comparison::change($cr['current'][$tk] ?? 0, $cr['previous'][$tk] ?? 0))
+                                            @php($dp = $tk === 'count' ? 0 : 3)
+                                            <flux:table.cell class="text-end tabular-nums whitespace-nowrap">
+                                                {{ number_format((float) ($cr['current'][$tk] ?? 0), $dp) }}
+                                                · {{ number_format((float) ($cr['previous'][$tk] ?? 0), $dp) }}
+                                                · {{ bccomp($ch['diff'], '0', 3) >= 0 ? '▲ +' : '▼ −' }}{{ number_format(abs((float) $ch['diff']), $dp) }}@if ($ch['pct'] !== null) ({{ $ch['pct'] }}%)@endif
+                                            </flux:table.cell>
+                                        @endforeach
+                                    </flux:table.row>
+                                @endforeach
+                            </flux:table.rows>
+                        </flux:table>
+                    </div>
+                @endif
                 <div class="overflow-x-auto" x-data="{ closed: {} }">
                     <flux:table>
                         <flux:table.columns>

@@ -20,6 +20,14 @@
         @isset($chart['caption'])<span class="text-xs text-zinc-500">{{ $chart['caption'] }}</span>@endisset
     </figcaption>
 
+    @isset($chart['legend'])
+        <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-300" data-legend>
+            @foreach ($chart['legend'] as $l)
+                <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background: var({{ $l['color'] }})"></span>{{ $l['label'] }}</li>
+            @endforeach
+        </ul>
+    @endisset
+
     @if ($items->isEmpty() || $total <= 0 && ($chart['type'] ?? '') !== 'bars')
         <p class="py-6 text-center text-sm text-zinc-500">{{ __('Nothing to chart yet.') }}</p>
     @elseif ($chart['type'] === 'bars')
