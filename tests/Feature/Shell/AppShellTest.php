@@ -76,5 +76,5 @@ test('only the APP_URL host is trusted', function () {
 
 test('the sidebar credits the developer with a link', function () {
     $this->actingAs(User::factory()->create()->assignRole(RoleName::Leasing))
-        ->get(route('dashboard'))->assertOk()->assertSee('Developed by')->assertSee('DeVerra Technologies')->assertSee('href="https://devera.me"', false);
+        ->get(route('dashboard'))->assertOk()->assertSee('Developed by')->assertSee('DeVerra Technologies')->assertSee('href="https://deverra.me"', false);
 });
