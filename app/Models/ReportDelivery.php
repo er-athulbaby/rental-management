@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
-use DateTimeInterface;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -25,17 +23,5 @@ class ReportDelivery extends Model
     protected function casts(): array
     {
         return ['due_at' => 'immutable_datetime', 'sent_at' => 'immutable_datetime'];
-    }
-
-    /**
-     * Same app-timezone conversion as ReportSchedule::next_run_at, so the unique key compares like with like.
-     *
-     * @return Attribute<mixed, mixed>
-     */
-    protected function dueAt(): Attribute
-    {
-        return Attribute::set(fn (mixed $v) => $v instanceof DateTimeInterface
-            ? CarbonImmutable::instance($v)->timezone(config('app.timezone'))->format('Y-m-d H:i:s')
-            : $v);
     }
 }

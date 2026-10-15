@@ -31,11 +31,23 @@ test('edges: same weekday later hour, month rolling, last day after the hour, UT
         ->and($bh(NextRun::after(['frequency' => 'monthly', 'day' => 0, 'hour' => 18], $at('2026-10-31 18:00'))))->toBe('2026-11-30 18:00')
         ->and($bh(NextRun::after(['frequency' => 'monthly', 'day' => 28, 'hour' => 7], $at('2026-12-28 07:00'))))->toBe('2027-01-28 07:00');
 
-    $utc = NextRun::after(['frequency' => 'daily', 'day' => null, 'hour' => 7], $at('2026-10-15 06:00'));
-    expect($utc->timezoneName)->toBe('UTC')->and($utc->format('H:i'))->toBe('04:00');
+    $next = NextRun::after(['frequency' => 'daily', 'day' => null, 'hour' => 7], $at('2026-10-15 06:00'));
+    expect($next->timezoneName)->toBe('Asia/Bahrain')->and($next->format('H:i'))->toBe('07:00');
 });
 
-test('next_run_at is stored as the same instant it was given in UTC', function () use ($at) {
+test('leap February, day above 28 as last day, and bad input throws', function () use ($at, $bh) {
+    expect($bh(NextRun::after(['frequency' => 'monthly', 'day' => 0, 'hour' => 18], $at('2028-02-10 10:00'))))->toBe('2028-02-29 18:00')
+        ->and($bh(NextRun::after(['frequency' => 'monthly', 'day' => 31, 'hour' => 7], $at('2026-10-15 10:00'))))->toBe('2026-10-31 07:00');
+
+    $bad = fn (array $s) => fn () => NextRun::after($s, $at('2026-10-15 10:00'));
+    expect($bad(['frequency' => 'yearly', 'day' => null, 'hour' => 7]))->toThrow(InvalidArgumentException::class)
+        ->and($bad(['frequency' => 'daily', 'day' => null, 'hour' => 24]))->toThrow(InvalidArgumentException::class)
+        ->and($bad(['frequency' => 'weekly', 'day' => 7, 'hour' => 7]))->toThrow(InvalidArgumentException::class)
+        ->and($bad(['frequency' => 'weekly', 'day' => null, 'hour' => 7]))->toThrow(InvalidArgumentException::class)
+        ->and($bad(['frequency' => 'monthly', 'day' => 40, 'hour' => 7]))->toThrow(InvalidArgumentException::class);
+});
+
+test('next_run_at is stored and compared as given', function () use ($at) {
     $this->seed(RolesAndPermissionsSeeder::class);
     $user = matrixUser(RoleName::Finance, Building::factory()->create());
     $report = SavedReport::create(['name' => 'R', 'subject' => 'invoices', 'definition' => [], 'created_by' => $user->id, 'updated_by' => $user->id]);
@@ -46,7 +58,7 @@ test('next_run_at is stored as the same instant it was given in UTC', function (
 
     expect($schedule->fresh()->next_run_at->equalTo($next))->toBeTrue()
         ->and($delivery->fresh()->due_at->equalTo($next))->toBeTrue()
-        ->and(ReportSchedule::where('next_run_at', '<=', $next->timezone(config('app.timezone')))->count())->toBe(1);
+        ->and(ReportSchedule::where('next_run_at', '<=', $next)->count())->toBe(1);
 
     $schedule->recipients()->attach($user->id);
     expect($schedule->recipients)->toHaveCount(1)

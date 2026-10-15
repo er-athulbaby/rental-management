@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
-use DateTimeInterface;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -29,18 +27,6 @@ class ReportSchedule extends Model
     protected function casts(): array
     {
         return ['next_run_at' => 'immutable_datetime', 'paused_at' => 'immutable_datetime', 'day' => 'integer', 'hour' => 'integer'];
-    }
-
-    /**
-     * Columns hold app-timezone wall time; NextRun hands back UTC, so convert before storing (else it shifts by the offset).
-     *
-     * @return Attribute<mixed, mixed>
-     */
-    protected function nextRunAt(): Attribute
-    {
-        return Attribute::set(fn (mixed $v) => $v instanceof DateTimeInterface
-            ? CarbonImmutable::instance($v)->timezone(config('app.timezone'))->format('Y-m-d H:i:s')
-            : $v);
     }
 
     /** @return BelongsTo<SavedReport, $this> */
