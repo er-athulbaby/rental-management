@@ -45,8 +45,7 @@ class Builder extends Component
             $this->reportId = $report->id;
             $this->name = $report->name;
             $this->def = $report->definition;
-            SavedReport::whereKey($report->id)->update(['last_run_at' => now()]);
-            SavedReport::whereKey($report->id)->update(['last_run_at' => now()]);
+            SavedReport::query()->whereKey($report->id)->toBase()->update(['last_run_at' => now()]);
 
             return;
         }
@@ -162,12 +161,12 @@ class Builder extends Component
         Audit::log('report.exported', properties: ['report' => 'builder:'.$def->subject, 'saved_report_id' => $this->reportId,
             'building' => $def->buildingId, 'period' => $result->periodLabel], causer: $user);
         if ($this->reportId !== null) {
-            SavedReport::whereKey($this->reportId)->update(['last_run_at' => now()]);
+            SavedReport::query()->whereKey($this->reportId)->toBase()->update(['last_run_at' => now()]);
         }
         $path = sys_get_temp_dir().'/rms-report-'.Str::uuid().'.xlsx';
         ExcelWriter::write($result, $path);
 
-        return response()->download($path, Str::slug($this->name !== '' ? $this->name : $def->subject).'-'.now('Asia/Bahrain')->toDateString().'.xlsx')->deleteFileAfterSend();
+        return response()->download($path, (Str::slug($this->name) ?: $def->subject).'-'.now('Asia/Bahrain')->toDateString().'.xlsx')->deleteFileAfterSend();
     }
 
     /** @return list<string> */

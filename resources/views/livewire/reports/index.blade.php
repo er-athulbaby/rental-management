@@ -19,7 +19,7 @@
                             <a href="{{ route('reports.builder', $r) }}" wire:navigate class="block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-700 dark:bg-zinc-900">
                                 <span class="block truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $r->name }}</span>
                                 <span class="mt-0.5 block text-sm text-zinc-500">
-                                    {{ App\Reports\Builder\Registry::get($r->subject)->label() }} · {{ $heading }}@if ($r->creator && $r->created_by !== auth()->id()) · {{ $r->creator->name }}@endif
+                                    {{ (App\Reports\Builder\Registry::all()[$r->subject] ?? null)?->label() ?? $r->subject }} · {{ $heading }}@if ($r->creator && $r->created_by !== auth()->id()) · {{ $r->creator->name }}@endif
                                     @if ($r->last_run_at) · {{ __('run :d', ['d' => $r->last_run_at->timezone('Asia/Bahrain')->format('d/m/Y')]) }}@endif
                                 </span>
                             </a>
