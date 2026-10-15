@@ -195,7 +195,7 @@
                     </flux:select>
                 </div>
             @endif
-            @if ($subject->periodFields() !== [])
+            @if ($subject->periodFields() !== [] && filled($def['period']['preset'] ?? null))
                 <flux:select wire:model.live="def.compare" :label="__('Compare with')">
                     <option value="">{{ __('Nothing') }}</option>
                     <option value="previous">{{ __('Previous period') }}</option>
@@ -219,6 +219,7 @@
                 @if ($result->comparison)
                     @php($cmp = $result->comparison)
                     @php($tkeys = array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]))
+                    @if ($cmp['truncated'])<p class="text-sm text-zinc-500">{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</p>@endif
                     <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
                         <flux:table>
                             <flux:table.columns>
@@ -233,12 +234,14 @@
                                     <flux:table.row :key="'c'.$ri">
                                         <flux:table.cell>{{ $cr['label'] }}</flux:table.cell>
                                         @foreach ($tkeys as $tk)
-                                            @php($ch = App\Reports\Builder\Comparison::change($cr['current'][$tk] ?? 0, $cr['previous'][$tk] ?? 0))
-                                            @php($dp = $tk === 'count' ? 0 : 3)
+                                            @php($ch = App\Reports\Builder\Comparison::change($cr['current'][$tk] ?? null, $cr['previous'][$tk] ?? null))
+                                            @php($tf = $tk === 'count' ? null : ($fields[explode(':', $tk)[0]] ?? null))
+                                            @php($tfn = $tk === 'count' ? 'count' : (explode(':', $tk)[1] ?? 'sum'))
+                                            @php($sign = $ch['diff'] === null || bccomp($ch['diff'], '0', 3) === 0 ? 0 : (bccomp($ch['diff'], '0', 3) > 0 ? 1 : -1))
                                             <flux:table.cell class="text-end tabular-nums whitespace-nowrap">
-                                                {{ number_format((float) ($cr['current'][$tk] ?? 0), $dp) }}
-                                                · {{ number_format((float) ($cr['previous'][$tk] ?? 0), $dp) }}
-                                                · {{ bccomp($ch['diff'], '0', 3) >= 0 ? '▲ +' : '▼ −' }}{{ number_format(abs((float) $ch['diff']), $dp) }}@if ($ch['pct'] !== null) ({{ $ch['pct'] }}%)@endif
+                                                {{ Formatter::total($tf, $tfn, $cr['current'][$tk] ?? null) }}
+                                                · {{ Formatter::total($tf, $tfn, $cr['previous'][$tk] ?? null) }}
+                                                · @if ($ch['diff'] === null)—@else{{ ['0' => '', '1' => '▲ +', '-1' => '▼ −'][(string) $sign] }}{{ Formatter::total($tf, $tfn, ltrim($ch['diff'], '-')) }}@if ($ch['pct'] !== null) ({{ $sign < 0 || str_starts_with($ch['pct'], '-') ? '−' : ($sign > 0 ? '+' : '') }}{{ number_format((float) ltrim($ch['pct'], '-'), 1) }}%)@endif @endif
                                             </flux:table.cell>
                                         @endforeach
                                     </flux:table.row>

@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Unit;
 use App\Reports\Builder\Comparison;
 use App\Reports\Builder\ExcelWriter;
+use App\Reports\Builder\ReportDefinition;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
@@ -68,14 +69,15 @@ test('no comparison unless asked for', function () {
     expect(runReport($this->finance, $this->base)->comparison)->toBeNull();
 });
 
-test('change is exact decimal arithmetic, rounds half up, and treats nulls as 0', function () {
+test('change is exact decimal arithmetic, rounds half up, and is blank when either side is blank', function () {
     expect(Comparison::change('0.300', '0.100')['diff'])->toBe('0.200')
         ->and(Comparison::change('1.000', '3.000'))->toBe(['diff' => '-2.000', 'pct' => '-66.7'])
         ->and(Comparison::change('1.005', '1.000')['pct'])->toBe('0.5')
         ->and(Comparison::change('1.050', '1.000')['pct'])->toBe('5.0')
         ->and(Comparison::change('0.995', '1.000')['pct'])->toBe('-0.5')
         ->and(Comparison::change(4, 3))->toBe(['diff' => '1.000', 'pct' => '33.3'])
-        ->and(Comparison::change(null, '5.000'))->toBe(['diff' => '-5.000', 'pct' => '-100.0']);
+        ->and(Comparison::change(null, '5.000'))->toBe(['diff' => null, 'pct' => null])
+        ->and(Comparison::change('5.000', '5.000'))->toBe(['diff' => '0.000', 'pct' => '0.0']);
 });
 
 test('the comparison honours filters and the building filter', function () {
@@ -92,7 +94,7 @@ test('the screen shows both period dates and the change with an arrow, and the c
         ->call('setSubject', 'payments')
         ->set('def.period', ['field' => 'received_on', 'preset' => 'this_month', 'from' => null, 'to' => null])
         ->set('def.groups', [['field' => 'tenant', 'bucket' => null]])->set('def.totals', ['amount' => 'sum'])->set('def.compare', 'previous')
-        ->assertSee('01/09/2026 – 30/09/2026')->assertSee('▲')->assertSee('(200.0%)')->assertDontSeeHtml('<figure class="viz')
+        ->assertSee('01/09/2026 – 30/09/2026')->assertSee('▲')->assertSee('(+200.0%)')->assertDontSeeHtml('<figure class="viz')
         ->set('def.chart', ['type' => 'bars', 'total' => 'amount:sum'])
         ->assertSeeHtml('<figure class="viz')->assertSee('Alpha Tenant (previous)')->assertSeeHtml('data-legend')
         ->set('def.compare', '')->assertDontSee('01/09/2026')->assertDontSeeHtml('data-legend');
@@ -114,4 +116,53 @@ test('Excel carries a comparison block under the grand total', function () {
     expect($at)->not->toBeFalse()
         ->and($rows[$at + 1])->toContain('Compared')->and(implode('|', $rows[$at + 1]))->toContain('Rows: 01/10/2026 – 31/10/2026')->toContain('Rows: 01/09/2026 – 30/09/2026')
         ->and(collect($rows)->first(fn ($r) => ($r[0] ?? null) === 'Alpha Tenant' && in_array(200, $r)))->not->toBeNull();
+});
+
+test('date buckets pair by position, so this quarter sets against the previous one month for month', function () {
+    $pay = fn ($c, $on, $amt) => app(RecordPayment::class)->handle($this->finance, $c, ['received_on' => $on, 'method' => 'cash', 'amount' => $amt]);
+    $pay($this->tenantA, '2026-07-04', '10.000');
+    $pay($this->tenantA, '2026-08-04', '20.000');
+    $base = [...$this->base, 'groups' => [['field' => 'received_on', 'bucket' => 'month']], 'period' => ['field' => 'received_on', 'preset' => 'this_quarter']];
+
+    $r = runReport($this->finance, [...$base, 'compare' => 'previous']);
+    expect(array_column($r->comparison['rows'], 'label'))->toBe(['Oct 2026 vs Jul 2026', '— vs Aug 2026', '— vs Sep 2026']);
+    $rows = $r->comparison['rows'];
+    expect($rows[0]['current']['amount:sum'])->toBe('300.000')->and($rows[0]['previous']['amount:sum'])->toBe('10.000')
+        ->and($rows[2]['current']['amount:sum'])->toBe('0.000')->and($rows[2]['previous']['amount:sum'])->toBe('100.000');
+
+    $y = runReport($this->finance, [...$base, 'period' => ['field' => 'received_on', 'preset' => 'this_year'], 'compare' => 'last_year']);
+    expect($y->comparison['rows'][0]['label'])->toBe('Jul 2026 vs Oct 2025')->and($y->comparison['rows'][0]['previous']['amount:sum'])->toBe('50.000');
+});
+
+test('the comparison list is capped: a period hitting the cap flags it and never shows a false 0', function () {
+    $def = ReportDefinition::fromArray([...$this->base, 'compare' => 'last_year'], $this->finance);
+    $cap = Comparison::run($this->finance, $def, CarbonImmutable::now('Asia/Bahrain'), 1);
+    $all = Comparison::run($this->finance, $def, CarbonImmutable::now('Asia/Bahrain'), null);
+
+    expect($all['truncated'])->toBeFalse()->and($all['rows'])->toHaveCount(2)
+        ->and($cap['truncated'])->toBeTrue()->and(count($cap['rows']))->toBeLessThanOrEqual(1);
+});
+
+test('a missing average stays blank and has no change', function () {
+    $r = runReport($this->finance, [...$this->base, 'totals' => ['amount' => 'avg'], 'compare' => 'last_year']);
+    $alpha = collect($r->comparison['rows'])->firstWhere('label', 'Alpha Tenant');
+
+    expect($alpha['previous']['amount:avg'])->toBeNull()->and($alpha['previous']['count'])->toBe(0);
+});
+
+test('the screen shows no arrow or sign for a zero change, and a blank change for a missing average', function () {
+    app(RecordPayment::class)->handle($this->finance, $this->tenantA, ['received_on' => '2026-09-11', 'method' => 'cash', 'amount' => '200.000']);
+    $t = Livewire::actingAs($this->finance)->test(Builder::class)->call('setSubject', 'payments')
+        ->set('def.period', ['field' => 'received_on', 'preset' => 'this_month', 'from' => null, 'to' => null])
+        ->set('def.groups', [['field' => 'tenant', 'bucket' => null]])->set('def.totals', ['amount' => 'sum'])->set('def.compare', 'previous');
+    $t->assertSee('0.0%')->assertDontSee('▲ +0.000');
+});
+
+test('a user limited to one building: the comparison period excludes the other building', function () {
+    $leasing = matrixUser(RoleName::Leasing, $this->a);
+    $def = ['subject' => 'agreements', 'columns' => ['number', 'building'], 'period' => ['field' => 'start_date', 'preset' => 'this_year'],
+        'groups' => [['field' => 'building']], 'compare' => 'last_year'];
+
+    expect(collect(runReport($leasing, $def)->comparison['rows'])->pluck('label')->all())->toBe(['AAA'])
+        ->and(collect(runReport($this->finance, $def)->comparison['rows'])->pluck('label')->all())->toBe(['AAA', 'BBB']);
 });

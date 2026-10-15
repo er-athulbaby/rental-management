@@ -52,7 +52,7 @@ class Engine
             groups: $groups,
             groupsTruncated: $groupsTruncated,
             periodLabel: $range === null ? null : Period::label(...$range),
-            comparison: Comparison::run($user, $def, CarbonImmutable::now('Asia/Bahrain')),
+            comparison: Comparison::run($user, $def, CarbonImmutable::now('Asia/Bahrain'), $groupLimit),
         );
     }
 

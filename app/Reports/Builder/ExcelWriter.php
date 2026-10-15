@@ -61,8 +61,10 @@ final class ExcelWriter
         foreach ($cmp['rows'] as $r) {
             $line = [$r['label']];
             foreach ($keys as $k) {
-                $ch = Comparison::change($r['current'][$k] ?? 0, $r['previous'][$k] ?? 0);
-                array_push($line, (float) ($r['current'][$k] ?? 0), (float) ($r['previous'][$k] ?? 0), (float) $ch['diff'], $ch['pct'] === null ? '' : (float) $ch['pct']);
+                $ch = Comparison::change($r['current'][$k] ?? null, $r['previous'][$k] ?? null);
+                $num = fn (mixed $v) => is_numeric($v) ? (float) $v : '';
+                array_push($line, $num($r['current'][$k] ?? null), $num($r['previous'][$k] ?? null), $num($ch['diff']), $num($ch['pct']));
+
             }
             $writer->addRow($line);
         }
