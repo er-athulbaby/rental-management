@@ -119,6 +119,37 @@ final class Comparison
     }
 
     /**
+     * The comparison as text lines for the email: "row · total: this · previous · change (pct%)". Grouped reports show
+     * the first $limit groups only; the attachment has them all.
+     *
+     * @param  array<string, mixed>  $cmp
+     * @param  list<Field>  $columns
+     * @return list<string>
+     */
+    public static function lines(array $cmp, array $columns, int $limit = 10): array
+    {
+        $byKey = collect($columns)->keyBy('key');
+        $lines = [__('Comparison: :a vs :b', ['a' => $cmp['label'], 'b' => $cmp['compareLabel']])];
+        foreach (array_slice($cmp['rows'], 0, $limit) as $row) {
+            foreach (array_keys($row['current']) as $k) {
+                $k = (string) $k;
+                [$field, $fn] = array_pad(explode(':', $k, 2), 2, 'count');
+                $f = $k === 'count' ? null : ($byKey[$field] ?? null);
+                $name = $k === 'count' ? __('Rows') : ($f->label ?? $field).' ('.__($fn).')';
+                $ch = self::change($row['current'][$k], $row['previous'][$k] ?? null);
+                $change = $ch['diff'] === null ? '—' : Formatter::total($f, $fn, $ch['diff']).($ch['pct'] === null ? '' : " ({$ch['pct']}%)");
+                $lines[] = "{$row['label']} · {$name}: ".Formatter::total($f, $fn, $row['current'][$k]).' · '
+                    .Formatter::total($f, $fn, $row['previous'][$k] ?? null).' · '.$change;
+            }
+        }
+        if (count($cmp['rows']) > $limit || $cmp['truncated']) {
+            $lines[] = __('More groups are in the attachment.');
+        }
+
+        return $lines;
+    }
+
+    /**
      * Current minus previous in exact decimals (never floats); the percentage is blank against 0 and rounds half away from zero to 1 dp.
      * Both are blank when either side is blank (an average, minimum or maximum the period doesn't have).
      *

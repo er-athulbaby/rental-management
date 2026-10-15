@@ -71,6 +71,48 @@ final readonly class ReportDefinition
         return self::fromArray(['subject' => $subject->key(), 'columns' => $subject->defaultColumns(), 'period' => $period, 'sort' => $subject->defaultSort()], $user);
     }
 
+    /**
+     * Spec §8: a shared report may use fields this viewer lacks. Drops every reference to them (columns, filters, groups,
+     * totals, sort, chart) so the rest still runs, and says which fields went.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: array<string, mixed>, 1: list<string>} the cleaned data and the dropped field labels
+     */
+    public static function forViewer(array $data, User $user): array
+    {
+        $subject = is_string($data['subject'] ?? null) ? (Registry::forUser($user)[$data['subject']] ?? null) : null;
+        if ($subject === null) {
+            return [$data, []]; // fromArray reports it
+        }
+        $asAt = self::isDate($data['as_at'] ?? null) ? $data['as_at'] : 'today';
+        $hidden = $subject->hiddenFrom($user, CarbonImmutable::parse($asAt, 'Asia/Bahrain'));
+        $dropped = [];
+        $gone = function (mixed $key) use ($hidden, &$dropped): bool {
+            if (is_string($key) && isset($hidden[$key])) {
+                $dropped[$key] = $hidden[$key];
+
+                return true;
+            }
+
+            return false;
+        };
+        $field = fn (mixed $row) => is_array($row) ? ($row['field'] ?? null) : null;
+
+        $data['columns'] = array_values(array_filter((array) ($data['columns'] ?? []), fn ($c) => ! $gone($c)));
+        $data['filters'] = array_values(array_filter((array) ($data['filters'] ?? []), fn ($f) => ! $gone($field($f))));
+        $data['groups'] = array_values(array_filter((array) ($data['groups'] ?? []), fn ($g) => ! $gone($field($g))));
+        $data['totals'] = array_filter((array) ($data['totals'] ?? []), fn ($fn, $key) => ! $gone($key), ARRAY_FILTER_USE_BOTH);
+        if (isset($data['sort']) && $gone($field($data['sort']))) {
+            $data['sort'] = $subject->defaultSort();
+        }
+        $chart = $data['chart'] ?? null;
+        if (is_array($chart) && is_string($chart['total'] ?? null) && ($gone(explode(':', $chart['total'])[0]) || $data['groups'] === [])) {
+            $data['chart'] = null;
+        }
+
+        return [$data, array_values($dropped)];
+    }
+
     /** @param  array<string, mixed>  $data */
     public static function fromArray(array $data, User $user): self
     {

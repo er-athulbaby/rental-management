@@ -47,6 +47,10 @@ class Builder extends Component
     #[Locked]
     public ?int $reportId = null;
 
+    /** @var list<string> labels of fields in the saved report this viewer may not use (spec §8) */
+    #[Locked]
+    public array $dropped = [];
+
     public string $name = '';
 
     /** @var array<string, mixed> client-controlled: validated in addSchedule() */
@@ -62,7 +66,7 @@ class Builder extends Component
             abort_unless($this->actor()->can('view', $report), 403);
             $this->reportId = $report->id;
             $this->name = $report->name;
-            $this->def = $report->definition;
+            [$this->def, $this->dropped] = ReportDefinition::forViewer($report->definition, $this->actor());
             SavedReport::query()->whereKey($report->id)->toBase()->update(['last_run_at' => now()]);
 
             return;

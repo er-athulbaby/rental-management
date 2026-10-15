@@ -285,6 +285,11 @@
         </aside>
 
         <section class="min-w-0 space-y-3">
+            @if ($dropped !== [])
+                <flux:callout icon="information-circle" color="amber">
+                    <flux:callout.text>{{ __('Some fields aren\'t available to you and were left out: :list', ['list' => implode(', ', $dropped)]) }}</flux:callout.text>
+                </flux:callout>
+            @endif
             @if ($defErrors !== [])
                 <flux:callout icon="exclamation-triangle" color="amber" :heading="__('Finish the settings to see results')">
                     <flux:callout.text>{{ collect($defErrors)->flatten()->first() }}</flux:callout.text>

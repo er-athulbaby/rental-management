@@ -46,6 +46,20 @@ abstract class Subject
         return ['field' => $this->defaultColumns()[0], 'dir' => 'asc'];
     }
 
+    /** @return array<string, string> label per field key that exists but this user may not use */
+    public function hiddenFrom(User $user, CarbonImmutable $asAt): array
+    {
+        $visible = $this->fields($user, $asAt);
+        $hidden = [];
+        foreach ($this->define($asAt) as $field) {
+            if (! isset($visible[$field->key])) {
+                $hidden[$field->key] = $field->label;
+            }
+        }
+
+        return $hidden;
+    }
+
     /** @return array<string, Field> the fields this user may use, keyed */
     public function fields(User $user, CarbonImmutable $asAt): array
     {

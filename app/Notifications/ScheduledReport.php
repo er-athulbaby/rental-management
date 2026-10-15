@@ -11,9 +11,12 @@ class ScheduledReport extends Notification
 {
     use Queueable;
 
-    /** @param  array<string, string>  $totals */
+    /**
+     * @param  array<string, string>  $totals
+     * @param  list<string>  $comparison  ready-made lines (Comparison::lines)
+     */
     public function __construct(public string $reportName, public string $periodLabel, public int $rows, public array $totals,
-        public string $path, public bool $attach, public string $url) {}
+        public string $path, public bool $attach, public string $url, public array $comparison = [], public ?string $note = null) {}
 
     /** @return list<string> */
     public function via(object $notifiable): array
@@ -25,8 +28,14 @@ class ScheduledReport extends Notification
     {
         $mail = (new MailMessage)->subject(__(':name — :period', ['name' => $this->reportName, 'period' => $this->periodLabel]))
             ->line(__(':n rows.', ['n' => number_format($this->rows)]));
+        if ($this->note !== null) {
+            $mail->line($this->note);
+        }
         foreach ($this->totals as $label => $value) {
             $mail->line("{$label}: {$value}");
+        }
+        foreach ($this->comparison as $line) {
+            $mail->line($line);
         }
         if ($this->attach) {
             $mail->attach($this->path, ['as' => str($this->reportName)->slug().'.xlsx']);

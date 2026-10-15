@@ -35,11 +35,14 @@ final class Grouping
     }
 
     /**
+     * Matches how MySQL's case-insensitive collation groups ("NBB" and "nbb " are one group), so detail rows and the
+     * comparison find their group. Accent folding stays a known ceiling.
+     *
      * @param  list<string|null>  $keys
      */
     public static function keyId(array $keys): string
     {
-        return json_encode($keys, JSON_THROW_ON_ERROR);
+        return json_encode(array_map(fn ($k) => $k === null ? null : mb_strtolower(rtrim($k)), $keys), JSON_THROW_ON_ERROR);
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Models\ReportDelivery;
 use App\Models\ReportSchedule;
 use App\Notifications\ScheduledReport;
 use App\Notifications\ScheduledReportFailed;
+use App\Reports\Builder\Comparison;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\Formatter;
@@ -27,6 +28,11 @@ class SendScheduledReport implements ShouldQueue
     public const int ATTACH_LIMIT = 10 * 1024 * 1024;
 
     public int $timeout = 300;
+
+    /** One attempt only: a retry would email the recipients who already got it. The worker's --tries does not override this. */
+    public int $tries = 1;
+
+    public bool $failOnTimeout = true;
 
     public function __construct(public int $deliveryId) {}
 
@@ -55,7 +61,8 @@ class SendScheduledReport implements ShouldQueue
             }
             $path = storage_path('app/private/report-mail/'.Str::uuid().'.xlsx');
             try {
-                $result = $engine->run($user, ReportDefinition::fromArray($report->definition, $user), limit: null);
+                [$data, $dropped] = ReportDefinition::forViewer($report->definition, $user);
+                $result = $engine->run($user, ReportDefinition::fromArray($data, $user), limit: null);
                 @mkdir(dirname($path), 0775, true);
                 ExcelWriter::write($result, $path);
                 $totals = [];
@@ -72,7 +79,9 @@ class SendScheduledReport implements ShouldQueue
                 }
                 $period = (string) $result->periodLabel;
                 $user->notify(new ScheduledReport($report->name, $period, $result->rowCount, $totals, $path,
-                    filesize($path) <= self::ATTACH_LIMIT, route('reports.builder', $report)));
+                    filesize($path) <= self::ATTACH_LIMIT, route('reports.builder', $report),
+                    $result->comparison === null ? [] : Comparison::lines($result->comparison, $result->columns),
+                    $dropped === [] ? null : (string) __('Some fields aren\'t available to you and were left out: :list', ['list' => implode(', ', $dropped)])));
                 $sent[] = $user->id;
             } catch (Throwable $e) {
                 report($e);

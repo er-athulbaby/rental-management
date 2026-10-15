@@ -39,8 +39,28 @@ final class Tenants extends Subject
         return Customer::query()->visibleTo($user)->when($buildingId, fn ($q, $b) => $q->inBuilding($b))->toBase();
     }
 
+    /** The viewer whose buildings the "Buildings" field may show; set by fields() just before define(). */
+    private ?User $viewer = null;
+
+    public function fields(User $user, CarbonImmutable $asAt): array
+    {
+        $this->viewer = $user;
+
+        return parent::fields($user, $asAt);
+    }
+
+    public function hiddenFrom(User $user, CarbonImmutable $asAt): array
+    {
+        $this->viewer = $user;
+
+        return parent::hiddenFrom($user, $asAt);
+    }
+
     protected function define(CarbonImmutable $asAt): array
     {
+        // Only buildings the viewer can see (the id is an integer from code, never user input).
+        $scope = $this->viewer === null || $this->viewer->can(PermissionName::BuildingsViewAll) ? ''
+            : ' AND tu.building_id IN (SELECT bu.building_id FROM building_user bu WHERE bu.user_id = '.(int) $this->viewer->getKey().')';
         $balance = "(SELECT COALESCE(SUM(oi.balance), 0) FROM invoices oi WHERE oi.customer_id = customers.id AND oi.status = 'issued'
             AND oi.type <> 'credit_note' AND oi.balance > 0)";
         $credit = "((SELECT COALESCE(SUM(cp.amount), 0) FROM payments cp WHERE cp.customer_id = customers.id AND cp.status = 'confirmed')
@@ -57,7 +77,8 @@ final class Tenants extends Subject
             Field::text('mobile', __('Mobile'), __('Tenant'), 'customers.mobile', groupable: false),
             Field::text('buildings', __('Buildings'), __('Property'),
                 "(SELECT GROUP_CONCAT(DISTINCT tb.code ORDER BY tb.code SEPARATOR ', ') FROM agreements ta JOIN agreement_units tau ON tau.agreement_id = ta.id
-                    JOIN units tu ON tu.id = tau.unit_id JOIN buildings tb ON tb.id = tu.building_id WHERE ta.customer_id = customers.id AND ta.deleted_at IS NULL)",
+                    JOIN units tu ON tu.id = tau.unit_id AND tu.deleted_at IS NULL JOIN buildings tb ON tb.id = tu.building_id
+                    WHERE ta.customer_id = customers.id AND ta.deleted_at IS NULL{$scope})",
                 filterable: false),
             Field::number('active_agreements', __('Active agreements'), __('Tenant'),
                 "(SELECT COUNT(*) FROM agreements aa WHERE aa.customer_id = customers.id AND aa.status = 'active' AND aa.deleted_at IS NULL)"),
