@@ -72,7 +72,7 @@ test('setSubject refuses subjects the user may not use and unknown ones', functi
     Livewire::actingAs($this->finance)->test(Builder::class)->call('setSubject', 'nope')->assertForbidden();
 });
 
-test('changing a filter field resets its operator and value', function () {
+test('changing a filter field replaces its operator and value with the new field defaults', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)
         ->call('addFilter')->set('def.filters.0.field', 'balance')->set('def.filters.0.op', 'gt')->set('def.filters.0.value', '500')
         ->set('def.filters.0.field', 'tenant')
@@ -120,4 +120,22 @@ test('ticking two enum options makes an in filter that narrows the results', fun
         ->set('def.filters.0.op', 'in')->set('def.filters.0.value', ['paid', 'cancelled'])
         ->assertDontSee('Alpha Tenant')
         ->set('def.filters.0.value', ['paid', 'overdue'])->assertSee('Alpha Tenant');
+});
+
+test('boolean fields default to yes and their help text has no trailing value marker', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)->call('setSubject', 'deposits_held')->call('addFilter')
+        ->set('def.filters.0.field', 'settled')->assertSet('def.filters.0.op', 'yes')->assertSee('Settled is yes')->tap(fn ($t) => expect($t->html())->not->toMatch('/is (yes|empty)(<!--.*?-->)*s*…/s'));
+});
+
+test('no-value operators show help without an ellipsis', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)->call('addFilter')
+        ->set('def.filters.0.field', 'number')->set('def.filters.0.op', 'empty')
+        ->assertSee('Invoice is empty')->tap(fn ($t) => expect($t->html())->not->toMatch('/is (yes|empty)(<!--.*?-->)*s*…/s'));
+});
+
+test('number and money between filters show their placeholders', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)->call('addFilter')
+        ->set('def.filters.0.field', 'days_overdue')->set('def.filters.0.op', 'eq')->assertSeeHtml('Number, e.g. 30')
+        ->set('def.filters.0.field', 'balance')->set('def.filters.0.op', 'between')
+        ->assertSeeHtml('placeholder="From"')->assertSeeHtml('placeholder="To"');
 });
