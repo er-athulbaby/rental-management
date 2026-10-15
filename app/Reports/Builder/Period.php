@@ -64,7 +64,10 @@ final class Period
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable} */
     public static function lastYear(CarbonImmutable $from, CarbonImmutable $to): array
     {
-        return [$from->subYearNoOverflow(), $to->subYearNoOverflow()];
+        $end = $to->subYearNoOverflow();
+
+        // A range ending on a month's last day ends on that month's last day a year earlier (28 Feb 2029 → 29 Feb 2028).
+        return [$from->subYearNoOverflow(), $to->isLastOfMonth() ? $end->endOfMonth()->startOfDay() : $end];
     }
 
     public static function label(CarbonImmutable $from, CarbonImmutable $to): string

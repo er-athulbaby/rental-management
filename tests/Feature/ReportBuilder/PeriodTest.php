@@ -27,5 +27,6 @@ test('comparison periods: the same length just before, or a year earlier (29 Feb
     expect($p(Period::previous(CarbonImmutable::parse('2026-10-01'), CarbonImmutable::parse('2026-10-31'))))->toBe(['2026-09-01', '2026-09-30'])
         ->and($p(Period::previous(CarbonImmutable::parse('2026-10-01'), CarbonImmutable::parse('2026-10-15'))))->toBe(['2026-09-16', '2026-09-30'])
         ->and($p(Period::lastYear(CarbonImmutable::parse('2028-02-01'), CarbonImmutable::parse('2028-02-29'))))->toBe(['2027-02-01', '2027-02-28'])
+        ->and($p(Period::lastYear(CarbonImmutable::parse('2029-02-01'), CarbonImmutable::parse('2029-02-28'))))->toBe(['2028-02-01', '2028-02-29'])
         ->and(Period::label(CarbonImmutable::parse('2026-10-01'), CarbonImmutable::parse('2026-10-31')))->toBe('01/10/2026 – 31/10/2026');
 });
