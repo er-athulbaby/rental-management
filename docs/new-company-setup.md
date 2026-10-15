@@ -217,4 +217,5 @@ The timezone is fixed to Asia/Bahrain in the code; there is no setting for it.
 | `php artisan rms:vendor-support --enable` / `--disable` | Turns the Vendor Support login on or off. Only the vendor can re-enable it. |
 | `php artisan rms:number-sequences --year=YYYY` | Creates next year's invoice/receipt numbering (also runs every 1 December). |
 | `php artisan backup:list` / `backup:run` | Lists backups / takes one now. |
+| `php artisan rms:reports:send-scheduled` | Emails saved reports whose schedule is due (also runs every 15 minutes). |
 | `GET /health` | `{"status":"up"}` when the app and database are working. |
