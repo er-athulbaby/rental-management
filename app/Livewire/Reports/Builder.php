@@ -7,6 +7,7 @@ use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\SavedReport;
 use App\Reports\Builder\Engine;
+use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\FieldType;
 use App\Reports\Builder\Period;
@@ -16,9 +17,11 @@ use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /** The report builder (spec §3.2). `def` is the definition being edited; every render validates and runs it. */
 class Builder extends Component
@@ -42,6 +45,8 @@ class Builder extends Component
             $this->reportId = $report->id;
             $this->name = $report->name;
             $this->def = $report->definition;
+            SavedReport::whereKey($report->id)->update(['last_run_at' => now()]);
+            SavedReport::whereKey($report->id)->update(['last_run_at' => now()]);
 
             return;
         }
@@ -147,6 +152,22 @@ class Builder extends Component
         $report->delete();
         Audit::log('report.deleted', $report, properties: ['name' => $report->name], causer: $this->actor());
         $this->redirectRoute('reports.index', navigate: true);
+    }
+
+    public function export(): BinaryFileResponse
+    {
+        $user = $this->actor();
+        $def = ReportDefinition::fromArray($this->def, $user);
+        $result = app(Engine::class)->run($user, $def, limit: null);
+        Audit::log('report.exported', properties: ['report' => 'builder:'.$def->subject, 'saved_report_id' => $this->reportId,
+            'building' => $def->buildingId, 'period' => $result->periodLabel], causer: $user);
+        if ($this->reportId !== null) {
+            SavedReport::whereKey($this->reportId)->update(['last_run_at' => now()]);
+        }
+        $path = sys_get_temp_dir().'/rms-report-'.Str::uuid().'.xlsx';
+        ExcelWriter::write($result, $path);
+
+        return response()->download($path, Str::slug($this->name !== '' ? $this->name : $def->subject).'-'.now('Asia/Bahrain')->toDateString().'.xlsx')->deleteFileAfterSend();
     }
 
     /** @return list<string> */

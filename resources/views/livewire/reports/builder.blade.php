@@ -12,6 +12,7 @@
         <div class="flex flex-wrap gap-2">
             @if ($canEdit)
                 <flux:button variant="primary" wire:click="save">{{ __('Save') }}</flux:button>
+                <flux:button icon="arrow-down-tray" wire:click="export">{{ __('Export to Excel') }}</flux:button>
             @endif
             @if ($reportId)
                 <flux:button wire:click="saveAsCopy">{{ __('Save as copy') }}</flux:button>

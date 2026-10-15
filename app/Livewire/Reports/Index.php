@@ -3,6 +3,8 @@
 namespace App\Livewire\Reports;
 
 use App\Livewire\Concerns\WithActor;
+use App\Models\SavedReport;
+use App\Reports\Builder\Registry;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -46,6 +48,11 @@ class Index extends Component
             __('Financial') => $user->can('reports.financial') ? self::catalogue()['financial'] : [],
         ]);
 
-        return view('livewire.reports.index', ['groups' => $groups])->title(__('Reports'));
+        return view('livewire.reports.index', [
+            'groups' => $groups,
+            'myReports' => SavedReport::visibleTo($user)->where('created_by', $user->id)->latest('updated_at')->get(),
+            'sharedReports' => SavedReport::visibleTo($user)->where('created_by', '!=', $user->id)->with('creator:id,name')->latest('updated_at')->get(),
+            'canBuild' => Registry::forUser($user) !== [],
+        ])->title(__('Reports'));
     }
 }
