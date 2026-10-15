@@ -197,3 +197,7 @@ test('empty picker rows are dropped and a date group defaults to month', functio
         ->assertDontSee('Choose a field to group by.')->assertSee('Alpha Tenant')
         ->set('def.groups', [['field' => 'due_date']])->assertDontSee('Group dates by')->assertSee('Oct 2026');
 });
+
+test('a tampered column entry that is an array does not crash the page', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)->set('def.columns.0', ['x'])->assertOk()->set('def.sort.field', ['x'])->assertOk();
+});

@@ -169,7 +169,7 @@
             <flux:fieldset>
                 <flux:legend>{{ __('Totals') }}</flux:legend>
                 @foreach (is_array($def['columns'] ?? null) ? $def['columns'] : [] as $key)
-                    @if (($fields[$key] ?? null)?->type->numeric())
+                    @if (is_string($key) && ($fields[$key] ?? null)?->type->numeric())
                         <div class="flex items-center justify-between gap-2 text-sm">
                             <span>{{ $fields[$key]->label }}</span>
                             <flux:select wire:model.live="def.totals.{{ $key }}" size="sm" class="max-w-32" :aria-label="__('Total for :c', ['c' => $fields[$key]->label])">

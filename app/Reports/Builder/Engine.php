@@ -94,7 +94,9 @@ class Engine
     private function order(Builder $query, ReportDefinition $def, array $fields): void
     {
         foreach ($def->groups as $group) {
-            $query->orderBy(Sql::raw(Grouping::expression($fields[$group['field']], $group['bucket'])));
+            $expr = Grouping::expression($fields[$group['field']], $group['bucket']);
+            $query->orderBy(Sql::raw("({$expr}) IS NULL")); // NULL keys last, like the groups
+            $query->orderBy(Sql::raw($expr));
         }
         $query->orderBy(Sql::raw($fields[$def->sort['field']]->sql), $def->sort['dir'] === 'desc' ? 'desc' : 'asc');
     }
