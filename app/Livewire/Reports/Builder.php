@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reports;
 
+use App\Audit\Audit;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\SavedReport;
@@ -13,6 +14,7 @@ use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
 use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
+use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -96,6 +98,53 @@ class Builder extends Component
             $field = is_string($name) ? ($this->fields()[$name] ?? null) : null;
             $this->def['filters'][(int) $m[1]]['value'] = $field?->type === FieldType::Enum ? [] : null;
         }
+    }
+
+    public function save(): void
+    {
+        $user = $this->actor();
+        $this->validate(['name' => ['required', 'string', 'max:120']], ['name.required' => __('Give the report a name.')]);
+        $definition = ReportDefinition::fromArray($this->def, $user)->toArray(); // ValidationException shows on the page
+
+        if ($this->reportId === null) {
+            $report = SavedReport::create(['name' => $this->name, 'subject' => $definition['subject'], 'definition' => $definition,
+                'visibility' => 'private', 'created_by' => $user->id, 'updated_by' => $user->id]);
+        } else {
+            $report = SavedReport::findOrFail($this->reportId);
+            abort_unless($user->can('update', $report), 403);
+            $report->update(['name' => $this->name, 'subject' => $definition['subject'], 'definition' => $definition, 'updated_by' => $user->id]);
+        }
+        Audit::log('report.saved', $report, properties: ['name' => $report->name, 'subject' => $report->subject], causer: $user);
+        Flux::toast(variant: 'success', text: __('Report saved.'));
+        $this->redirectRoute('reports.builder', $report, navigate: true);
+    }
+
+    public function saveAsCopy(): void
+    {
+        $user = $this->actor();
+        $definition = ReportDefinition::fromArray($this->def, $user)->toArray();
+        $report = SavedReport::create(['name' => mb_substr(($this->name !== '' ? $this->name : __('Untitled report')).' '.__('(copy)'), 0, 120),
+            'subject' => $definition['subject'], 'definition' => $definition, 'visibility' => 'private', 'created_by' => $user->id, 'updated_by' => $user->id]);
+        Audit::log('report.saved', $report, properties: ['name' => $report->name, 'copied_from' => $this->reportId], causer: $user);
+        $this->redirectRoute('reports.builder', $report, navigate: true);
+    }
+
+    public function share(bool $shared): void
+    {
+        $report = SavedReport::findOrFail((int) $this->reportId);
+        abort_unless($this->actor()->can('update', $report), 403);
+        $report->update(['visibility' => $shared ? 'shared' : 'private']);
+        Audit::log('report.shared', $report, properties: ['visibility' => $report->visibility], causer: $this->actor());
+        Flux::toast(text: $shared ? __('Shared with everyone who has report access.') : __('Now only you can see it.'));
+    }
+
+    public function deleteReport(): void
+    {
+        $report = SavedReport::findOrFail((int) $this->reportId);
+        abort_unless($this->actor()->can('delete', $report), 403);
+        $report->delete();
+        Audit::log('report.deleted', $report, properties: ['name' => $report->name], causer: $this->actor());
+        $this->redirectRoute('reports.index', navigate: true);
     }
 
     /** @return list<string> */

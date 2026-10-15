@@ -10,7 +10,18 @@
             <flux:input wire:model.blur="name" :placeholder="__('Untitled report')" :aria-label="__('Report name')" class="max-w-md" />
         </div>
         <div class="flex flex-wrap gap-2">
-            {{-- Save, Share, Export, Schedule, Delete: Tasks 7, 8 and 18 --}}
+            @if ($canEdit)
+                <flux:button variant="primary" wire:click="save">{{ __('Save') }}</flux:button>
+            @endif
+            @if ($reportId)
+                <flux:button wire:click="saveAsCopy">{{ __('Save as copy') }}</flux:button>
+                @if ($canEdit)
+                    @php($shared = App\Models\SavedReport::findOrFail($reportId)->visibility === 'shared')
+                    <flux:button :icon="$shared ? 'users' : 'lock-closed'" wire:click="share({{ $shared ? 'false' : 'true' }})">{{ $shared ? __('Shared') : __('Only me') }}</flux:button>
+                    <flux:button variant="ghost" icon="trash" wire:click="deleteReport" wire:confirm="{{ __('Delete this report?') }}" :aria-label="__('Delete')" />
+                @endif
+            @endif
+            @error('name')<flux:text class="w-full text-sm text-red-600">{{ $message }}</flux:text>@enderror
         </div>
     </div>
 
