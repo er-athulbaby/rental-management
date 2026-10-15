@@ -7,9 +7,11 @@ use App\Models\Building;
 use App\Models\SavedReport;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\Field;
+use App\Reports\Builder\FieldType;
 use App\Reports\Builder\Period;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
+use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
@@ -54,7 +56,7 @@ class Builder extends Component
 
     public function toggleColumn(string $key): void
     {
-        $columns = $this->def['columns'] ?? [];
+        $columns = $this->columns();
         $this->def['columns'] = in_array($key, $columns, true)
             ? array_values(array_diff($columns, [$key]))
             : [...$columns, $key];
@@ -62,7 +64,7 @@ class Builder extends Component
 
     public function moveColumn(string $key, int $by): void
     {
-        $columns = $this->def['columns'] ?? [];
+        $columns = $this->columns();
         $i = array_search($key, $columns, true);
         $j = is_int($i) ? $i + $by : -1;
         if (is_int($i) && $j >= 0 && $j < count($columns)) {
@@ -73,13 +75,15 @@ class Builder extends Component
 
     public function addFilter(): void
     {
+        $this->def['filters'] = is_array($this->def['filters'] ?? null) ? $this->def['filters'] : [];
         $this->def['filters'][] = ['field' => '', 'op' => '', 'value' => null];
     }
 
     public function removeFilter(int $index): void
     {
-        unset($this->def['filters'][$index]);
-        $this->def['filters'] = array_values($this->def['filters']);
+        $filters = is_array($this->def['filters'] ?? null) ? $this->def['filters'] : [];
+        unset($filters[$index]);
+        $this->def['filters'] = array_values($filters);
     }
 
     /** Changing a filter's field resets its operator and value. $key is null when Livewire replaces the whole array. */
@@ -87,15 +91,42 @@ class Builder extends Component
     {
         if ($key !== null && preg_match('/^filters\.(\d+)\.field$/', $key, $m) === 1) {
             $this->def['filters'][(int) $m[1]]['op'] = '';
-            $this->def['filters'][(int) $m[1]]['value'] = null;
+            // An enum filter's checkbox group needs an array to bind to.
+            $name = $this->def['filters'][(int) $m[1]]['field'] ?? null;
+            $field = is_string($name) ? ($this->fields()[$name] ?? null) : null;
+            $this->def['filters'][(int) $m[1]]['value'] = $field?->type === FieldType::Enum ? [] : null;
         }
+    }
+
+    /** @return list<string> */
+    private function columns(): array
+    {
+        return is_array($this->def['columns'] ?? null) ? array_values(array_filter($this->def['columns'], 'is_string')) : [];
+    }
+
+    /** The edited subject, or the first allowed one when `def` was tampered with. */
+    private function subject(): Subject
+    {
+        $allowed = Registry::forUser($this->actor());
+        $key = $this->def['subject'] ?? null;
+
+        return is_string($key) && isset($allowed[$key]) ? $allowed[$key] : Registry::get((string) array_key_first($allowed));
+    }
+
+    /** @return array<string, Field> */
+    private function fields(): array
+    {
+        $asAt = $this->def['as_at'] ?? null;
+        $date = is_string($asAt) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $asAt) === 1 ? CarbonImmutable::createFromFormat('!Y-m-d', $asAt, 'Asia/Bahrain') : false;
+
+        return $this->subject()->fields($this->actor(), $date ?: CarbonImmutable::today('Asia/Bahrain'));
     }
 
     public function render(): View
     {
         $user = $this->actor();
-        $subject = Registry::get((string) ($this->def['subject'] ?? 'invoices'));
-        $fields = $subject->fields($user, CarbonImmutable::parse($this->def['as_at'] ?? 'today', 'Asia/Bahrain'));
+        $subject = $this->subject();
+        $fields = $this->fields();
         $result = null;
         $errors = [];
         try {

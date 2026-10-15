@@ -19,7 +19,7 @@
             <flux:select wire:change="setSubject($event.target.value)" :label="__('Subject')">
                 @foreach (collect($subjects)->groupBy(fn ($s) => $s->group()) as $group => $items)
                     <optgroup label="{{ $group }}">
-                        @foreach ($items as $s)<option value="{{ $s->key() }}" @selected($s->key() === $def['subject'])>{{ $s->label() }}</option>@endforeach
+                        @foreach ($items as $s)<option value="{{ $s->key() }}" @selected($s->key() === $subject->key())>{{ $s->label() }}</option>@endforeach
                     </optgroup>
                 @endforeach
             </flux:select>
@@ -51,7 +51,7 @@
                             <div class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $section }}</div>
                             @foreach ($sectionFields as $f)
                                 <label class="flex items-center gap-2 py-0.5 text-sm">
-                                    <input type="checkbox" wire:click="toggleColumn('{{ $f->key }}')" @checked(in_array($f->key, $def['columns'] ?? [], true))>
+                                    <input type="checkbox" wire:click="toggleColumn('{{ $f->key }}')" @checked(in_array($f->key, is_array($def['columns'] ?? null) ? $def['columns'] : [], true))>
                                     {{ $f->label }}
                                 </label>
                             @endforeach
@@ -64,8 +64,9 @@
             <flux:fieldset>
                 <flux:legend>{{ __('Filters') }}</flux:legend>
                 <div class="space-y-2">
-                    @foreach ($def['filters'] ?? [] as $i => $filter)
-                        @php($ff = $fields[$filter['field']] ?? null)
+                    @foreach (is_array($def['filters'] ?? null) ? $def['filters'] : [] as $i => $filter)
+                        @php($filter = is_array($filter) ? $filter : [])
+                        @php($ff = is_string($filter['field'] ?? null) ? ($fields[$filter['field']] ?? null) : null)
                         <div class="space-y-1 rounded-lg border border-zinc-200 p-2 dark:border-zinc-700" wire:key="filter-{{ $i }}">
                             <div class="flex gap-1">
                                 <flux:select wire:model.live="def.filters.{{ $i }}.field" size="sm" :aria-label="__('Field')">
