@@ -185,7 +185,7 @@
             @if (is_array($def['groups'][0] ?? null) && is_string($def['groups'][0]['field'] ?? null) && $def['groups'][0]['field'] !== '')
                 <div class="grid grid-cols-2 gap-2">
                     <flux:select wire:model.live="def.chart.type" :label="__('Chart')">
-                        <option value="">{{ __('None') }}</option><option value="bars">{{ __('Bars') }}</option><option value="columns">{{ __('Columns') }}</option>
+                        <option value="">{{ __('None') }}</option><option value="bars">{{ __('Show chart') }}</option>
                     </flux:select>
                     <flux:select wire:model.live="def.chart.total" :label="__('Chart value')">
                         <option value="count">{{ __('Count of rows') }}</option>
