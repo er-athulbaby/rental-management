@@ -11,10 +11,13 @@ final class Aggregator
     public const int GROUP_LIMIT = 1000;
 
     /**
+     * Rows come ordered. With a $limit, up to $limit + 1 rows come back: the extra one tells the caller the cap was hit.
+     * A null $limit is unbounded (the Excel export).
+     *
      * @param  array<string, Field>  $fields
      * @return list<array{level: int, keys: list<string|null>, label: string, totals: array<string, mixed>}>
      */
-    public static function groups(Builder $query, array $fields, ReportDefinition $def): array
+    public static function groups(Builder $query, array $fields, ReportDefinition $def, ?int $limit = self::GROUP_LIMIT): array
     {
         if ($def->groups === []) {
             return [];
@@ -36,9 +39,18 @@ final class Aggregator
             $select[] = Engine::aggregate($fields[$key], $fn)." as `{$key}:{$fn}`";
         }
 
+        // Display order in SQL: grand total last, NULL keys last, each subtotal just before its own rows.
+        $order = ['GROUPING(`g0`)', '`g0` IS NULL', '`g0`'];
+        if (count($cols) > 1) {
+            array_push($order, 'GROUPING(`g1`) DESC', '`g1` IS NULL', '`g1`');
+        }
+
+        // One extra row (plus the grand total) so the caller can tell the cap was hit.
         $rows = DB::query()->fromSub($inner, 't')
             ->select(Sql::raw('/*+ MAX_EXECUTION_TIME(30000) */ '.implode(', ', $select)))
             ->groupBy(Sql::raw(implode(', ', $cols).' WITH ROLLUP'))
+            ->orderBy(Sql::raw(implode(', ', $order)))
+            ->when($limit !== null, fn (Builder $q) => $q->limit((int) $limit + 2))
             ->get();
 
         $out = [];
@@ -68,21 +80,6 @@ final class Aggregator
             ];
         }
 
-        // Display order: by key, NULL last; a subtotal (shorter key list) sits just before its own rows.
-        usort($out, function (array $a, array $b): int {
-            foreach ($a['keys'] as $i => $ka) {
-                if (! array_key_exists($i, $b['keys'])) {
-                    return 1;
-                }
-                $kb = $b['keys'][$i];
-                if ($ka !== $kb) {
-                    return $ka === null ? 1 : ($kb === null ? -1 : strcmp($ka, $kb));
-                }
-            }
-
-            return count($a['keys']) <=> count($b['keys']);
-        });
-
-        return array_slice($out, 0, self::GROUP_LIMIT);
+        return $limit === null ? $out : array_slice($out, 0, $limit + 1);
     }
 }

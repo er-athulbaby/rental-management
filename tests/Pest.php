@@ -9,6 +9,9 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\OwnerContract;
 use App\Models\User;
+use App\Reports\Builder\Engine;
+use App\Reports\Builder\ReportDefinition;
+use App\Reports\Builder\ReportResult;
 use App\Support\Fils;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
@@ -159,4 +162,10 @@ function fixtureBanks(): void
     foreach (['NBB', 'BBK'] as $name) {
         Bank::query()->firstOrCreate(['name' => $name]);
     }
+}
+
+/** Runs a report definition array through the engine as the user (report builder tests). */
+function runReport(User $user, array $data): ReportResult
+{
+    return app(Engine::class)->run($user, ReportDefinition::fromArray($data, $user));
 }

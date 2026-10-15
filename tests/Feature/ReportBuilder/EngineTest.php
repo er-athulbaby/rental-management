@@ -6,10 +6,8 @@ use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Unit;
-use App\Models\User;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ReportDefinition;
-use App\Reports\Builder\ReportResult;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
@@ -31,11 +29,6 @@ beforeEach(function () {
     $this->inv2 = issuedInvoice($this->tenantA, [['net' => '150.500', 'au' => $agA->agreementUnits->first()]], '2026-09-01', $agA);
     $this->inv3 = issuedInvoice($this->tenantB, [['net' => '300.000', 'au' => $agB->agreementUnits->first()]], '2026-10-14', $agB);
 });
-
-function runReport(User $user, array $data): ReportResult
-{
-    return app(Engine::class)->run($user, ReportDefinition::fromArray($data, $user));
-}
 
 test('detail rows carry the chosen columns, sorted, with a grand total and a row count', function () {
     $r = runReport($this->finance, ['subject' => 'invoices', 'columns' => ['number', 'tenant', 'building', 'balance'],

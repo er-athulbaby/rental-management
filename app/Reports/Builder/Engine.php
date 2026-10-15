@@ -19,7 +19,12 @@ final class Engine
         $range = QueryCompiler::periodRange($def, CarbonImmutable::now('Asia/Bahrain'));
 
         $grand = $this->totals(clone $query, $fields, $def->totals);
-        $groups = Aggregator::groups(clone $query, $fields, $def);
+        $groupLimit = $limit === null ? null : Aggregator::GROUP_LIMIT;
+        $groups = Aggregator::groups(clone $query, $fields, $def, $groupLimit);
+        $groupsTruncated = $groupLimit !== null && count($groups) > $groupLimit;
+        if ($groupsTruncated) {
+            $groups = array_slice($groups, 0, $groupLimit);
+        }
         $rows = [];
         $truncated = false;
         if (! $def->summaryOnly) {
@@ -42,6 +47,7 @@ final class Engine
             truncated: $truncated,
             grandTotals: $grand,
             groups: $groups,
+            groupsTruncated: $groupsTruncated,
             periodLabel: $range === null ? null : Period::label(...$range),
         );
     }

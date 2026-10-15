@@ -19,6 +19,7 @@ final readonly class ReportResult
         public bool $truncated,
         public array $grandTotals,
         public array $groups = [],
+        public bool $groupsTruncated = false,
         public ?string $periodLabel = null,
         public ?array $comparison = null,
     ) {}

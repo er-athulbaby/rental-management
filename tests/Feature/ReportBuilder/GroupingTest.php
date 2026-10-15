@@ -6,10 +6,9 @@ use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Unit;
-use App\Models\User;
-use App\Reports\Builder\Engine;
+use App\Reports\Builder\Aggregator;
+use App\Reports\Builder\QueryCompiler;
 use App\Reports\Builder\ReportDefinition;
-use App\Reports\Builder\ReportResult;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
@@ -31,13 +30,6 @@ beforeEach(function () {
     $this->inv2 = issuedInvoice($this->tenantA, [['net' => '150.500', 'au' => $agA->agreementUnits->first()]], '2026-09-01', $agA);
     $this->inv3 = issuedInvoice($this->tenantB, [['net' => '300.000', 'au' => $agB->agreementUnits->first()]], '2026-10-14', $agB);
 });
-
-if (! function_exists('runReport')) {
-    function runReport(User $user, array $data): ReportResult
-    {
-        return app(Engine::class)->run($user, ReportDefinition::fromArray($data, $user));
-    }
-}
 
 test('one level: subtotals per building, sorted by key, with the grand total unchanged', function () {
     $r = runReport($this->finance, ['subject' => 'invoices', 'columns' => ['number', 'balance'],
@@ -78,4 +70,46 @@ test('an invoice spanning buildings lands under "Multiple" once, with no double 
     $multiple = collect($r->groups)->firstWhere('label', 'Multiple');
     expect($multiple['totals']['count'])->toBe(1)->and($multiple['totals']['balance:sum'])->toBe('30.000')
         ->and(collect($r->groups)->sum('totals.count'))->toBe($r->rowCount);
+});
+
+test('min and max per group', function () {
+    $run = fn (string $fn) => collect(runReport($this->finance, ['subject' => 'invoices', 'columns' => ['number', 'balance'],
+        'totals' => ['balance' => $fn], 'groups' => [['field' => 'tenant']]])->groups)->firstWhere('label', 'Alpha Tenant')['totals']["balance:{$fn}"];
+
+    expect($run('min'))->toBe('150.500')->and($run('max'))->toBe('400.000');
+});
+
+test('a NULL group key is its own group labelled with a dash, and sorts last', function () {
+    issuedInvoice($this->tenantB, [['net' => '5.000']], '2026-10-14'); // a manual invoice: no agreement
+    $r = runReport($this->finance, ['subject' => 'invoices', 'columns' => ['number', 'balance'],
+        'groups' => [['field' => 'agreement']], 'totals' => ['balance' => 'sum']]);
+
+    $last = collect($r->groups)->last();
+    expect($last['label'])->toBe('—')->and($last['keys'])->toBe([null])->and($last['totals']['count'])->toBe(1)
+        ->and($last['totals']['balance:sum'])->toBe('5.000')
+        ->and(collect($r->groups)->sum('totals.count'))->toBe(4);
+});
+
+test('day, quarter and year labels', function () {
+    $labels = fn (string $bucket) => array_column(runReport($this->finance, ['subject' => 'invoices', 'columns' => ['number'],
+        'groups' => [['field' => 'due_date', 'bucket' => $bucket]]])->groups, 'label');
+
+    expect($labels('day')[0])->toMatch('#^\d{2}/\d{2}/2026$#')
+        ->and($labels('quarter'))->toBe(['Q3 2026', 'Q4 2026'])
+        ->and($labels('year'))->toBe(['2026']);
+});
+
+test('the group cap is applied in SQL in display order, and a null limit is unbounded', function () {
+    $def = ReportDefinition::fromArray(['subject' => 'invoices', 'columns' => ['number', 'balance'],
+        'groups' => [['field' => 'building'], ['field' => 'due_date', 'bucket' => 'month']], 'totals' => ['balance' => 'sum']], $this->finance);
+    [$query, $fields] = QueryCompiler::compile($this->finance, $def);
+    $labels = fn (array $rows) => array_column($rows, 'label');
+
+    // limit + 1 rows come back: the extra one is the signal that the cap was hit
+    expect($labels(Aggregator::groups(clone $query, $fields, $def, 3)))->toBe(['AAA', 'Sep 2026', 'Oct 2026', 'BBB'])
+        ->and(Aggregator::groups(clone $query, $fields, $def, 5))->toHaveCount(5)
+        ->and(Aggregator::groups(clone $query, $fields, $def, null))->toHaveCount(5);
+
+    // under the cap the Engine reports no truncation
+    expect(runReport($this->finance, ['subject' => 'invoices', 'columns' => ['number'], 'groups' => [['field' => 'building']]])->groupsTruncated)->toBeFalse();
 });
