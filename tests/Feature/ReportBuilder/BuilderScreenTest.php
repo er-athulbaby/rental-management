@@ -198,6 +198,30 @@ test('empty picker rows are dropped and a date group defaults to month', functio
         ->set('def.groups', [['field' => 'due_date']])->assertDontSee('Group dates by')->assertSee('Oct 2026');
 });
 
+test('a grouped report draws the chosen total as a chart', function () {
+    Livewire::actingAs($this->finance)->test(Builder::class)
+        ->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.totals', ['balance' => 'sum'])
+        ->set('def.chart', ['type' => 'bars', 'total' => 'balance:sum'])
+        ->assertSeeHtml('<figure class="viz')->assertSee('Balance (sum) by Building')->assertSee('400.000')
+        ->set('def.chart', ['type' => 'columns', 'total' => 'count'])->assertSee('Count by Building')
+        ->set('def.chart', ['type' => '', 'total' => 'count'])->assertDontSeeHtml('<figure class="viz');
+});
+
+test('no chart without grouping, and a chart whose total was removed just disappears', function () {
+    $t = Livewire::actingAs($this->finance)->test(Builder::class)->set('def.chart', ['type' => 'bars', 'total' => 'count'])
+        ->assertDontSeeHtml('<figure class="viz')->assertDontSee('Finish the settings');
+    $t->set('def.groups', [['field' => 'building', 'bucket' => null]])->set('def.totals', ['balance' => 'sum'])
+        ->set('def.chart', ['type' => 'bars', 'total' => 'balance:sum'])->assertSeeHtml('<figure class="viz')
+        ->set('def.totals', ['balance' => ''])->assertDontSeeHtml('<figure class="viz')->assertDontSee('Finish the settings');
+});
+
+test('a tampered chart never crashes the page', function () {
+    foreach (['x', ['type' => ['x'], 'total' => 'count'], ['type' => 'bars', 'total' => 'nope:sum']] as $chart) {
+        Livewire::actingAs($this->finance)->test(Builder::class)->set('def.groups', [['field' => 'building', 'bucket' => null]])
+            ->set('def.chart', $chart)->assertOk()->assertDontSeeHtml('<figure class="viz');
+    }
+});
+
 test('a tampered column entry that is an array does not crash the page', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)->set('def.columns.0', ['x'])->assertOk()->set('def.sort.field', ['x'])->assertOk();
 });

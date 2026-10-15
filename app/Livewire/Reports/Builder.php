@@ -10,9 +10,11 @@ use App\Reports\Builder\Engine;
 use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\FieldType;
+use App\Reports\Builder\Formatter;
 use App\Reports\Builder\Period;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
+use App\Reports\Builder\ReportResult;
 use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
@@ -196,8 +198,39 @@ class Builder extends Component
         }
         $def['totals'] = array_filter((array) ($def['totals'] ?? []), fn ($fn, $key) => filled($fn) && in_array($key, (array) ($def['columns'] ?? []), true), ARRAY_FILTER_USE_BOTH);
         $def['filters'] = array_values((array) ($def['filters'] ?? []));
+        // A chart needs grouping and a total that still exists; otherwise there is simply no chart.
+        $chart = $def['chart'] ?? null;
+        $total = is_array($chart) && is_string($chart['total'] ?? null) ? $chart['total'] : 'count';
+        [$tf, $tfn] = array_pad(explode(':', $total, 2), 2, '');
+        $def['chart'] = is_array($chart) && is_string($chart['type'] ?? null) && $chart['type'] !== '' && $def['groups'] !== []
+            && ($total === 'count' || ($def['totals'][$tf] ?? null) === $tfn)
+            ? ['type' => $chart['type'], 'total' => $total] : null;
 
         return $def;
+    }
+
+    /**
+     * @param  array<string, Field>  $fields
+     * @return array<string, mixed>|null the chart component's spec: level-1 groups only, one chosen total (spec §5)
+     */
+    private function chartSpec(?ReportResult $result, ReportDefinition $def, array $fields): ?array
+    {
+        if ($result === null || $def->chart === null || $result->groups === []) {
+            return null;
+        }
+        $total = $def->chart['total'];
+        [$key, $fn] = $total === 'count' ? ['', 'count'] : explode(':', $total, 2);
+        $field = $fields[$key] ?? null;
+        $by = $fields[$def->groups[0]['field']]->label ?? '';
+        $items = array_map(fn ($g) => ['label' => $g['label'], 'short' => $g['label'], 'value' => (float) $g['totals'][$total],
+            'display' => Formatter::total($field, $fn, $g['totals'][$total])],
+            array_values(array_filter($result->groups, fn ($g) => $g['level'] === 1)));
+
+        return [
+            'type' => $def->chart['type'],
+            'title' => ($total === 'count' ? __('Count') : $field?->label.' ('.__($fn).')').' '.__('by').' '.$by,
+            'items' => $items,
+        ];
     }
 
     /** @return list<string> */
@@ -231,8 +264,11 @@ class Builder extends Component
         $fields = $this->fields();
         $result = null;
         $errors = [];
+        $chart = null;
         try {
-            $result = app(Engine::class)->run($user, ReportDefinition::fromArray($this->normalised(), $user));
+            $definition = ReportDefinition::fromArray($this->normalised(), $user);
+            $result = app(Engine::class)->run($user, $definition);
+            $chart = $this->chartSpec($result, $definition, $fields);
         } catch (ValidationException $e) {
             $errors = $e->errors();
         }
@@ -246,6 +282,7 @@ class Builder extends Component
             'presets' => Period::presets(),
             'buildings' => Building::visibleTo($user)->orderBy('code')->get(['id', 'code', 'name']),
             'result' => $result,
+            'chart' => $chart,
             'defErrors' => $errors,
             'canEdit' => $this->reportId === null || $user->can('update', SavedReport::findOrFail($this->reportId)),
         ])->title($this->name !== '' ? $this->name : __('New report'));

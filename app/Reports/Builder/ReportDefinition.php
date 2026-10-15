@@ -159,7 +159,7 @@ final readonly class ReportDefinition
 
         $chart = $data['chart'] ?? null;
         if ($chart !== null && (! is_array($chart) || ! in_array($chart['type'] ?? null, ['bars', 'columns'], true) || $groups === []
-            || ! self::validTotalKey((string) ($chart['total'] ?? ''), $totals))) {
+            || ! is_string($chart['total'] ?? null) || ! self::validTotalKey($chart['total'], $totals))) {
             $errors['chart'] = __('A chart needs a grouped report and one of its totals.');
         }
 

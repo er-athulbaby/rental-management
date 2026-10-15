@@ -181,7 +181,21 @@
                     @endif
                 @endforeach
             </flux:fieldset>
-            {{-- Compare, chart: Tasks 13–14 --}}
+
+            @if (is_array($def['groups'][0] ?? null) && is_string($def['groups'][0]['field'] ?? null) && $def['groups'][0]['field'] !== '')
+                <div class="grid grid-cols-2 gap-2">
+                    <flux:select wire:model.live="def.chart.type" :label="__('Chart')">
+                        <option value="">{{ __('None') }}</option><option value="bars">{{ __('Bars') }}</option><option value="columns">{{ __('Columns') }}</option>
+                    </flux:select>
+                    <flux:select wire:model.live="def.chart.total" :label="__('Chart value')">
+                        <option value="count">{{ __('Count of rows') }}</option>
+                        @foreach (is_array($def['totals'] ?? null) ? array_filter($def['totals'], 'is_string') : [] as $k => $fn)
+                            @if (isset($fields[$k]))<option value="{{ $k }}:{{ $fn }}">{{ $fields[$k]->label }} ({{ __($fn) }})</option>@endif
+                        @endforeach
+                    </flux:select>
+                </div>
+            @endif
+            {{-- Compare: Task 14 --}}
         </aside>
 
         <section class="min-w-0 space-y-3">
@@ -195,6 +209,7 @@
                     @if ($result->truncated)<span>{{ __('Showing the first :n — export to Excel for all.', ['n' => App\Reports\Builder\Engine::DETAIL_LIMIT]) }}</span>@endif
                     @if ($result->groupsTruncated)<span>{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</span>@endif
                 </div>
+                @if ($chart)<x-report-chart :chart="$chart" />@endif
                 <div class="overflow-x-auto" x-data="{ closed: {} }">
                     <flux:table>
                         <flux:table.columns>
