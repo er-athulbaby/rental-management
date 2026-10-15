@@ -17,8 +17,8 @@ final class Registry
         if (self::$subjects === null) {
             self::$subjects = [];
             foreach ([
-                Subjects\Invoices::class, // Subjects\Payments::class,
-                // Subjects\Agreements::class, Subjects\Units::class,
+                Subjects\Invoices::class, Subjects\Payments::class,
+                Subjects\Agreements::class, Subjects\Units::class,
             ] as $class) {
                 $subject = new $class;
                 self::$subjects[$subject->key()] = $subject;

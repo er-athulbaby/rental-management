@@ -69,6 +69,19 @@ final class Queries
             ->select('au.unit_id')->distinct();
     }
 
+    /** The agreement unit occupying each unit on $on (the latest when two overlap), for "current tenant / rent". */
+    public static function currentAgreementUnits(User $user, string $on): QueryBuilder
+    {
+        return DB::table('agreement_units as au')->join('agreements as a', 'a.id', '=', 'au.agreement_id')
+            ->whereNull('a.deleted_at')
+            ->whereNotIn('a.status', [AgreementStatus::Draft->value, AgreementStatus::PendingApproval->value])
+            ->where('au.start_date', '<=', $on)
+            ->whereRaw('('.AgreementUnit::effectiveEndSql('au').') >= ?', [$on, $on])
+            ->whereIn('au.unit_id', Unit::query()->visibleTo($user)->select('id'))
+            ->groupBy('au.unit_id')
+            ->select('au.unit_id', DB::raw('MAX(au.id) as au_id'));
+    }
+
     /**
      * Spec §10: pending approvals whose record the viewer may view, plus the viewer's own requests (plan ruling 8).
      *

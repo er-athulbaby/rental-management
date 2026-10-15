@@ -3,10 +3,22 @@
 namespace App\Reports\Builder;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Query\Expression;
 
 /** SQL fragments several subjects share. Inputs are column expressions written by us, never user input. */
 final class Sql
 {
+    /**
+     * Wraps SQL built from Field definitions (ours, never user input) for the query builder; values stay bound.
+     *
+     * @return Expression<float|int|literal-string>
+     */
+    public static function raw(string $sql): Expression
+    {
+        // @phpstan-ignore argument.type
+        return new Expression($sql);
+    }
+
     /** A code-made date literal, safe to embed. */
     public static function date(CarbonImmutable $day): string
     {
