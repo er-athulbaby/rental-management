@@ -124,13 +124,13 @@ test('ticking two enum options makes an in filter that narrows the results', fun
 
 test('boolean fields default to yes and their help text has no trailing value marker', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)->call('setSubject', 'deposits_held')->call('addFilter')
-        ->set('def.filters.0.field', 'settled')->assertSet('def.filters.0.op', 'yes')->assertSee('Settled is yes')->tap(fn ($t) => expect($t->html())->not->toMatch('/is (yes|empty)(<!--.*?-->)*s*…/s'));
+        ->set('def.filters.0.field', 'settled')->assertSet('def.filters.0.op', 'yes')->assertSee('Settled is yes')->tap(fn ($t) => expect($t->html())->not->toMatch('/is (yes|empty)(<!--.*?-->)*[[:space:]]*…/s'));
 });
 
 test('no-value operators show help without an ellipsis', function () {
     Livewire::actingAs($this->finance)->test(Builder::class)->call('addFilter')
         ->set('def.filters.0.field', 'number')->set('def.filters.0.op', 'empty')
-        ->assertSee('Invoice is empty')->tap(fn ($t) => expect($t->html())->not->toMatch('/is (yes|empty)(<!--.*?-->)*s*…/s'));
+        ->assertSee('Invoice is empty')->tap(fn ($t) => expect($t->html())->not->toMatch('/is (yes|empty)(<!--.*?-->)*[[:space:]]*…/s'));
 });
 
 test('number and money between filters show their placeholders', function () {
