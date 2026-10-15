@@ -116,3 +116,26 @@ test('a fixed date range warns that it will send the same dates every time', fun
     $this->report->update(['definition' => [...$this->report->definition, 'period' => ['field' => 'due_date', 'preset' => 'custom', 'from' => '2026-10-01', 'to' => '2026-10-31']]]);
     ($this->open)()->assertSee('will send the same dates every time');
 });
+
+test('removing and resuming a schedule are audited as report.scheduled', function () {
+    $schedule = ReportSchedule::create(['saved_report_id' => $this->report->id, 'frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id,
+        'next_run_at' => now()->addDay(), 'paused_at' => now(), 'consecutive_failures' => 3]);
+    ($this->open)()->call('resumeSchedule', $schedule->id)->call('removeSchedule', $schedule->id);
+
+    expect(Activity::where('event', 'report.scheduled')->get()->map(fn ($a) => $a->properties['action'])->all())->toBe(['resumed', 'removed']);
+});
+
+test('another report\'s schedule id is ignored and not audited', function () {
+    $other = SavedReport::create(['name' => 'O', 'subject' => 'invoices', 'visibility' => 'private', 'created_by' => $this->finance->id, 'updated_by' => $this->finance->id, 'definition' => $this->report->definition]);
+    $schedule = ReportSchedule::create(['saved_report_id' => $other->id, 'frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id, 'next_run_at' => now()->addDay()]);
+    ($this->open)()->call('removeSchedule', $schedule->id)->call('resumeSchedule', $schedule->id);
+
+    expect(ReportSchedule::count())->toBe(1)->and(Activity::where('event', 'report.scheduled')->count())->toBe(0);
+});
+
+test('the last day of the month and unknown user ids', function () {
+    ($this->open)()->set('schedule', ['frequency' => 'monthly', 'day' => 0, 'hour' => 7, 'recipients' => [$this->finance->id]])->call('addSchedule')->assertHasNoErrors();
+    expect(ReportSchedule::sole())->day->toBe(0)->and(ReportSchedule::sole()->next_run_at->format('Y-m-d H:i'))->toBe('2026-10-31 07:00');
+
+    ($this->open)()->set('schedule', ['frequency' => 'daily', 'day' => null, 'hour' => 7, 'recipients' => [999999]])->call('addSchedule')->assertHasErrors('schedule.recipients.0');
+});

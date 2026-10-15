@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports;
 
 use App\Audit\Audit;
+use App\Enums\RoleName;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\ReportDelivery;
@@ -23,6 +24,7 @@ use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
@@ -207,7 +209,7 @@ class Builder extends Component
             'schedule.day' => $frequency === 'daily' ? ['nullable'] : ['required', 'integer', $frequency === 'weekly' ? 'between:0,6' : 'between:0,28'],
             'schedule.hour' => ['required', 'integer', 'between:0,23'],
             'schedule.recipients' => ['required', 'array', 'min:1', 'max:50'],
-            'schedule.recipients.*' => ['integer', Rule::in($this->staffIds())],
+            'schedule.recipients.*' => ['integer', Rule::in($this->eligibleAmong($this->schedule['recipients'] ?? []))],
         ], ['schedule.recipients.*.in' => __('Pick staff from the list.'), 'schedule.recipients.required' => __('Pick at least one person.'),
             'schedule.day.required' => __('Pick a day.')]);
         $data = ['frequency' => (string) $frequency, 'day' => $frequency === 'daily' ? null : (int) $this->schedule['day'], 'hour' => (int) $this->schedule['hour']];
@@ -224,7 +226,12 @@ class Builder extends Component
     {
         $report = SavedReport::findOrFail((int) $this->reportId);
         abort_unless($this->actor()->can('update', $report), 403);
-        $report->schedules()->whereKey($id)->delete();
+        $schedule = $report->schedules()->whereKey($id)->first();
+        if ($schedule !== null) {
+            $schedule->delete();
+            Audit::log('report.scheduled', $report, properties: ['schedule' => $id, 'action' => 'removed'], causer: $this->actor());
+            Flux::toast(text: __('Schedule removed.'));
+        }
     }
 
     /** Clears the pause and failure count, then waits for the next due time. */
@@ -233,20 +240,42 @@ class Builder extends Component
         $report = SavedReport::findOrFail((int) $this->reportId);
         abort_unless($this->actor()->can('update', $report), 403);
         $schedule = $report->schedules()->whereKey($id)->first();
-        $schedule?->update(['paused_at' => null, 'consecutive_failures' => 0, 'next_run_at' => NextRun::after($schedule, now()->toImmutable())]);
+        if ($schedule !== null) {
+            $schedule->update(['paused_at' => null, 'consecutive_failures' => 0, 'next_run_at' => NextRun::after($schedule, now()->toImmutable())]);
+            Audit::log('report.scheduled', $report, properties: ['schedule' => $id, 'action' => 'resumed'], causer: $this->actor());
+            Flux::toast(variant: 'success', text: __('Schedule resumed.'));
+        }
     }
 
-    /** @return list<int> active staff who may receive reports: never Vendor Support or the system user (the job skips them too) */
-    private function staffIds(): array
+    /** @return list<int> the submitted ids that are eligible recipients, in one query */
+    private function eligibleAmong(mixed $ids): array
     {
-        return array_values($this->staff()->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $ids = array_values(array_filter(is_array($ids) ? $ids : [], fn ($v) => is_int($v) || (is_string($v) && ctype_digit($v) && strlen($v) < 10)));
+
+        return $ids === [] ? [] : array_values($this->eligible()->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all());
     }
 
-    /** @return Collection<int, User> */
+    /**
+     * Active staff who may receive reports: never Vendor Support or the system user (the job skips them too).
+     *
+     * @return EloquentBuilder<User>
+     */
+    private function eligible(): EloquentBuilder
+    {
+        return User::query()->where('active', true)->where('is_system', false)->withoutRole(RoleName::VendorSupport);
+    }
+
+    /** @return Collection<int, User> what the picker shows: the search matches (max 50) plus everyone already ticked */
     private function staff(): Collection
     {
-        return User::query()->where('active', true)->where('is_system', false)->orderBy('name')->get(['id', 'name', 'email'])
-            ->reject(fn (User $u) => $u->isVendorSupport())->values();
+        $term = trim($this->staffSearch);
+        $picked = $this->eligibleAmong($this->schedule['recipients'] ?? []);
+        $matches = $this->eligible()->orderBy('name')->limit(50)
+            ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', '%'.addcslashes($term, '%_\\').'%')->orWhere('email', 'like', '%'.addcslashes($term, '%_\\').'%')))
+            ->get(['id', 'name', 'email']);
+        $ticked = $picked === [] ? collect() : $this->eligible()->whereIn('id', $picked)->get(['id', 'name', 'email']);
+
+        return $matches->concat($ticked)->unique('id')->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
     }
 
     public function export(): BinaryFileResponse
@@ -372,15 +401,11 @@ class Builder extends Component
 
         $schedules = $this->reportId === null ? collect() : SavedReport::findOrFail($this->reportId)->schedules()->with('recipients:id,name')->orderBy('id')->get();
         $lastDelivery = ReportDelivery::whereIn('report_schedule_id', $schedules->pluck('id'))->orderByDesc('due_at')->get()->unique('report_schedule_id')->keyBy('report_schedule_id');
-        $picked = array_filter((array) ($this->schedule['recipients'] ?? []), 'is_scalar');
-        $term = mb_strtolower(trim($this->staffSearch));
-        $staff = $this->staff()->filter(fn (User $u) => $term === '' || str_contains(mb_strtolower($u->name.' '.$u->email), $term)
-            || in_array($u->id, $picked, false))->take(50);
 
         return view('livewire.reports.builder', [
             'schedules' => $schedules,
             'lastDelivery' => $lastDelivery,
-            'staff' => $staff,
+            'staff' => $this->reportId === null ? collect() : $this->staff(),
             'subjects' => Registry::forUser($user),
             'subject' => $subject,
             'fields' => $fields,
