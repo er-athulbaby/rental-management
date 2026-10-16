@@ -249,3 +249,23 @@ test('a leased owner: the head lease earned, paid or due; memo head-lease paymen
 test('an owner statement never reaches past the buildings it is given', function () {
     expect(IncomeStatement::isEmpty(IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED, [$this->other->id])))->toBeTrue();
 });
+
+test('a second managed contract not yet finalised: posted fees stay, the month is pending, totals equal their cells', function () {
+    activeOwnerContract(['owner_id' => $this->managed->owner_id, 'building_id' => $this->building->id, 'type' => 'managed',
+        'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'deposits_held_by' => 'company', 'fee_type' => 'percent_collected', 'fee_value' => '10.000'], [Unit::factory()->for($this->building)->create()]);
+
+    $s = IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED);
+
+    expect($s['fee_pending'])->toBe(['2026-03', '2026-04'])
+        ->and($s['rows']['fee']['amounts'])->toBe(['2026-03' => 11_000, '2026-04' => null])
+        ->and($s['rows']['fee']['total'])->toBe(11_000)->and($s['rows']['fee']['total'])->toBe(array_sum($s['rows']['fee']['amounts']))
+        ->and($s['rows']['net']['amounts'])->toBe(['2026-03' => 69_000, '2026-04' => 0]);
+});
+
+test('an owner statement is the same for the building it is given, and says "Less management fee" without VAT registration', function () {
+    CompanySetting::current()->forceFill(['vat_registered' => false])->save();
+    $all = IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED);
+
+    expect(IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED, [$this->building->id]))->toBe($all)
+        ->and($all['rows']['fee']['label'])->toBe('Less management fee');
+});

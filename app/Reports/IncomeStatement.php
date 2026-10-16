@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  * calendar months: TIMESTAMP columns round-trip as written (Bahrain wall-clock) while the MySQL session time_zone stays unset, so DATE_FORMAT needs no conversion.
  *
  * @phpstan-type Row array{label: string, kind: 'line'|'total'|'memo', amounts: array<string, int|null>, total: int}
- * @phpstan-type Statement array{months: list<string>, rows: array<string, Row>}
+ * @phpstan-type Statement array{months: list<string>, rows: array<string, Row>, fee_pending?: list<string>}
  */
 final class IncomeStatement
 {
@@ -89,6 +89,8 @@ final class IncomeStatement
      * tenant charges by type (no deposits), less the finalised fee with its VAT, less expenses charged to the owner.
      * Leased contracts: the head lease. Memo: remittances (a reversal subtracts in its month) and head-lease payments.
      * Collected sums the same allocation rows OwnerLedger reads, grouped by charge type (plan ruling 10).
+     * The fee cell is the sum of fees actually posted that month. `fee_pending` lists the months in which any managed
+     * contract of the owner still lacks a finalised statement (footnote); such a month with nothing posted is null ("–").
      *
      * @param  list<int>|null  $buildingIds
      * @return Statement
@@ -120,8 +122,11 @@ final class IncomeStatement
         $fee = self::row(CompanySetting::current()->vat_registered ? __('Less management fee and VAT') : __('Less management fee'),
             self::sums(DB::table('owner_charges as c')->whereIn('c.owner_contract_id', $managed)->where('c.type', 'management_fee')
                 ->whereBetween('c.posted_at', [$start, $end]), 'c.posted_at', 'c.net + c.tax_amount')['all'] ?? [], $months);
-        foreach (self::feePending($managed, $months) as $m) {
-            $fee['amounts'][$m] = null; // plan ruling 12: shown as "–"
+        $pending = self::feePending($managed, $months);
+        foreach ($pending as $m) {
+            if ($fee['amounts'][$m] === 0) {
+                $fee['amounts'][$m] = null; // plan ruling 12: nothing posted yet, shown as "–"
+            }
         }
         $deductions = [
             'fee' => $fee,
@@ -146,7 +151,7 @@ final class IncomeStatement
         $rows = [...self::visible($income), 'total_income' => self::combine(__('Total income'), $months, $income), ...self::visible($deductions)];
         $rows['net'] = self::combine(__('Net income to owner'), $months, [$rows['total_income']], $deductions);
 
-        return ['months' => $months, 'rows' => [...$rows, ...self::visible(['memo_paid' => self::row(__('Memo: paid to owner'), $memo, $months, 'memo')])]];
+        return ['months' => $months, 'fee_pending' => $pending, 'rows' => [...$rows, ...self::visible(['memo_paid' => self::row(__('Memo: paid to owner'), $memo, $months, 'memo')])]];
     }
 
     /**
