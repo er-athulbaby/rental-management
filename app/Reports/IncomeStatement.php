@@ -3,7 +3,11 @@
 namespace App\Reports;
 
 use App\Enums\ExpenseCategory;
+use App\Enums\InvoiceChargeType;
+use App\Enums\OwnerContractStatus;
+use App\Enums\OwnerContractType;
 use App\Models\CompanySetting;
+use App\Models\OwnerContract;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Closure;
@@ -44,7 +48,7 @@ final class IncomeStatement
             ->leftJoin('owner_contracts as oc', 'oc.id', '=', 'l.owner_contract_id')
             ->where('l.charge_type', '<>', 'deposit')
             ->when($ownerId !== null,
-                fn (Builder $w) => $w->where('oc.type', 'leased')->where('oc.owner_id', $ownerId),
+                fn (Builder $w) => $w->where('oc.type', 'leased')->where('oc.owner_id', $ownerId)->whereNotNull('l.unit_id'),
                 fn (Builder $w) => $w->where(fn (Builder $o) => $o->whereNull('l.owner_contract_id')->orWhere('oc.type', 'leased')))
             ->when($buildingIds !== null, fn (Builder $w) => $w->whereIn('u.building_id', $buildingIds));
         $bucket = "CASE WHEN l.unit_id IS NULL THEN 'unlinked' WHEN l.charge_type IN ('rent', 'service_charge', 'parking') THEN l.charge_type ELSE 'other_charges' END";
@@ -78,6 +82,95 @@ final class IncomeStatement
         $rows['result'] = self::combine(__('Result'), $months, [$rows['total_income']], [$rows['total_costs']]);
 
         return ['months' => $months, 'rows' => $rows];
+    }
+
+    /**
+     * Spec §5: an owner's statement over their contracts in $buildingIds (null = all). Managed contracts: their units'
+     * tenant charges by type (no deposits), less the finalised fee with its VAT, less expenses charged to the owner.
+     * Leased contracts: the head lease. Memo: remittances (a reversal subtracts in its month) and head-lease payments.
+     * Collected sums the same allocation rows OwnerLedger reads, grouped by charge type (plan ruling 10).
+     *
+     * @param  list<int>|null  $buildingIds
+     * @return Statement
+     */
+    public static function owner(int $ownerId, string $from, string $to, string $basis, ?array $buildingIds = null): array
+    {
+        $months = self::months($from, $to);
+        [$start, $end] = [$from.' 00:00:00', $to.' 23:59:59'];
+        $contracts = OwnerContract::query()->where('owner_id', $ownerId)
+            ->when($buildingIds !== null, fn ($q) => $q->whereIn('building_id', $buildingIds))->get(['id', 'type']);
+        $ids = fn (OwnerContractType $type): array => array_values($contracts->filter(fn (OwnerContract $c) => $c->type === $type)->map(fn (OwnerContract $c) => $c->id)->all());
+        $managed = $ids(OwnerContractType::Managed);
+        $leased = $ids(OwnerContractType::Leased);
+
+        $lines = fn (Builder $q): Builder => $q->whereIn('l.owner_contract_id', $managed)->where('l.charge_type', '<>', 'deposit');
+        $charges = $basis === self::COLLECTED
+            ? self::sums($lines(DB::table('payment_allocations as a')->join('invoice_lines as l', 'l.id', '=', 'a.invoice_line_id'))
+                ->whereBetween('a.posted_at', [$start, $end]), 'a.posted_at', 'a.amount - a.tax_amount', 'l.charge_type')
+            : self::billedLines($lines(DB::table('invoice_lines as l')->join('invoices as i', 'i.id', '=', 'l.invoice_id')), $from, $to, 'l.charge_type');
+        $income = [];
+        foreach (InvoiceChargeType::cases() as $type) {
+            if ($type !== InvoiceChargeType::Deposit) {
+                $income['charge_'.$type->value] = self::row(__($type->label()), $charges[$type->value] ?? [], $months);
+            }
+        }
+        $leasedOnly = fn (Builder $q): Builder => $q->whereIn('oc.id', $leased);
+        $income['head_lease'] = self::row(__('Head lease earned'), self::headLease($basis, $from, $to, $leasedOnly)['all'] ?? [], $months);
+
+        $fee = self::row(CompanySetting::current()->vat_registered ? __('Less management fee and VAT') : __('Less management fee'),
+            self::sums(DB::table('owner_charges as c')->whereIn('c.owner_contract_id', $managed)->where('c.type', 'management_fee')
+                ->whereBetween('c.posted_at', [$start, $end]), 'c.posted_at', 'c.net + c.tax_amount')['all'] ?? [], $months);
+        foreach (self::feePending($managed, $months) as $m) {
+            $fee['amounts'][$m] = null; // plan ruling 12: shown as "–"
+        }
+        $deductions = [
+            'fee' => $fee,
+            'expenses' => self::row(__('Less expenses charged to the owner'), self::sums(DB::table('expenses as e')
+                ->whereIn('e.owner_contract_id', [...$managed, ...$leased])->where('e.charge_to', 'owner')->where('e.status', 'recorded')
+                ->whereBetween('e.expense_date', [$from, $to]), 'e.expense_date', 'e.total')['all'] ?? [], $months),
+        ];
+
+        // Plan ruling 13: remittances by paid on, a reversal subtracting at its reversal time; leased: head-lease payments.
+        $remittances = fn (Builder $q): Builder => $q->join('owner_statements as s', 's.id', '=', 'd.source_id')
+            ->where('d.source_type', 'owner_statement')->where('d.purpose', 'owner_remittance')->whereIn('s.owner_contract_id', $managed);
+        $paid = self::sums($remittances(DB::table('disbursements as d'))->whereIn('d.status', ['paid', 'reversed'])
+            ->whereBetween('d.paid_on', [$from, $to]), 'd.paid_on', 'd.amount')['all'] ?? [];
+        $reversed = self::sums($remittances(DB::table('disbursements as d'))->where('d.status', 'reversed')
+            ->whereBetween('d.reversed_at', [$start, $end]), 'd.reversed_at', '-d.amount')['all'] ?? [];
+        $headLeasePaid = self::headLease(self::COLLECTED, $from, $to, $leasedOnly)['all'] ?? [];
+        $memo = [];
+        foreach ($months as $m) {
+            $memo[$m] = ($paid[$m] ?? 0) + ($reversed[$m] ?? 0) + ($headLeasePaid[$m] ?? 0);
+        }
+
+        $rows = [...self::visible($income), 'total_income' => self::combine(__('Total income'), $months, $income), ...self::visible($deductions)];
+        $rows['net'] = self::combine(__('Net income to owner'), $months, [$rows['total_income']], $deductions);
+
+        return ['months' => $months, 'rows' => [...$rows, ...self::visible(['memo_paid' => self::row(__('Memo: paid to owner'), $memo, $months, 'memo')])]];
+    }
+
+    /**
+     * Months in which a managed contract (attributed, dates overlapping the month) has no finalised statement for it.
+     *
+     * @param  list<int>  $managed
+     * @param  list<string>  $months
+     * @return list<string>
+     */
+    private static function feePending(array $managed, array $months): array
+    {
+        if ($managed === []) {
+            return [];
+        }
+        $attributed = array_map(fn (OwnerContractStatus $s) => $s->value, OwnerContract::ATTRIBUTED);
+
+        return array_values(array_filter($months, function (string $m) use ($managed, $attributed) {
+            $first = $m.'-01';
+
+            return OwnerContract::query()->whereIn('id', $managed)->whereIn('status', $attributed)
+                ->where('start_date', '<=', CarbonImmutable::parse($first)->endOfMonth()->toDateString())->where('end_date', '>=', $first)
+                ->whereDoesntHave('statements', fn ($q) => $q->where('period_start', $first)->where('status', 'finalised'))
+                ->exists();
+        }));
     }
 
     /** @return list<string> the Y-m months from $from's month to $to's */

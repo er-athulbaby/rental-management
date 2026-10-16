@@ -4,6 +4,7 @@ use App\Actions\Approvals\DecideApproval;
 use App\Actions\Billing\SaveCreditNote;
 use App\Actions\Billing\SubmitCreditNote;
 use App\Actions\Disbursements\RecordDisbursement;
+use App\Actions\Disbursements\RequestDisbursementReversal;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Expenses\RecordExpense;
 use App\Actions\OwnerStatements\DraftOwnerStatements;
@@ -21,6 +22,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Reports\BuildingProfitability;
 use App\Reports\IncomeStatement;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
@@ -206,4 +208,44 @@ test('a period with nothing in it keeps only zero totals', function () {
     expect(statementGrid($statement))->toBe(['total_income' => [0], 'total_costs' => [0], 'result' => [0]])
         ->and(IncomeStatement::isEmpty($statement))->toBeTrue()
         ->and(IncomeStatement::months('2026-03-15', '2026-05-01'))->toBe(['2026-03', '2026-04', '2026-05']);
+});
+
+test('a managed owner: charges on their units less fee with VAT and their expenses; fee "–" until final; memo remittances net of a reversal', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-04-03 10:00', 'Asia/Bahrain'));
+    $remit = fn (string $on) => app(RecordDisbursement::class)->handle($this->finance, ['purpose' => 'owner_remittance', 'owner_statement_id' => $this->march->id,
+        'amount' => '69.000', 'method' => 'bank_transfer', 'paid_on' => $on]);
+    $first = $remit('2026-04-03');
+    $this->travelTo(CarbonImmutable::parse('2026-04-05 10:00', 'Asia/Bahrain'));
+    app(DecideApproval::class)->handle($this->management, app(RequestDisbursementReversal::class)->handle($this->finance, $first, 'Bounced by the bank'), true);
+    $remit('2026-04-05');
+
+    $collected = IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED);
+    expect(statementGrid($collected))->toBe([
+        'charge_rent' => [100_000, 0],   // net of VAT; the 100 deposit on their unit is left out
+        'total_income' => [100_000, 0],
+        'fee' => [11_000, null],         // 10 + 1 VAT; April's statement is not finalised
+        'expenses' => [20_000, 0],
+        'net' => [69_000, 0],
+        'memo_paid' => [0, 69_000],      // 69 + 69 paid − 69 reversed
+    ])->and($collected['rows']['fee']['label'])->toBe('Less management fee and VAT');
+
+    expect(statementGrid(IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::BILLED))['charge_rent'])->toBe([100_000, 0]);
+});
+
+test('a managed owner\'s collected net income agrees with their finalised calendar-month statement', function () {
+    $net = IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-03-31', IncomeStatement::COLLECTED)['rows']['net']['total'];
+
+    expect($net)->toBe(Fils::fromDecimal($this->march->closing_balance) - Fils::fromDecimal($this->march->opening_balance))->and($net)->toBe(69_000);
+});
+
+test('a leased owner: the head lease earned, paid or due; memo head-lease payments', function () {
+    expect(statementGrid(IncomeStatement::owner($this->leased->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED)))->toBe([
+        'head_lease' => [50_000, 0], 'total_income' => [50_000, 0], 'net' => [50_000, 0], 'memo_paid' => [50_000, 0],
+    ])->and(statementGrid(IncomeStatement::owner($this->leased->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::BILLED)))->toBe([
+        'head_lease' => [50_000, 30_000], 'total_income' => [50_000, 30_000], 'net' => [50_000, 30_000], 'memo_paid' => [50_000, 0],
+    ]);
+});
+
+test('an owner statement never reaches past the buildings it is given', function () {
+    expect(IncomeStatement::isEmpty(IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED, [$this->other->id])))->toBeTrue();
 });
