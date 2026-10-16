@@ -12,6 +12,7 @@ use App\Actions\OwnerStatements\SubmitOwnerStatement;
 use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
 use App\Livewire\Reports\IncomeStatementReport;
+use App\Livewire\Reports\OwnerIncomeStatementReport;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -357,4 +358,69 @@ test('the statement table: header scopes, row headers, total cue, and the fee fo
     expect($plain)->toContain('scope="col"')->toContain('scope="row"')->toContain('aria-label="Net (total)"')->not->toContain('Fee not final');
     $pending = $render([...$s, 'fee_pending' => ['2026-03', '2026-04']]);
     expect($pending)->toContain('Fee not final until the owner statement for this month is finalised.')->toContain('11.000 *');
+});
+
+test('the owner screen lists owners, filters them by name, shows the fee as – until final, and exports audited', function () {
+    $page = Livewire::actingAs($this->finance)->test(OwnerIncomeStatementReport::class)
+        ->assertSee('Choose an owner to see their statement.')->assertSee('Leila Lessor')->assertSee('Mansour Manager')
+        ->set('ownerSearch', 'leila')->assertSee('Leila Lessor')->assertDontSee('Mansour Manager')
+        ->set('ownerSearch', '')->set('owner', $this->managed->owner_id)->set('from', '2026-03')->set('to', '2026-04');
+
+    $html = $page->html();
+    expect(reportRowText($html, 'Less management fee'))->toBe('Less management fee and VAT 11.000 – 11.000')
+        ->and(reportRowText($html, 'Net income to owner'))->toBe('Net income to owner 69.000 0.000 69.000')
+        ->and($html)->toContain('Fee not final until the owner statement for this month is finalised.');
+
+    $page->call('export')->assertFileDownloaded('owner-income-statement-2026-03-2026-04.xlsx');
+    expect(Activity::where('event', 'report.exported')->where('properties->report', 'owner_income_statement')->sole()->properties->only(['owner', 'basis'])->all())
+        ->toEqual(['owner' => $this->managed->owner_id, 'basis' => 'collected']);
+
+    $this->actingAs($this->finance)->get(route('reports.index'))->assertSee('Owner income statement');
+});
+
+test('an owner is listed only if the user can see one of their buildings; tampered owners give a message', function () {
+    $scoped = User::factory()->withTwoFactor()->create()->givePermissionTo('reports.financial');
+    $scoped->buildings()->attach($this->building->id);
+    $outside = Owner::where('name_en', 'Omar Outside')->sole();
+    $otherside = Owner::where('name_en', 'Olga Otherside')->sole();
+
+    $page = Livewire::actingAs($scoped)->test(OwnerIncomeStatementReport::class)
+        ->assertSee('Leila Lessor')->assertDontSee('Omar Outside')->assertDontSee('Olga Otherside')
+        ->set('owner', $outside->id)->assertHasErrors('owner')->assertOk()
+        ->set('owner', $otherside->id)->assertHasErrors('owner')->assertOk();
+    expect($page->html())->not->toContain('Less head lease')->not->toContain('25.000');
+    $page->set('owner', 999999)->assertHasErrors('owner')->assertOk()
+        ->set('owner', null)->call('export')->assertHasErrors('owner')->assertNoFileDownloaded();
+});
+
+test('tampered owner payloads and URLs never 500 and never show another owner', function () {
+    $page = Livewire::actingAs($this->finance)->test(OwnerIncomeStatementReport::class);
+    foreach ([['x'], 'abc', '1e3', -1] as $bad) {
+        $page->set('owner', $bad)->assertOk()->assertHasErrors('owner')->call('export')->assertNoFileDownloaded();
+    }
+    $page->set('ownerSearch', 'zzz')->assertOk();
+    Livewire::withQueryParams(['owner' => ['x'], 'from' => 'zzz'])->actingAs($this->finance)->test(OwnerIncomeStatementReport::class)
+        ->assertSet('owner', null)->assertSet('from', '2025-04')->assertHasNoErrors();
+    $this->actingAs($this->finance)->get(route('reports.owner-income-statement', ['owner' => 'abc', 'basis' => 'cash']))->assertOk();
+    expect(Activity::where('event', 'report.exported')->count())->toBe(0);
+});
+
+test('a pending month on the owner screen shows the posted fee with a marker and the footnote', function () {
+    activeOwnerContract(['owner_id' => $this->managed->owner_id, 'building_id' => $this->building->id, 'type' => 'managed',
+        'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'deposits_held_by' => 'company', 'fee_type' => 'percent_collected', 'fee_value' => '10.000'], [Unit::factory()->for($this->building)->create()]);
+
+    $html = Livewire::actingAs($this->finance)->test(OwnerIncomeStatementReport::class)
+        ->set('owner', $this->managed->owner_id)->set('from', '2026-03')->set('to', '2026-04')->html();
+
+    expect(reportRowText($html, 'Less management fee'))->toBe('Less management fee and VAT 11.000 * – 11.000')
+        ->and($html)->toContain('Fee not final until the owner statement for this month is finalised.');
+});
+
+test('a leased owner on the screen: head lease earned and memo payments', function () {
+    $html = Livewire::actingAs($this->finance)->test(OwnerIncomeStatementReport::class)
+        ->set('owner', $this->leased->owner_id)->set('from', '2026-03')->set('to', '2026-04')->set('basis', 'billed')->html();
+
+    expect(reportRowText($html, 'Head lease earned'))->toBe('Head lease earned 50.000 30.000 80.000')
+        ->and(reportRowText($html, 'Memo: paid to owner'))->toBe('Memo: paid to owner 50.000 0.000 50.000')
+        ->and($html)->not->toContain('Less management fee');
 });

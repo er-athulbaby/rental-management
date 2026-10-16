@@ -36,6 +36,7 @@ test('report pages open for exactly the roles the spec allows', function (string
     ['reports.deposits', $financial],
     ['reports.vat', $financial],
     ['reports.income-statement', $financial],
+    ['reports.owner-income-statement', $financial],
     ['reports.index', R::cases()],
     ['dashboard', R::cases()],
 ]);

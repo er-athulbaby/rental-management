@@ -29,6 +29,7 @@ class Index extends Component
             'financial' => [
                 ['route' => 'reports.building-profitability', 'label' => __('Building profitability'), 'icon' => 'chart-bar', 'about' => __('Income against head lease and expenses, per building.')],
                 ['route' => 'reports.income-statement', 'label' => __('Income statement'), 'icon' => 'document-chart-bar', 'about' => __('Income, costs and result by month, collected or billed.')],
+                ['route' => 'reports.owner-income-statement', 'label' => __('Owner income statement'), 'icon' => 'user-circle', 'about' => __('What an owner earned each month, after fees and expenses.')],
                 ['route' => 'owner-payables.index', 'label' => __('Head-lease payments due'), 'icon' => 'calendar', 'about' => __('Rent owed to owners, by due date.')],
                 ['route' => 'owner-statements.index', 'label' => __('Owner statements'), 'icon' => 'document-text', 'about' => __('Monthly statements and remittances to owners.')],
                 ['route' => 'reports.outstanding', 'label' => __('Outstanding by tenant'), 'icon' => 'user-group', 'about' => __('What each tenant owes, less their credit.')],
