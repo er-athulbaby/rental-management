@@ -11,6 +11,7 @@ use App\Actions\OwnerStatements\DraftOwnerStatements;
 use App\Actions\OwnerStatements\SubmitOwnerStatement;
 use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
+use App\Livewire\Reports\IncomeStatementReport;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -26,6 +27,8 @@ use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 /** A statement as key => [amount per month], so a whole statement is checked to the fil, in order. */
 function statementGrid(array $statement): array
@@ -268,4 +271,56 @@ test('an owner statement is the same for the building it is given, and says "Les
 
     expect(IncomeStatement::owner($this->managed->owner_id, '2026-03-01', '2026-04-30', IncomeStatement::COLLECTED, [$this->building->id]))->toBe($all)
         ->and($all['rows']['fee']['label'])->toBe('Less management fee');
+});
+
+test('the income statement screen: last 12 complete months by default, one column per month, both bases, Excel audited', function () {
+    $page = Livewire::actingAs($this->finance)->test(IncomeStatementReport::class)
+        ->assertSet('from', '2025-04')->assertSet('to', '2026-03')->assertSet('basis', 'collected');
+
+    // The fixture now has a second building (+80 rent, -25 head lease, -7 legal), so March's result is 263, not the plan's 208.
+    $html = $page->set('from', '2026-03')->set('to', '2026-04')->html();
+    expect($html)->toContain('03/2026')->toContain('04/2026')
+        ->and(reportRowText($html, 'Not linked to a unit'))->toBe('Not linked to a unit 40.000 0.000 40.000')
+        ->and(reportRowText($html, 'Result'))->toBe('Result 263.000 -12.000 251.000');
+
+    // Billed head lease: 50 + the other building's 25 due in March, 30 in April (the plan's 50/30/80 predates the second building).
+    expect(reportRowText($page->set('basis', 'billed')->html(), 'Head lease'))->toBe('Head lease 75.000 30.000 105.000');
+
+    $page->call('export')->assertFileDownloaded('income-statement-2026-03-2026-04.xlsx');
+    expect(Activity::where('event', 'report.exported')->where('properties->report', 'income_statement')->sole()->properties->only(['from', 'to', 'basis', 'building', 'owner'])->all())
+        ->toEqual(['from' => '2026-03', 'to' => '2026-04', 'basis' => 'billed', 'building' => null, 'owner' => null]);
+
+    $page->set('from', '2025-06')->set('to', '2025-06')->assertSee('Nothing in this period.');
+    $this->actingAs($this->finance)->get(route('reports.index'))->assertSee('Income statement');
+});
+
+test('a building-scoped user sees only their buildings: no unlinked line, no other building, no other building\'s owners', function () {
+    $scoped = User::factory()->withTwoFactor()->create()->givePermissionTo('reports.financial');
+    $scoped->buildings()->attach($this->building->id);
+
+    $html = Livewire::actingAs($scoped)->test(IncomeStatementReport::class)->set('from', '2026-03')->set('to', '2026-04')
+        ->assertDontSee('Not linked to a unit')->assertDontSee($this->other->code)->assertDontSee('Omar Outside')->assertSee('Leila Lessor')
+        ->set('building', $this->other->id)->assertHasErrors('building')->assertOk()
+        ->set('building', null)->html();
+
+    expect(reportRowText($html, 'Result'))->toBe('Result 175.000 -12.000 163.000');
+});
+
+test('tampered inputs give a message, never a 500, and no export', function () {
+    Livewire::actingAs($this->finance)->test(IncomeStatementReport::class)
+        ->set('basis', 'cash')->assertHasErrors('basis')->assertOk()
+        ->set('basis', 'billed')->set('from', '2025-01')->set('to', '2026-04')->assertHasErrors('to')->assertOk()   // 16 months
+        ->set('from', '2026-04')->set('to', '2026-03')->assertHasErrors('to')
+        ->set('owner', 999999)->assertHasErrors('owner')
+        ->set('owner', null)->set('from', '1999-01')->assertHasErrors('from')->assertOk()
+        ->call('export')->assertNoFileDownloaded();
+
+    expect(Activity::where('event', 'report.exported')->count())->toBe(0);
+});
+
+test('owner scope on the screen narrows to that owner\'s contracts', function () {
+    $html = Livewire::actingAs($this->finance)->test(IncomeStatementReport::class)->set('from', '2026-03')->set('to', '2026-04')
+        ->set('owner', $this->leased->owner_id)->html();
+
+    expect(reportRowText($html, 'Result'))->toBe('Result 60.000 0.000 60.000')->and($html)->not->toContain('Management fees');
 });

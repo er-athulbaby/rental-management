@@ -82,6 +82,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('reports/id-documents', Reports\IdDocumentsReport::class)->middleware('can:reports.operational')->name('reports.id-documents');
     Route::livewire('reports/cheques', Reports\ChequesReport::class)->middleware('can:reports.operational')->name('reports.cheques');
     Route::livewire('reports/building-profitability', Reports\BuildingProfitabilityReport::class)->middleware('can:reports.financial')->name('reports.building-profitability');
+    Route::livewire('reports/income-statement', Reports\IncomeStatementReport::class)->middleware('can:reports.financial')->name('reports.income-statement');
     Route::livewire('reports/outstanding', Reports\OutstandingReport::class)->middleware('can:reports.financial')->name('reports.outstanding');
     Route::livewire('reports/ageing', Reports\AgeingReport::class)->middleware('can:reports.financial')->name('reports.ageing');
     Route::livewire('reports/collections', Reports\CollectionsReport::class)->middleware('can:reports.financial')->name('reports.collections');
