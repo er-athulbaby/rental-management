@@ -22,10 +22,10 @@ class IncomeStatementReport extends Component
     use StatementPage;
 
     #[Url]
-    public ?int $building = null;
+    public mixed $building = null;
 
     #[Url]
-    public ?int $owner = null;
+    public mixed $owner = null;
 
     /** @return array<string, list<mixed>> */
     protected function scopeRules(): array
@@ -36,19 +36,25 @@ class IncomeStatementReport extends Component
         ];
     }
 
+    protected function resetScope(): void
+    {
+        $this->building = null;
+        $this->owner = null;
+    }
+
     /** @return Statement */
     private function compute(): array
     {
         [$from, $to] = $this->period();
 
-        return IncomeStatement::company($from, $to, $this->basis, $this->building !== null ? [$this->building] : $this->scopeBuildingIds(), $this->owner);
+        return IncomeStatement::company($from, $to, $this->basis, $this->idOrNull($this->building) !== null ? [$this->idOrNull($this->building)] : $this->scopeBuildingIds(), $this->idOrNull($this->owner));
     }
 
     public function export(): BinaryFileResponse
     {
         $this->validate($this->statementRules());
 
-        return $this->download('income_statement', $this->compute(), ['building' => $this->building, 'owner' => $this->owner]);
+        return $this->download('income_statement', $this->compute(), ['building' => $this->idOrNull($this->building), 'owner' => $this->idOrNull($this->owner)]);
     }
 
     public function render(): View

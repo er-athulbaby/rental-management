@@ -28,17 +28,27 @@ trait StatementPage
 {
     use WithActor;
 
+    // Untyped on purpose: a tampered payload (an array, "abc") must reach validation, not throw a TypeError (a 500).
     #[Url]
-    public string $from = '';
+    public mixed $from = '';
 
     #[Url]
-    public string $to = '';
+    public mixed $to = '';
 
     #[Url]
-    public string $basis = IncomeStatement::COLLECTED;
+    public mixed $basis = IncomeStatement::COLLECTED;
 
     /** @return array<string, list<mixed>> the screen's own inputs */
     abstract protected function scopeRules(): array;
+
+    /** Clears the screen's own inputs (a bad URL). */
+    abstract protected function resetScope(): void;
+
+    /** A validated id (an int, or a numeric string from a select) as an int; anything else is null. */
+    protected function idOrNull(mixed $value): ?int
+    {
+        return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null;
+    }
 
     public function mountStatementPage(): void
     {
@@ -46,6 +56,12 @@ trait StatementPage
         $month = CarbonImmutable::now('Asia/Bahrain')->startOfMonth();
         $this->from = $this->from ?: $month->subMonths(12)->format('Y-m'); // the last 12 complete months
         $this->to = $this->to ?: $month->subMonth()->format('Y-m');
+        if (! $this->inputsValid()) { // a bad URL: fall back to the defaults rather than a blank page
+            $this->from = $month->subMonths(12)->format('Y-m');
+            $this->to = $month->subMonth()->format('Y-m');
+            $this->basis = IncomeStatement::COLLECTED;
+            $this->resetScope();
+        }
     }
 
     /** A trait hook (Livewire calls updated{TraitName}). */
@@ -78,7 +94,7 @@ trait StatementPage
         return [
             'from' => ['required', 'string', Rule::in($months)],
             'to' => ['required', 'string', Rule::in($months), function (string $attribute, mixed $value, Closure $fail) use ($months) {
-                if (! is_string($value) || ! in_array($this->from, $months, true)) {
+                if (! is_string($value) || ! in_array($value, $months, true) || ! in_array($this->from, $months, true)) {
                     return;
                 }
                 if ($value < $this->from) {

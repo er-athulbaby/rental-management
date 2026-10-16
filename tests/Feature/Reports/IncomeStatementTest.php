@@ -324,3 +324,37 @@ test('owner scope on the screen narrows to that owner\'s contracts', function ()
 
     expect(reportRowText($html, 'Result'))->toBe('Result 60.000 0.000 60.000')->and($html)->not->toContain('Management fees');
 });
+
+test('tampered Livewire payloads of the wrong type (arrays, garbage) never 500', function () {
+    $page = Livewire::actingAs($this->finance)->test(IncomeStatementReport::class);
+    foreach (['from', 'to', 'basis'] as $prop) {
+        $page->set($prop, ['x'])->assertOk()->assertHasErrors($prop)->set($prop, 'abc')->assertOk()->assertHasErrors($prop);
+        $page->call('export')->assertNoFileDownloaded();
+        $page->set('from', '2026-03')->set('to', '2026-04')->set('basis', 'collected');
+    }
+    foreach (['building', 'owner'] as $prop) {
+        $page->set($prop, ['x'])->assertOk()->assertHasErrors($prop)->set($prop, 'abc')->assertOk()->assertHasErrors($prop)->set($prop, null)->assertHasNoErrors();
+    }
+    expect(Activity::where('event', 'report.exported')->count())->toBe(0);
+});
+
+test('bad URL parameters fall back to the defaults and show a statement', function () {
+    Livewire::withQueryParams(['from' => 'zzz', 'to' => ['a'], 'basis' => 'cash', 'building' => 'abc', 'owner' => '999999'])->actingAs($this->finance)
+        ->test(IncomeStatementReport::class)
+        ->assertSet('from', '2025-04')->assertSet('to', '2026-03')->assertSet('basis', 'collected')->assertSet('building', null)->assertSet('owner', null)
+        ->assertHasNoErrors();
+    $this->actingAs($this->finance)->get(route('reports.income-statement', ['from' => ['x'], 'basis' => 'cash']))->assertOk()->assertSee('Result');
+});
+
+test('the statement table: header scopes, row headers, total cue, and the fee footnote only when fee_pending says so', function () {
+    $s = ['months' => ['2026-03', '2026-04'], 'rows' => [
+        'fee' => ['label' => 'Less management fee', 'kind' => 'line', 'amounts' => ['2026-03' => 11_000, '2026-04' => null], 'total' => 11_000],
+        'net' => ['label' => 'Net', 'kind' => 'total', 'amounts' => ['2026-03' => 11_000, '2026-04' => 0], 'total' => 11_000],
+    ]];
+    $render = fn (array $st) => view('livewire.reports.partials.statement-table', ['statement' => $st])->render();
+
+    $plain = $render($s);
+    expect($plain)->toContain('scope="col"')->toContain('scope="row"')->toContain('aria-label="Net (total)"')->not->toContain('Fee not final');
+    $pending = $render([...$s, 'fee_pending' => ['2026-03', '2026-04']]);
+    expect($pending)->toContain('Fee not final until the owner statement for this month is finalised.')->toContain('11.000 *');
+});
