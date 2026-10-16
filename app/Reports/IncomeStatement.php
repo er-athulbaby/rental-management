@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  * Spec 2026-10-16 §2: every income-statement line for a scope over a period, month by month, on either basis. Both
  * statement screens and BuildingProfitability read from here, so their figures agree. Amounts are fils net of VAT
  * (expenses: their total when the company is not VAT-registered), summed in SQL on DECIMAL. Months are Asia/Bahrain
- * calendar months: timestamps are stored in Bahrain time, so DATE_FORMAT needs no conversion.
+ * calendar months: TIMESTAMP columns round-trip as written (Bahrain wall-clock) while the MySQL session time_zone stays unset, so DATE_FORMAT needs no conversion.
  *
  * @phpstan-type Row array{label: string, kind: 'line'|'total'|'memo', amounts: array<string, int|null>, total: int}
  * @phpstan-type Statement array{months: list<string>, rows: array<string, Row>}

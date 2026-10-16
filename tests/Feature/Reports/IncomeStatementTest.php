@@ -49,10 +49,17 @@ beforeEach(function () {
     // A draft leased contract in the other building: its owner is listed only to users who can see that building.
     OwnerContract::factory()->leased()->create(['building_id' => $this->other->id, 'owner_id' => Owner::factory()->create(['name_en' => 'Omar Outside'])->id]);
 
-    $payable = fn (string $due, string $amount) => tap((new OwnerPayable)->forceFill(['owner_contract_id' => $this->leased->id, 'period_start' => $due,
+    // The other building has its own leased unit, so building scope is tested both ways: 80 rent (paid) and a 25 head lease (paid).
+    $otherUnit = Unit::factory()->for($this->other)->create();
+    $otherLeased = activeOwnerContract(['owner_id' => Owner::factory()->create(['name_en' => 'Olga Otherside'])->id, 'building_id' => $this->other->id, 'type' => 'leased',
+        'rent_amount' => '25.000', 'payment_frequency' => 'monthly', 'fee_type' => null, 'fee_value' => null, 'deposits_held_by' => null, 'start_date' => '2026-03-01', 'end_date' => '2027-02-28'], [$otherUnit]);
+
+    $payable = fn (string $due, string $amount, ?OwnerContract $contract = null) => tap((new OwnerPayable)->forceFill(['owner_contract_id' => ($contract ?? $this->leased)->id, 'period_start' => $due,
         'period_end' => CarbonImmutable::parse($due)->endOfMonth()->toDateString(), 'due_date' => $due, 'amount' => $amount, 'status' => 'scheduled']))->save();
     $march = $payable('2026-03-01', '50.000');
     app(RecordDisbursement::class)->handle($this->finance, ['purpose' => 'head_lease', 'owner_payable_id' => $march->id, 'amount' => '50.000', 'method' => 'bank_transfer', 'paid_on' => '2026-03-05']);
+    $otherMarch = $payable('2026-03-01', '25.000', $otherLeased);
+    app(RecordDisbursement::class)->handle($this->finance, ['purpose' => 'head_lease', 'owner_payable_id' => $otherMarch->id, 'amount' => '25.000', 'method' => 'bank_transfer', 'paid_on' => '2026-03-05']);
 
     // Issued 5 March. Owned unit: rent 100 + VAT, service 20 + VAT, damage 15, deposit 200. Leased unit: rent 100 + VAT,
     // parking 10 + VAT. Managed unit: rent 100 + VAT (the owner's money), deposit 100. Plus a manual line with no unit.
@@ -67,8 +74,13 @@ beforeEach(function () {
     ], '2026-03-01', $this->agreement); // 645 net + 33 VAT = 678
     issuedInvoice($this->customer, [['type' => 'other', 'net' => '40.000', 'description' => 'Key replacement']], '2026-03-01');
 
+    $otherCustomer = Customer::factory()->create();
+    $otherAgreement = activeAgreement(['customer_id' => $otherCustomer->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$otherUnit]);
+    issuedInvoice($otherCustomer, [['net' => '80.000', 'au' => $otherAgreement->agreementUnits()->sole()]], '2026-03-01', $otherAgreement); // no VAT
+
     $this->travelTo(CarbonImmutable::parse('2026-03-10 10:00', 'Asia/Bahrain'));
     app(RecordPayment::class)->handle($this->finance, $this->customer, ['received_on' => '2026-03-10', 'method' => 'cash', 'amount' => '718.000']); // pays both in full
+    app(RecordPayment::class)->handle($this->finance, $otherCustomer, ['received_on' => '2026-03-10', 'method' => 'cash', 'amount' => '80.000']);
     $this->expense = fn (array $e) => app(RecordExpense::class)->handle($this->finance, ['description' => 'Fixture', 'expense_date' => now()->toDateString(), ...$e]);
     ($this->expense)(['building_id' => $this->building->id, 'category' => 'cleaning', 'net' => '30.000', 'tax_amount' => '3.000', 'charge_to' => 'company']);
     ($this->expense)(['building_id' => $this->building->id, 'unit_id' => $managedUnit->id, 'category' => 'maintenance', 'net' => '20.000', 'charge_to' => 'owner']);
@@ -95,37 +107,37 @@ beforeEach(function () {
 
 test('collected, all buildings: company-earned lines by month, net of VAT, without managed rent or deposits', function () {
     expect(statementGrid(IncomeStatement::company('2026-03-01', '2026-04-30', IncomeStatement::COLLECTED)))->toBe([
-        'rent' => [200_000, 0],             // owned + leased; the managed unit's 100 is the owner's
+        'rent' => [280_000, 0],             // owned + leased + the other building (80); the managed unit's 100 is the owner's
         'service_charge' => [20_000, 0],
         'parking' => [10_000, 0],
         'other_charges' => [15_000, 0],     // damage
         'unlinked' => [40_000, 0],          // the manual line with no unit
         'management_fees' => [10_000, 0],   // posted at the March cutoff
-        'total_income' => [295_000, 0],
-        'head_lease' => [50_000, 0],        // paid 5 March
+        'total_income' => [375_000, 0],
+        'head_lease' => [75_000, 0],        // 50 + the other building's 25, paid 5 March
         'expense_cleaning' => [30_000, 0],  // net: the company is VAT-registered
         'expense_security' => [0, 12_000],
         'expense_legal' => [7_000, 0],      // the other building
-        'total_costs' => [87_000, 12_000],
-        'result' => [208_000, -12_000],
+        'total_costs' => [112_000, 12_000],
+        'result' => [263_000, -12_000],
     ]);
 });
 
 test('billed, all buildings: issued lines less credit notes; head lease due, replaced payables left out', function () {
     expect(statementGrid(IncomeStatement::company('2026-03-01', '2026-04-30', IncomeStatement::BILLED)))->toBe([
-        'rent' => [200_000, 50_000],        // April: 100 issued − 50 credited
+        'rent' => [280_000, 50_000],        // April: 100 issued − 50 credited
         'service_charge' => [20_000, 0],
         'parking' => [10_000, 0],
         'other_charges' => [15_000, 0],
         'unlinked' => [40_000, 0],
         'management_fees' => [10_000, 0],
-        'total_income' => [295_000, 50_000],
-        'head_lease' => [50_000, 30_000],   // the cancelled 50 is not counted
+        'total_income' => [375_000, 50_000],
+        'head_lease' => [75_000, 30_000],   // the cancelled 50 is not counted
         'expense_cleaning' => [30_000, 0],
         'expense_security' => [0, 12_000],
         'expense_legal' => [7_000, 0],
-        'total_costs' => [87_000, 42_000],
-        'result' => [208_000, 8_000],
+        'total_costs' => [112_000, 42_000],
+        'result' => [263_000, 8_000],
     ]);
 });
 
@@ -154,13 +166,26 @@ test('one building: its lines only, never the lines without a unit; its Collecte
         ->and($profitability['result'])->toBe($statement['rows']['result']['total']);
 });
 
+test('the other building alone: its own rent and head lease, none of the first building\'s; owner and building together never widen', function () {
+    expect(statementGrid(IncomeStatement::company('2026-03-01', '2026-04-30', IncomeStatement::COLLECTED, [$this->other->id])))->toBe([
+        'rent' => [80_000, 0], 'total_income' => [80_000, 0],
+        'head_lease' => [25_000, 0], 'expense_legal' => [7_000, 0], 'total_costs' => [32_000, 0], 'result' => [48_000, 0],
+    ])->and(statementGrid(IncomeStatement::company('2026-03-01', '2026-04-30', IncomeStatement::BILLED, [$this->other->id])))->toBe([
+        'rent' => [80_000, 0], 'total_income' => [80_000, 0],
+        'head_lease' => [25_000, 0], 'expense_legal' => [7_000, 0], 'total_costs' => [32_000, 0], 'result' => [48_000, 0],
+    ]);
+
+    // The leased owner of the first building, filtered to the other building: nothing.
+    expect(IncomeStatement::isEmpty(IncomeStatement::company('2026-03-01', '2026-04-30', IncomeStatement::COLLECTED, [$this->other->id], $this->leased->owner_id)))->toBeTrue();
+});
+
 test('a company that is not VAT-registered counts the VAT on its expenses as a cost', function () {
     CompanySetting::current()->forceFill(['vat_registered' => false])->save();
     $grid = statementGrid(IncomeStatement::company('2026-03-01', '2026-04-30', IncomeStatement::COLLECTED));
 
     expect($grid['expense_cleaning'])->toBe([33_000, 0])
-        ->and($grid['total_costs'])->toBe([90_000, 12_000])
-        ->and($grid['result'])->toBe([205_000, -12_000]);
+        ->and($grid['total_costs'])->toBe([115_000, 12_000])
+        ->and($grid['result'])->toBe([260_000, -12_000]);
 });
 
 test('owner scope: a leased owner\'s units less their head lease; a managed owner\'s fees only', function () {
