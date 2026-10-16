@@ -6,12 +6,7 @@
 
     <div class="grid gap-3 sm:grid-cols-4">
         @if ($buildingFilter)
-            <flux:select wire:model.live="building" :label="__('Building')">
-                <flux:select.option value="">{{ __('All buildings') }}</flux:select.option>
-                @foreach ($buildings as $b)
-                    <flux:select.option :value="$b->id">{{ $b->code }} — {{ $b->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
+            <x-building-filter :buildings="$buildings" />
         @endif
         @if ($dateMode === 'range')
             <x-date-input wire:model.live="from" :label="__('From')" />
@@ -44,9 +39,9 @@
             </flux:table.columns>
             <flux:table.rows>
                 @forelse ($rows as $i => $row)
-                    <flux:table.row :key="'r-'.$i">
+                    <flux:table.row :key="'r-'.$i" :class="empty($row['_kind']) ? '' : 'font-semibold'">
                         @foreach (array_keys($columns) as $j => $key)
-                            <flux:table.cell :class="in_array($key, $numeric, true) ? 'text-end tabular-nums' : ''">
+                            <flux:table.cell :class="(in_array($key, $numeric, true) ? 'text-end tabular-nums' : '').(($row['_muted'] ?? null) === $key ? ' text-zinc-400 dark:text-zinc-500' : '')">
                                 @if ($j === 0 && ! empty($row['_url']))
                                     <flux:link :href="$row['_url']" wire:navigate>{{ $row[$key] }}</flux:link>
                                 @else

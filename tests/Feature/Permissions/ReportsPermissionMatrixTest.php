@@ -24,6 +24,7 @@ test('report pages open for exactly the roles the spec allows', function (string
     }
 })->with([
     ['reports.occupancy', $operational],
+    ['reports.rent-roll', $operational],
     ['reports.expiring', $operational],
     ['reports.overstays', $operational],
     ['reports.approvals', $operational],

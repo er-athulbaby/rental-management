@@ -75,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('reports', Reports\Index::class)->name('reports.index');
     Route::livewire('reports/builder/{report?}', Reports\Builder::class)->name('reports.builder');
     Route::livewire('reports/occupancy', Reports\OccupancyReport::class)->middleware('can:reports.operational')->name('reports.occupancy');
+    Route::livewire('reports/rent-roll', Reports\RentRollReport::class)->middleware('can:reports.operational')->name('reports.rent-roll');
     Route::livewire('reports/expiring', Reports\ExpiringAgreementsReport::class)->middleware('can:reports.operational')->name('reports.expiring');
     Route::livewire('reports/overstays', Reports\OverstaysReport::class)->middleware('can:reports.operational')->name('reports.overstays');
     Route::livewire('reports/approvals', Reports\PendingApprovalsReport::class)->middleware('can:reports.operational')->name('reports.approvals');

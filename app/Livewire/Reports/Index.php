@@ -18,6 +18,7 @@ class Index extends Component
     {
         return [
             'operational' => [
+                ['route' => 'reports.rent-roll', 'label' => __('Rent roll'), 'icon' => 'table-cells', 'about' => __('Every unit with its tenant, rent, deposit and balance, as at a date.')],
                 ['route' => 'reports.occupancy', 'label' => __('Unit availability and occupancy'), 'icon' => 'home-modern', 'about' => __('Occupied, vacant and blocked units per building.')],
                 ['route' => 'reports.expiring', 'label' => __('Agreements expiring'), 'icon' => 'calendar-days', 'about' => __('Agreements ending soon, to renew or plan move-outs.')],
                 ['route' => 'reports.overstays', 'label' => __('Overstays: expired, not closed'), 'icon' => 'exclamation-triangle', 'about' => __('Tenants still in after their agreement ended.')],
