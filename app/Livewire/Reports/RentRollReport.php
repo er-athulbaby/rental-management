@@ -62,8 +62,15 @@ class RentRollReport extends Component
         $user = $this->actor();
         $rent = DB::table('agreement_unit_charges')->where('type', 'rent')->groupBy('agreement_unit_id')
             ->select('agreement_unit_id', DB::raw('SUM(monthly_amount) as rent'));
-        $held = DB::table('deposit_movements')->where('posted_at', '<=', $on.' 23:59:59')->groupBy('agreement_unit_id')
-            ->select('agreement_unit_id', DB::raw('SUM(amount) as held'));
+        // Deposit held per unit = every agreement unit of the unit with a positive balance, as the Deposits held report does,
+        // so building totals reconcile to it (a released unit can still hold money).
+        $perAu = DB::table('deposit_movements as dm')
+            ->join('agreement_units as au2', 'au2.id', '=', 'dm.agreement_unit_id')
+            ->join('agreements as a2', 'a2.id', '=', 'au2.agreement_id')
+            ->whereNull('a2.deleted_at')->where('dm.posted_at', '<=', $on.' 23:59:59')
+            ->groupBy('dm.agreement_unit_id', 'au2.unit_id')->havingRaw('SUM(dm.amount) > 0')
+            ->select('au2.unit_id', DB::raw('SUM(dm.amount) as held'));
+        $held = DB::query()->fromSub($perAu, 'x')->groupBy('unit_id')->select('unit_id', DB::raw('SUM(held) as held'));
         $owed = DB::table('invoices')->where('status', 'issued')->where('type', '<>', 'credit_note')->whereNotNull('agreement_id')
             ->groupBy('agreement_id')->select('agreement_id', DB::raw('SUM(balance) as owed'));
 
@@ -75,7 +82,7 @@ class RentRollReport extends Component
             ->leftJoin('agreements as a', 'a.id', '=', 'au.agreement_id')
             ->leftJoin('customers as c', 'c.id', '=', 'a.customer_id')
             ->leftJoinSub($rent, 'r', 'r.agreement_unit_id', '=', 'au.id')
-            ->leftJoinSub($held, 'd', 'd.agreement_unit_id', '=', 'au.id')
+            ->leftJoinSub($held, 'd', 'd.unit_id', '=', 'u.id')
             ->leftJoinSub($owed, 'o', 'o.agreement_id', '=', 'a.id')
             ->whereIn('u.id', Unit::query()->visibleTo($user)->select('id'))
             ->when($this->building, fn ($q, int $b) => $q->where('u.building_id', $b))
@@ -101,7 +108,7 @@ class RentRollReport extends Component
                     $seen[$u->agreement_id] = true;
                 }
                 $rentFils = $occupied ? $fils($u->rent) : 0;
-                $depositFils = $occupied ? $fils($u->held) : 0;
+                $depositFils = $fils($u->held);
                 $balanceFils = $first ? $fils($u->owed) : 0;
                 $sub['units']++;
                 $sub['blocked'] += (int) $blocked;
@@ -116,11 +123,11 @@ class RentRollReport extends Component
                     'status' => $occupied ? __('Occupied') : ($blocked ? __('Blocked') : __('Vacant')),
                     'tenant' => $u->tenant ?? '', 'agreement' => $u->number ?? '', 'start' => $date($u->start_date), 'end' => $date($u->end_date),
                     ...($money ? [
-                        'rent' => $occupied ? Fils::toDecimal($rentFils) : ($blocked ? '' : Fils::toDecimal($fils($u->list_rent))),
-                        'deposit' => $occupied ? Fils::toDecimal($depositFils) : '',
+                        'rent' => $occupied ? Fils::toDecimal($rentFils) : ($blocked || $u->list_rent === null ? '' : __(':amount (list)', ['amount' => Fils::toDecimal($fils($u->list_rent))])),
+                        'deposit' => $occupied || $depositFils > 0 ? Fils::toDecimal($depositFils) : '',
                         'balance' => $occupied ? ($first ? Fils::toDecimal($balanceFils) : __('(all units)')) : '',
                     ] : []),
-                    '_muted' => ! $occupied && ! $blocked ? 'rent' : null, // a vacant unit's list rent
+                    '_muted' => ! $occupied && ! $blocked && $u->list_rent !== null ? 'rent' : null, // a vacant unit's list rent
                 ];
             }
             $rows[] = $this->totalRow(__('Subtotal :building', ['building' => $code]), $sub, $money);

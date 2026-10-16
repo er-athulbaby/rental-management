@@ -41,7 +41,7 @@
                 @forelse ($rows as $i => $row)
                     <flux:table.row :key="'r-'.$i" :class="empty($row['_kind']) ? '' : 'font-semibold'">
                         @foreach (array_keys($columns) as $j => $key)
-                            <flux:table.cell :class="(in_array($key, $numeric, true) ? 'text-end tabular-nums' : '').(($row['_muted'] ?? null) === $key ? ' text-zinc-400 dark:text-zinc-500' : '')">
+                            <flux:table.cell :class="(in_array($key, $numeric, true) ? 'text-end tabular-nums' : '').(($row['_muted'] ?? null) === $key ? ' text-zinc-500 dark:text-zinc-400' : '')">
                                 @if ($j === 0 && ! empty($row['_url']))
                                     <flux:link :href="$row['_url']" wire:navigate>{{ $row[$key] }}</flux:link>
                                 @else
