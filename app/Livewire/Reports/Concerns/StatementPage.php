@@ -39,6 +39,9 @@ trait StatementPage
     public mixed $basis = IncomeStatement::COLLECTED;
 
     /** @return array<string, list<mixed>> the screen's own inputs */
+    /** @var array<int, string>|null owner list, memoised for the request */
+    private ?array $ownerOptionsCache = null;
+
     abstract protected function scopeRules(): array;
 
     /** Clears the screen's own inputs (a bad URL). */
@@ -131,7 +134,7 @@ trait StatementPage
     /** @return array<int, string> owners with at least one contract in a building the user can see (spec §5) */
     protected function ownerOptions(): array
     {
-        return Owner::query()->whereIn('id', OwnerContract::query()->visibleTo($this->actor())->select('owner_id'))
+        return $this->ownerOptionsCache ??= Owner::query()->whereIn('id', OwnerContract::query()->visibleTo($this->actor())->select('owner_id'))
             ->orderBy('name_en')->pluck('name_en', 'id')->all();
     }
 
@@ -148,9 +151,14 @@ trait StatementPage
 
         $path = sys_get_temp_dir().'/rms-'.$report.'-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
-        $writer->addHeader([__('Line'), ...array_map(fn (string $m) => CarbonImmutable::parse($m.'-01')->format('m/Y'), $statement['months']), __('Total')]);
+        // A month whose fee is not final carries a " *" on its header, so the figures stay numeric (the screen's marker).
+        $pending = $statement['fee_pending'] ?? [];
+        $writer->addHeader([__('Line'), ...array_map(fn (string $m) => CarbonImmutable::parse($m.'-01')->format('m/Y').(in_array($m, $pending, true) ? ' *' : ''), $statement['months']), __('Total')]);
         foreach ($statement['rows'] as $row) {
             $writer->addRow([$row['label'], ...array_map(fn (?int $v) => $v === null ? '–' : $v / 1000, array_values($row['amounts'])), $row['total'] / 1000]);
+        }
+        if ($pending !== []) {
+            $writer->addRow([__('Fee not final until the owner statement for this month is finalised.')]);
         }
         $writer->close();
 

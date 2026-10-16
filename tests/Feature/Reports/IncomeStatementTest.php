@@ -30,6 +30,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\SimpleExcel\SimpleExcelReader;
 
 /** A statement as key => [amount per month], so a whole statement is checked to the fil, in order. */
 function statementGrid(array $statement): array
@@ -423,4 +424,62 @@ test('a leased owner on the screen: head lease earned and memo payments', functi
     expect(reportRowText($html, 'Head lease earned'))->toBe('Head lease earned 50.000 30.000 80.000')
         ->and(reportRowText($html, 'Memo: paid to owner'))->toBe('Memo: paid to owner 50.000 0.000 50.000')
         ->and($html)->not->toContain('Less management fee');
+});
+
+/** The statement's Excel file as a list of rows (no header row handling: row 0 is the header). */
+function statementXlsx(object $component): array
+{
+    $path = $component->export()->getFile()->getPathname();
+
+    return SimpleExcelReader::create($path, 'xlsx')->noHeaderRow()->getRows()->map(fn (array $r) => array_values($r))->all();
+}
+
+function xlsxRow(array $rows, string $label): array
+{
+    return collect($rows)->first(fn (array $r) => $r[0] === $label) ?? throw new RuntimeException("No row {$label}");
+}
+
+test('an owner with contracts in a visible and a hidden building: a scoped user sees only the visible contract, on screen and in Excel', function () {
+    $leila = $this->leased->owner_id;
+    $second = activeOwnerContract(['owner_id' => $leila, 'building_id' => $this->other->id, 'type' => 'leased', 'rent_amount' => '25.000', 'payment_frequency' => 'monthly',
+        'fee_type' => null, 'fee_value' => null, 'deposits_held_by' => null, 'start_date' => '2026-03-01', 'end_date' => '2027-02-28'], [Unit::factory()->for($this->other)->create()]);
+    (new OwnerPayable)->forceFill(['owner_contract_id' => $second->id, 'period_start' => '2026-03-01', 'period_end' => '2026-03-31', 'due_date' => '2026-03-01', 'amount' => '25.000', 'status' => 'scheduled'])->save();
+
+    $scoped = User::factory()->withTwoFactor()->create()->givePermissionTo('reports.financial');
+    $scoped->buildings()->attach($this->building->id);
+    $open = fn (User $u) => Livewire::actingAs($u)->test(OwnerIncomeStatementReport::class)->set('owner', $leila)->set('from', '2026-03')->set('to', '2026-04')->set('basis', 'billed');
+
+    // One user at a time: the component reads the acting user from the session.
+    $mine = $open($scoped);
+    expect(reportRowText($mine->html(), 'Head lease earned'))->toBe('Head lease earned 50.000 30.000 80.000')
+        ->and(xlsxRow(statementXlsx($mine->instance()), 'Head lease earned'))->toEqual(['Head lease earned', 50, 30, 80]);
+    $all = $open($this->finance);
+    expect(reportRowText($all->html(), 'Head lease earned'))->toBe('Head lease earned 75.000 30.000 105.000')
+        ->and(xlsxRow(statementXlsx($all->instance()), 'Head lease earned'))->toEqual(['Head lease earned', 75, 30, 105]);
+    $mine->assertSee('Leila Lessor');
+});
+
+test('the owner Excel carries the screen\'s figures, "–" for an unposted fee, the pending marker and the footnote', function () {
+    $page = Livewire::actingAs($this->finance)->test(OwnerIncomeStatementReport::class)->set('owner', $this->managed->owner_id)->set('from', '2026-03')->set('to', '2026-04');
+    $rows = statementXlsx($page->instance());
+
+    expect($rows[0])->toBe(['Line', '03/2026', '04/2026 *', 'Total'])
+        ->and(xlsxRow($rows, 'Less management fee and VAT'))->toEqual(['Less management fee and VAT', 11, '–', 11])
+        ->and(xlsxRow($rows, 'Net income to owner'))->toEqual(['Net income to owner', 69, 0, 69])
+        ->and(end($rows))->toBe(['Fee not final until the owner statement for this month is finalised.']);
+
+    // A pending month that still has a posted fee keeps its number; the header carries the marker.
+    activeOwnerContract(['owner_id' => $this->managed->owner_id, 'building_id' => $this->building->id, 'type' => 'managed',
+        'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'deposits_held_by' => 'company', 'fee_type' => 'percent_collected', 'fee_value' => '10.000'], [Unit::factory()->for($this->building)->create()]);
+    $rows = statementXlsx($page->instance());
+    expect($rows[0])->toBe(['Line', '03/2026 *', '04/2026 *', 'Total'])->and(xlsxRow($rows, 'Less management fee and VAT'))->toEqual(['Less management fee and VAT', 11, '–', 11]);
+});
+
+test('the company Excel carries the screen\'s figures and no footnote', function () {
+    $rows = statementXlsx(Livewire::actingAs($this->finance)->test(IncomeStatementReport::class)->set('from', '2026-03')->set('to', '2026-04')->instance());
+
+    expect($rows[0])->toBe(['Line', '03/2026', '04/2026', 'Total'])
+        ->and(xlsxRow($rows, 'Result'))->toEqual(['Result', 263, -12, 251])
+        ->and(xlsxRow($rows, 'Management fees'))->toEqual(['Management fees', 10, 0, 10])
+        ->and(count(end($rows)))->toBe(4);
 });

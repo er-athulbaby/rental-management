@@ -22,5 +22,9 @@
     </flux:table>
 </div>
 @if (($statement['fee_pending'] ?? []) !== [])
-    <flux:text class="text-sm">– / * {{ __('Fee not final until the owner statement for this month is finalised.') }}</flux:text>
+    @php
+        $feeCells = $statement['rows']['fee']['amounts'] ?? [];
+        $glyphs = collect([in_array(null, $feeCells, true) ? '–' : null, collect($feeCells)->contains(fn ($a, $m) => $a !== null && in_array($m, $statement['fee_pending'], true)) ? '*' : null])->filter()->implode(' / ');
+    @endphp
+    <flux:text class="text-sm">{{ $glyphs }} {{ __('Fee not final until the owner statement for this month is finalised.') }}</flux:text>
 @endif
