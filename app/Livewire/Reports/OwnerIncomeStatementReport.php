@@ -24,7 +24,7 @@ class OwnerIncomeStatementReport extends Component
     #[Url]
     public mixed $owner = null;
 
-    public string $ownerSearch = '';
+    public mixed $ownerSearch = '';
 
     /** @return array<string, list<mixed>> */
     protected function scopeRules(): array
@@ -65,7 +65,7 @@ class OwnerIncomeStatementReport extends Component
     public function render(): View
     {
         $owners = $this->ownerOptions();
-        $term = mb_strtolower(trim($this->ownerSearch));
+        $term = mb_strtolower(trim(is_string($this->ownerSearch) ? $this->ownerSearch : ''));
         $chosen = $this->idOrNull($this->owner);
         $valid = $this->inputsValid();
 

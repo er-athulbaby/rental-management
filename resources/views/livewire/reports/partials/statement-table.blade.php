@@ -10,7 +10,7 @@
         </flux:table.columns>
         <flux:table.rows>
             @foreach ($statement['rows'] as $key => $row)
-                <flux:table.row :key="$key" :class="$row['kind'] === 'total' ? 'font-semibold border-t-2 border-zinc-300 dark:border-zinc-600' : ($row['kind'] === 'memo' ? 'italic text-zinc-500' : '')">
+                <flux:table.row :key="$key" :class="$row['kind'] === 'total' ? 'font-semibold border-t-2 border-zinc-300 dark:border-zinc-600' : ($row['kind'] === 'memo' ? 'italic text-zinc-500 dark:text-zinc-400' : '')">
                     <th scope="row" @if ($row['kind'] !== 'line') aria-label="{{ $row['label'] }} ({{ $row['kind'] === 'total' ? __('total') : __('memo') }})" @endif class="py-3 px-3 first:ps-0 text-start text-sm font-[inherit] whitespace-nowrap">{{ $row['label'] }}</th>
                     @foreach ($row['amounts'] as $month => $amount)
                         <flux:table.cell class="text-end tabular-nums">{{ $amount === null ? '–' : \App\Support\Fils::toDecimal($amount) }}{{ $key === 'fee' && $amount !== null && in_array($month, $statement['fee_pending'] ?? [], true) ? ' *' : '' }}</flux:table.cell>

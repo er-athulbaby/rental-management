@@ -29,5 +29,5 @@
         @endif
     @endif
 
-    <flux:text class="text-sm">{{ $basis === 'billed' ? __('Billed: head lease due, and charges invoiced on the owner\'s units less credit notes, net of VAT, without deposits.') : __('Collected: rent and charges received on the owner\'s units, net of VAT, without deposits, as in the owner ledger. Months agree with finalised owner statements, which cover calendar months.') }}</flux:text>
+    <flux:text class="text-sm">{{ $basis === 'billed' ? __('Billed: head lease due, and charges invoiced on the owner\'s units less credit notes, net of VAT, without deposits.') : __('Collected: rent and charges received on the owner\'s units, net of VAT, without deposits, as in the owner ledger. Rent and charges follow the same entries as owner statements; expenses are counted by expense date, so a month can differ from its statement when an expense was posted late.') }}</flux:text>
 </div>

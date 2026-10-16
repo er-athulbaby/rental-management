@@ -168,11 +168,18 @@ final class IncomeStatement
         }
         $attributed = array_map(fn (OwnerContractStatus $s) => $s->value, OwnerContract::ATTRIBUTED);
 
-        return array_values(array_filter($months, function (string $m) use ($managed, $attributed) {
+        // Months before go-live are never drafted (DraftOwnerStatements), so they are never pending.
+        $goLive = CompanySetting::current()->go_live_at?->toDateString();
+
+        return array_values(array_filter($months, function (string $m) use ($managed, $attributed, $goLive) {
             $first = $m.'-01';
+            $last = CarbonImmutable::parse($first)->endOfMonth()->toDateString();
+            if ($goLive !== null && $last < $goLive) {
+                return false;
+            }
 
             return OwnerContract::query()->whereIn('id', $managed)->whereIn('status', $attributed)
-                ->where('start_date', '<=', CarbonImmutable::parse($first)->endOfMonth()->toDateString())->where('end_date', '>=', $first)
+                ->where('start_date', '<=', $last)->where('end_date', '>=', $first)
                 ->whereDoesntHave('statements', fn ($q) => $q->where('period_start', $first)->where('status', 'finalised'))
                 ->exists();
         }));

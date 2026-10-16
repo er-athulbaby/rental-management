@@ -38,10 +38,10 @@ trait StatementPage
     #[Url]
     public mixed $basis = IncomeStatement::COLLECTED;
 
-    /** @return array<string, list<mixed>> the screen's own inputs */
     /** @var array<int, string>|null owner list, memoised for the request */
     private ?array $ownerOptionsCache = null;
 
+    /** @return array<string, list<mixed>> the screen's own inputs */
     abstract protected function scopeRules(): array;
 
     /** Clears the screen's own inputs (a bad URL). */
@@ -50,7 +50,7 @@ trait StatementPage
     /** A validated id (an int, or a numeric string from a select) as an int; anything else is null. */
     protected function idOrNull(mixed $value): ?int
     {
-        return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null;
+        return is_int($value) || (is_string($value) && ctype_digit(trim($value))) ? (int) $value : null;
     }
 
     public function mountStatementPage(): void
