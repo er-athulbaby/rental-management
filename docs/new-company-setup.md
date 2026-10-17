@@ -203,7 +203,7 @@ Secrets come from the vault; never commit them.
 | `BACKUP_NOTIFY_EMAIL` | your ops mailbox |
 | `BACKUP_S3_KEY` `_SECRET` `_REGION` `_BUCKET` `_ENDPOINT` | this company's bucket |
 | `DB_DUMP_BINARY_PATH` | `/usr/bin` |
-| `HEARTBEAT_*` (13 keys) | one ping URL per scheduled job, see `.env.example` |
+| `HEARTBEAT_*` (14 keys) | one ping URL per scheduled job, see `.env.example` |
 
 The timezone is fixed to Asia/Bahrain in the code; there is no setting for it.
 
@@ -218,4 +218,5 @@ The timezone is fixed to Asia/Bahrain in the code; there is no setting for it.
 | `php artisan rms:number-sequences --year=YYYY` | Creates next year's invoice/receipt numbering (also runs every 1 December). |
 | `php artisan backup:list` / `backup:run` | Lists backups / takes one now. |
 | `php artisan rms:reports:send-scheduled` | Emails saved reports whose schedule is due (also runs every 15 minutes). |
+| `php artisan rms:reminders:send` | Emails today's tenant reminders (also runs daily at 08:00). Does nothing until a type is switched on under Administration → Tenant reminders, or while `MAIL_MAILER` is `log` or `array`. |
 | `GET /health` | `{"status":"up"}` when the app and database are working. |

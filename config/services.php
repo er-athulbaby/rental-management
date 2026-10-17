@@ -51,6 +51,7 @@ return [
             'digests_management' => env('HEARTBEAT_DIGESTS_MANAGEMENT'),
             'digests_documents' => env('HEARTBEAT_DIGESTS_DOCUMENTS'),
             'report_schedules' => env('HEARTBEAT_REPORT_SCHEDULES'),
+            'tenant_reminders' => env('HEARTBEAT_TENANT_REMINDERS'),
         ],
     ],
 
