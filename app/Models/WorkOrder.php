@@ -100,4 +100,36 @@ class WorkOrder extends Model
     {
         return $this->status->isOpen() && $this->scheduled_on !== null && $this->scheduled_on->toDateString() < now('Asia/Bahrain')->toDateString();
     }
+
+    /**
+     * Spec §4 step 2 (plan ruling 12): what the vendor needs, for the printed sheet and "Copy for WhatsApp". It reads no
+     * amount column, so neither ever shows one.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    public function sheetLines(): array
+    {
+        $request = $this->maintenanceRequest;
+        $unit = $request->unit;
+        $tenant = $request->customer;
+
+        return array_values(array_filter([
+            [__('Work order'), $this->number.' ('.$request->number.')'],
+            [__('Vendor'), $this->vendor->name],
+            [__('Address'), implode(', ', array_filter([$request->building->name, $request->building->address ?: $request->building->location]))],
+            [__('Unit'), $unit ? $unit->code.($unit->floor !== null ? ' · '.__('floor :floor', ['floor' => $unit->floor]) : '') : __('Common area')],
+            $tenant ? [__('Tenant'), $tenant->name_en.' · '.$tenant->mobile] : null,
+            [__('Entry permitted'), $request->entry_permitted ? __('Yes') : __('No: arrange a time with the tenant')],
+            [__('Category'), $request->category->label()],
+            [__('Problem'), $request->description],
+            [__('Instructions'), $this->instructions ?: '—'],
+            [__('Scheduled'), $this->scheduled_on?->format('d/m/Y') ?? __('Not scheduled')],
+        ]));
+    }
+
+    /** The sheet as plain text, one "Label: value" line each. */
+    public function sheetText(): string
+    {
+        return implode("\n", array_map(fn (array $line) => $line[0].': '.$line[1], $this->sheetLines()));
+    }
 }

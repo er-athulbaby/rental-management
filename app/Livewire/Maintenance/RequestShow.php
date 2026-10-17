@@ -6,8 +6,11 @@ use App\Actions\Maintenance\AddMaintenanceNote;
 use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\CancelMaintenanceRequest;
 use App\Actions\Maintenance\ChangeWorkOrderStatus;
+use App\Actions\Maintenance\CompleteWorkOrder;
 use App\Actions\Maintenance\ResolveMaintenanceRequest;
+use App\Enums\ExpenseCategory;
 use App\Enums\ExpenseStatus;
+use App\Enums\PermissionName;
 use App\Enums\WorkOrderStatus;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Expense;
@@ -18,10 +21,12 @@ use App\Support\Fils;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Spec 2026-10-17 maintenance §5: a request with its photos, work orders, timeline and linked expenses. Every action
@@ -29,7 +34,7 @@ use Livewire\Component;
  */
 class RequestShow extends Component
 {
-    use WithActor;
+    use WithActor, WithFileUploads;
 
     private const array NEW_WORK_ORDER = ['vendor_id' => '', 'scheduled_on' => '', 'instructions' => '', 'estimate' => ''];
 
@@ -44,6 +49,11 @@ class RequestShow extends Component
     public mixed $cancelling = ['work_order_id' => null, 'reason' => ''];
 
     public mixed $cancelReason = '';
+
+    public mixed $completion = [];
+
+    /** @var UploadedFile|null */
+    public $ownerApproval = null;
 
     public function mount(MaintenanceRequest $maintenanceRequest): void
     {
@@ -168,6 +178,62 @@ class RequestShow extends Component
         Flux::toast(variant: 'success', text: __('Request cancelled.'));
     }
 
+    /** Spec §4 step 4: the completion form, with the expense prefilled from the work order (plan ruling 6). */
+    public function openCompletion(mixed $workOrderId = null): void
+    {
+        $this->resetErrorBag();
+        abort_unless($this->actor()->can('update', $this->request()), 403);
+        $workOrder = $this->workOrderOf($workOrderId, 'workOrders');
+        $this->completion = [
+            'work_order_id' => $workOrder->id,
+            'completion_note' => '',
+            'completed_on' => now('Asia/Bahrain')->toDateString(),
+            'actual_net' => '',
+            'actual_tax' => '0.000',
+            'charge_to' => 'company',
+            'category' => $this->request()->category->expenseCategory()->value,
+            'description' => CompleteWorkOrder::expenseDescription($workOrder),
+            'owner_approval_note' => '',
+        ];
+        $this->ownerApproval = null;
+        Flux::modal('complete-work-order')->show();
+    }
+
+    /** VAT follows the net at the company rate and can still be changed. $key is null when the whole form is replaced. */
+    public function updatedCompletion(mixed $value, ?string $key = null): void
+    {
+        if (! is_array($this->completion)) {
+            $this->completion = []; // a tampered payload starts the form again
+
+            return;
+        }
+        if ($key === 'actual_net') {
+            $this->completion['actual_tax'] = CompleteWorkOrder::defaultVat($value);
+        }
+    }
+
+    public function complete(CompleteWorkOrder $complete): void
+    {
+        $this->resetErrorBag();
+        abort_unless($this->actor()->can('update', $this->request()), 403);
+        $input = is_array($this->completion) ? $this->completion : [];
+        $workOrder = $this->workOrderOf($input['work_order_id'] ?? null, 'completion.completion_note'); // outside the try: its key is final
+
+        try {
+            $complete->handle($this->actor(), $workOrder, $input, $this->ownerApproval instanceof UploadedFile ? $this->ownerApproval : null);
+        } catch (AuthorizationException) {
+            // The user may manage the request, so this is about the cost (plan ruling 7).
+            throw ValidationException::withMessages(['completion.charge_to' => __('You cannot record this cost: it needs expenses.manage, and charging the tenant also needs invoices.manage.')]);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [$k === 'owner_approval' ? 'ownerApproval' : "completion.{$k}" => $m])->all());
+        }
+
+        $this->completion = [];
+        $this->ownerApproval = null;
+        Flux::modal('complete-work-order')->close();
+        Flux::toast(variant: 'success', text: __('Work order completed.'));
+    }
+
     public function render(): View
     {
         $request = MaintenanceRequest::query()
@@ -185,6 +251,11 @@ class RequestShow extends Component
             'vendors' => $canManage && $open ? Vendor::query()->availableFor($request->category)->orderBy('name')->get(['id', 'name']) : collect(),
             'canResolve' => $canManage && $open && $request->workOrders->every(fn (WorkOrder $w) => ! $w->status->isOpen()),
             'canSeeExpenses' => $this->actor()->can('viewAny', Expense::class),
+            'completion' => is_array($this->completion) ? $this->completion : [],
+            'hasCost' => is_array($this->completion) && CompleteWorkOrder::costFils($this->completion['actual_net'] ?? null, $this->completion['actual_tax'] ?? null) > 0,
+            'canRecordCost' => $this->actor()->can('create', Expense::class),
+            'canChargeTenant' => $this->actor()->can(PermissionName::InvoicesManage),
+            'expenseCategories' => ExpenseCategory::cases(),
             'expenses' => $expenses,
             'expenseTotal' => Fils::toDecimal($expenses->filter(fn (Expense $e) => $e->status === ExpenseStatus::Recorded)->sum(fn (Expense $e) => Fils::fromDecimal($e->total))),
         ])->title($request->number);

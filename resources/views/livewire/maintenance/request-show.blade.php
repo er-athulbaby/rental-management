@@ -52,10 +52,15 @@
                         <span class="text-sm text-zinc-500">{{ $wo->vendor->name }}</span>
                     </div>
                     <div class="flex flex-wrap gap-2">
+                        <flux:button size="sm" variant="ghost" icon="printer" :href="route('maintenance.work-orders.sheet', $wo)" target="_blank" :aria-label="__('Sheet :number', ['number' => $wo->number])">{{ __('Sheet') }}</flux:button>
+                        <div x-data="{ text: @js($wo->sheetText()) }">
+                            <flux:button size="sm" variant="ghost" icon="clipboard-document" x-on:click="navigator.clipboard.writeText(text); $flux.toast(@js(__('Copied. Paste it into WhatsApp.')))" :aria-label="__('Copy :number for WhatsApp', ['number' => $wo->number])">{{ __('Copy for WhatsApp') }}</flux:button>
+                        </div>
                         @if ($canManage && $wo->status->isOpen())
                             @if ($wo->status->value === 'assigned')
                                 <flux:button size="sm" wire:click="startWorkOrder({{ $wo->id }})" :aria-label="__('Start :number', ['number' => $wo->number])">{{ __('Start') }}</flux:button>
                             @endif
+                            <flux:button size="sm" variant="primary" wire:click="openCompletion({{ $wo->id }})" :aria-label="__('Complete :number', ['number' => $wo->number])">{{ __('Complete') }}</flux:button>
                             <flux:button size="sm" variant="ghost" wire:click="openCancel({{ $wo->id }})" :aria-label="__('Cancel :number', ['number' => $wo->number])">{{ __('Cancel') }}</flux:button>
                         @endif
                     </div>
@@ -152,6 +157,56 @@
                 <flux:heading size="lg">{{ __('Cancel work order') }}</flux:heading>
                 <flux:textarea wire:model="cancelling.reason" :label="__('Reason')" rows="2" />
                 <flux:button type="submit" variant="danger">{{ __('Cancel work order') }}</flux:button>
+            </form>
+        </flux:modal>
+
+        <flux:modal name="complete-work-order" class="md:w-[36rem]">
+            <form wire:submit="complete" class="space-y-4">
+                <flux:heading size="lg">{{ __('Complete work order') }}</flux:heading>
+                <flux:textarea wire:model="completion.completion_note" :label="__('What was done')" rows="3" />
+                <x-date-input wire:model="completion.completed_on" :label="__('Completed on')" />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <flux:input wire:model.live.debounce.500ms="completion.actual_net" inputmode="decimal" :label="__('Actual cost, net (BHD)')" />
+                    <flux:input wire:model.live.debounce.500ms="completion.actual_tax" inputmode="decimal" :label="__('VAT (BHD)')" />
+                </div>
+                <flux:text class="text-sm">{{ __('Leave the cost empty for work with no charge, such as warranty work or own staff.') }}</flux:text>
+
+                @if ($hasCost)
+                    <flux:fieldset>
+                        <flux:legend>{{ __('Record expense') }}</flux:legend>
+                        <div class="space-y-4">
+                            @unless ($canRecordCost)
+                                <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Recording a cost needs expenses.manage. Complete it with no cost, or ask a property manager.')" />
+                            @endunless
+                            <flux:text class="text-sm">{{ __('For :place, dated the completion date.', ['place' => $request->place()]) }}</flux:text>
+                            <flux:select wire:model="completion.category" :label="__('Category')">
+                                @foreach ($expenseCategories as $c)<option value="{{ $c->value }}">{{ str($c->value)->headline() }}</option>@endforeach
+                            </flux:select>
+                            <flux:input wire:model="completion.description" :label="__('Description')" />
+                            <flux:radio.group wire:model.live="completion.charge_to" :label="__('Charge to')" variant="segmented">
+                                <flux:radio value="company" :label="__('Company')" />
+                                <flux:radio value="owner" :label="__('Owner')" />
+                                @if ($canChargeTenant)
+                                    <flux:radio value="tenant" :label="__('Tenant')" />
+                                @endif
+                            </flux:radio.group>
+                            <flux:error name="completion.charge_to" />
+                            @if (($completion['charge_to'] ?? '') === 'owner')
+                                <flux:textarea wire:model="completion.owner_approval_note" :label="__('Owner approval note (needed above the contract limit)')" rows="2" />
+                                <flux:field>
+                                    <flux:label>{{ __('Owner approval document') }}</flux:label>
+                                    <x-file-button wire:model="ownerApproval" />
+                                    <flux:error name="ownerApproval" />
+                                </flux:field>
+                            @endif
+                            @if (($completion['charge_to'] ?? '') === 'tenant')
+                                <flux:text class="text-sm">{{ __('The unit\'s current tenant is invoiced for the net amount.') }}</flux:text>
+                            @endif
+                        </div>
+                    </flux:fieldset>
+                @endif
+
+                <flux:button type="submit" variant="primary">{{ __('Complete') }}</flux:button>
             </form>
         </flux:modal>
     @endif

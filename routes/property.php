@@ -7,6 +7,7 @@ use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\OwnerStatementExportController;
 use App\Http\Controllers\OwnerStatementPdfController;
 use App\Http\Controllers\ReceiptPdfController;
+use App\Http\Controllers\WorkOrderSheetController;
 use App\Livewire\Agreements;
 use App\Livewire\Approvals;
 use App\Livewire\Buildings;
@@ -104,6 +105,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');
     Route::livewire('maintenance/vendors', Maintenance\Vendors::class)->middleware('can:maintenance.view')->name('maintenance.vendors.index');
     Route::livewire('maintenance/requests/{maintenanceRequest}', Maintenance\RequestShow::class)->middleware('can:maintenance.view')->name('maintenance.requests.show');
+    Route::get('maintenance/work-orders/{workOrder}/sheet', WorkOrderSheetController::class)->middleware('can:maintenance.view')->name('maintenance.work-orders.sheet');
     Route::livewire('maintenance/vendors/create', Maintenance\VendorForm::class)->middleware('can:maintenance.manage')->name('maintenance.vendors.create');
     Route::livewire('maintenance/vendors/{vendor}/edit', Maintenance\VendorForm::class)->middleware('can:maintenance.view')->name('maintenance.vendors.edit');
     Route::livewire('import', Import\Index::class)->middleware('can:import.run')->name('import.index');
