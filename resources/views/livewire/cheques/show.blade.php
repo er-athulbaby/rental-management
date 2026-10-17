@@ -37,6 +37,8 @@
         @if ($cheque->replacedBy)<div><dt class="text-sm text-zinc-500">{{ __('Replaced by') }}</dt><dd><flux:link :href="route('cheques.show', $cheque->replacedBy)" wire:navigate>#{{ $cheque->replacedBy->cheque_no }}</flux:link></dd></div>@endif
     </dl>
 
+    <livewire:reminders.record-panel :record="$cheque" :key="'reminders-cheque-'.$cheque->id" />
+
     <livewire:documents.panel :documentable="$cheque" />
 
     <flux:modal name="clear" class="md:w-96">

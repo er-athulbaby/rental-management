@@ -38,6 +38,7 @@ final class SaveCustomer
             'emergency_contact_name' => ['nullable', 'string', 'max:150'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'no_reminders' => ['sometimes', 'boolean'], // spec 2026-10-17 §6: "Don't send reminders"
         ])->after(function (ValidatorInstance $validator) use ($data, $customer) {
             if ($validator->errors()->isNotEmpty()) {
                 return;

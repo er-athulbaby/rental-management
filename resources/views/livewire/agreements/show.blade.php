@@ -222,6 +222,8 @@
         </div>
     @endif
 
+    <livewire:reminders.record-panel :record="$agreement" :key="'reminders-agreement-'.$agreement->id" />
+
     <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
 
     <flux:modal name="renew" class="md:w-96">

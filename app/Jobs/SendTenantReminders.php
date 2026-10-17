@@ -42,10 +42,10 @@ class SendTenantReminders implements ShouldQueue
         }
     }
 
-    /** A killed or timed-out job must not leave its rows in `sending`. */
+    /** A killed or timed-out job must not leave its rows in `sending`. Only automatic rows: a concurrent manual send's rows are not this job's. */
     public function failed(Throwable $e): void
     {
-        ReminderSend::query()->where('customer_id', $this->customerId)->where('sent_on', $this->date)->where('status', 'sending')
+        ReminderSend::query()->where('customer_id', $this->customerId)->where('sent_on', $this->date)->where('status', 'sending')->where('manual', false)
             ->update(['status' => 'failed', 'reason' => Str::limit($e->getMessage(), 490)]);
     }
 }

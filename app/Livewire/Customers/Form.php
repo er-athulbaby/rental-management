@@ -28,7 +28,7 @@ class Form extends Component
     public ?int $customerId = null;
 
     /** @var array<string, mixed> */
-    public array $form = ['type' => 'individual', 'id_type' => 'cpr'];
+    public array $form = ['type' => 'individual', 'id_type' => 'cpr', 'no_reminders' => false];
 
     public function mount(?Customer $customer = null): void
     {
@@ -39,6 +39,7 @@ class Form extends Component
                 ...$customer->only(['name_en', 'name_ar', 'id_number', 'nationality', 'mobile', 'email', 'address', 'contact_person', 'emergency_contact_name', 'emergency_contact_phone', 'notes']),
                 'type' => $customer->type->value,
                 'id_type' => $customer->id_type->value,
+                'no_reminders' => (bool) $customer->no_reminders,
             ];
         } else {
             abort_unless($this->actor()->can('create', Customer::class), 403);

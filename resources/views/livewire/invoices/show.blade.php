@@ -98,4 +98,6 @@
             @endforeach
         </div>
     @endif
+
+    <livewire:reminders.record-panel :record="$invoice" :key="'reminders-invoice-'.$invoice->id" />
 </section>

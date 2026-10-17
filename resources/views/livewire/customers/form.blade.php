@@ -50,6 +50,8 @@
                         @endif
                     </div>
                     <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" autocomplete="street-address" />
+                    <flux:switch wire:model="form.no_reminders" :label="__('Don\'t send reminders')"
+                        :description="__('No automatic or manual reminder emails go to this tenant.')" />
                 </div>
             </flux:fieldset>
 
