@@ -9,21 +9,35 @@ final class ExcelWriter
 {
     public static function write(ReportResult $result, string $path): void
     {
+        $sheet = self::sheet($result);
         $writer = SimpleExcelWriter::create($path);
-        $labels = array_map(fn (Field $f) => $f->label, $result->columns);
-        $writer->addHeader($labels);
+        $writer->addHeader($sheet['columns']);
+        foreach ($sheet['rows'] as $row) {
+            $writer->addRow($row);
+        }
+        $writer->close();
+    }
+
+    /**
+     * The file's header and rows; also one sheet of a report package (spec 2026-10-17 §4).
+     *
+     * @return array{columns: list<string>, rows: list<array<array-key, mixed>>}
+     */
+    public static function sheet(ReportResult $result): array
+    {
+        $rows = [];
         if ($result->groups === []) {
             foreach ($result->rows as $row) {
-                $writer->addRow(self::line($result->columns, $row));
+                $rows[] = self::line($result->columns, $row);
             }
         } else {
             $deepest = collect($result->groups)->max('level');
             $byGroup = Grouping::rowsByGroup($result->rows);
             foreach ($result->groups as $g) {
-                $writer->addRow(self::subtotal($result->columns, $g));
+                $rows[] = self::subtotal($result->columns, $g);
                 if ($g['level'] === $deepest) {
                     foreach ($byGroup[Grouping::keyId($g['keys'])] ?? [] as $row) {
-                        $writer->addRow(self::line($result->columns, $row));
+                        $rows[] = self::line($result->columns, $row);
                     }
                 }
             }
@@ -37,37 +51,42 @@ final class ExcelWriter
                 }
             }
         }
-        $writer->addRow($total);
+        $rows[] = $total;
         if ($result->comparison !== null) {
-            self::comparison($writer, $result);
+            array_push($rows, ...self::comparison($result));
         }
-        $writer->close();
+
+        return ['columns' => array_map(fn (Field $f) => $f->label, $result->columns), 'rows' => $rows];
     }
 
-    /** A blank row, then Compared | per total: this period, comparison period, change, change %. Plain lists, so the main header does not apply. */
-    private static function comparison(SimpleExcelWriter $writer, ReportResult $result): void
+    /**
+     * A blank row, then Compared | per total: this period, comparison period, change, change %. Plain lists, so the main header does not apply.
+     *
+     * @return list<list<mixed>>
+     */
+    private static function comparison(ReportResult $result): array
     {
         $cmp = $result->comparison ?? [];
         $labels = collect($result->columns)->mapWithKeys(fn (Field $f) => [$f->key => $f->label]);
         $keys = array_map(strval(...), array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]));
-        $writer->addRow([]);
-        $writer->addRow([__('Comparison')]);
+        $rows = [[], [__('Comparison')]];
         $head = [__('Compared')];
         foreach ($keys as $k) {
             $name = $k === 'count' ? __('Rows') : ($labels[explode(':', $k)[0]] ?? $k).' ('.__(explode(':', $k)[1] ?? '').')';
             array_push($head, "{$name}: {$cmp['label']}", "{$name}: {$cmp['compareLabel']}", "{$name}: ".__('Change'), "{$name}: ".__('Change %'));
         }
-        $writer->addRow($head);
+        $rows[] = $head;
         foreach ($cmp['rows'] as $r) {
             $line = [$r['label']];
             foreach ($keys as $k) {
                 $ch = Comparison::change($r['current'][$k] ?? null, $r['previous'][$k] ?? null);
                 $num = fn (mixed $v) => is_numeric($v) ? (float) $v : '';
                 array_push($line, $num($r['current'][$k] ?? null), $num($r['previous'][$k] ?? null), $num($ch['diff']), $num($ch['pct']));
-
             }
-            $writer->addRow($line);
+            $rows[] = $line;
         }
+
+        return $rows;
     }
 
     /**
