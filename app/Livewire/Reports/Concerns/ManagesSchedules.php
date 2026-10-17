@@ -21,10 +21,12 @@ use Illuminate\Validation\Rule;
  */
 trait ManagesSchedules
 {
-    /** @var array<string, mixed> client-controlled: validated in addSchedule() */
-    public array $schedule = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
+    private const array NEW_SCHEDULE = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
 
-    public string $staffSearch = '';
+    // Untyped on purpose: a tampered payload (a string, an array) must not throw a TypeError (a 500). Validated in addSchedule().
+    public mixed $schedule = self::NEW_SCHEDULE;
+
+    public mixed $staffSearch = '';
 
     /** The saved report or package being scheduled: 404 when unsaved, 403 unless the user may change it. */
     abstract protected function scheduleTarget(): SavedReport|ReportPackage;
@@ -32,6 +34,11 @@ trait ManagesSchedules
     /** Day follows the frequency: weekly 0-6, monthly 1-28 or 0 for the last day, daily none. */
     public function updatedSchedule(mixed $value, ?string $key = null): void
     {
+        if (! is_array($this->schedule)) {
+            $this->schedule = self::NEW_SCHEDULE; // a tampered payload starts the form again
+
+            return;
+        }
         if ($key === 'frequency') {
             $this->schedule['day'] = match ($value) {
                 'weekly' => 0,
@@ -44,21 +51,22 @@ trait ManagesSchedules
     public function addSchedule(): void
     {
         $target = $this->scheduleTarget();
-        $frequency = $this->schedule['frequency'] ?? null;
+        $input = is_array($this->schedule) ? $this->schedule : [];
+        $frequency = $input['frequency'] ?? null;
         $this->validate([
             'schedule.frequency' => ['required', 'in:daily,weekly,monthly'],
             'schedule.day' => $frequency === 'daily' ? ['nullable'] : ['required', 'integer', $frequency === 'weekly' ? 'between:0,6' : 'between:0,28'],
             'schedule.hour' => ['required', 'integer', 'between:0,23'],
             'schedule.recipients' => ['required', 'array', 'min:1', 'max:50'],
-            'schedule.recipients.*' => ['integer', Rule::in($this->eligibleAmong($this->schedule['recipients'] ?? []))],
+            'schedule.recipients.*' => ['integer', Rule::in($this->eligibleAmong($input['recipients'] ?? []))],
         ], ['schedule.recipients.*.in' => __('Pick staff from the list.'), 'schedule.recipients.required' => __('Pick at least one person.'),
             'schedule.day.required' => __('Pick a day.')]);
-        $data = ['frequency' => (string) $frequency, 'day' => $frequency === 'daily' ? null : (int) $this->schedule['day'], 'hour' => (int) $this->schedule['hour']];
-        $recipients = array_values(array_unique(array_map('intval', $this->schedule['recipients'])));
+        $data = ['frequency' => (string) $frequency, 'day' => $frequency === 'daily' ? null : (int) $input['day'], 'hour' => (int) $input['hour']];
+        $recipients = array_values(array_unique(array_map('intval', $input['recipients'])));
         $schedule = $target->schedules()->create([...$data, 'created_by' => $this->actor()->id, 'next_run_at' => NextRun::after($data, now()->toImmutable())]);
         $schedule->recipients()->sync($recipients);
         Audit::log('report.scheduled', $target, properties: ['schedule' => $schedule->id, ...$data, 'recipients' => $recipients], causer: $this->actor());
-        $this->schedule = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
+        $this->schedule = self::NEW_SCHEDULE;
         Flux::toast(variant: 'success', text: __('Scheduled.'));
     }
 
@@ -124,8 +132,8 @@ trait ManagesSchedules
     /** @return Collection<int, User> what the picker shows: the search matches (max 50) plus everyone already ticked */
     private function staff(): Collection
     {
-        $term = trim($this->staffSearch);
-        $picked = $this->eligibleAmong($this->schedule['recipients'] ?? []);
+        $term = trim(is_string($this->staffSearch) ? $this->staffSearch : '');
+        $picked = $this->eligibleAmong(is_array($this->schedule) ? ($this->schedule['recipients'] ?? []) : []);
         $matches = $this->eligible()->orderBy('name')->limit(50)
             ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', '%'.addcslashes($term, '%_\\').'%')->orWhere('email', 'like', '%'.addcslashes($term, '%_\\').'%')))
             ->get(['id', 'name', 'email']);

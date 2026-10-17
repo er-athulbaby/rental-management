@@ -160,8 +160,16 @@ class Builder extends Component
         $this->redirectRoute('reports.builder', $report, navigate: true);
     }
 
-    public function share(bool $shared): void
+    public function share(mixed $shared = null): void
     {
+        $shared = match ($shared) {
+            true, 'true' => true,
+            false, 'false' => false,
+            default => null, // a tampered argument is ignored
+        };
+        if ($shared === null) {
+            return;
+        }
         $report = SavedReport::findOrFail((int) $this->reportId);
         abort_unless($this->actor()->can('update', $report), 403);
         $report->update(['visibility' => $shared ? 'shared' : 'private']);

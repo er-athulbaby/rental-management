@@ -82,7 +82,7 @@ class Package extends Component
         $this->add = '';
     }
 
-    public function removeItem(mixed $index): void
+    public function removeItem(mixed $index = null): void
     {
         $this->authorizeEdit();
         $items = $this->itemList();
@@ -93,7 +93,7 @@ class Package extends Component
         $this->items = array_values($items);
     }
 
-    public function moveItem(mixed $index, mixed $by): void
+    public function moveItem(mixed $index = null, mixed $by = null): void
     {
         $this->authorizeEdit();
         $items = $this->itemList();
@@ -142,8 +142,16 @@ class Package extends Component
         $this->redirectRoute('reports.package', $package, navigate: true);
     }
 
-    public function share(bool $shared): void
+    public function share(mixed $shared = null): void
     {
+        $shared = match ($shared) {
+            true, 'true' => true,
+            false, 'false' => false,
+            default => null, // a tampered argument is ignored
+        };
+        if ($shared === null) {
+            return;
+        }
         $package = $this->editable();
         $package->update(['visibility' => $shared ? 'shared' : 'private']);
         Audit::log('report.shared', $package, properties: ['visibility' => $package->visibility, 'package' => true], causer: $this->actor());

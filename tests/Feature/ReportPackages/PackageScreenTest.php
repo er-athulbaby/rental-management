@@ -331,3 +331,43 @@ test('a tampered schedule id on remove or resume is ignored on both screens, nev
     }
     expect(ReportSchedule::count())->toBe(2)->and(ReportSchedule::whereNull('paused_at')->count())->toBe(0);
 })->with(['text' => 'abc', 'array' => [[1]], 'null' => null, 'negative' => '-5', 'huge' => '99999999999999999999']);
+
+test('final review I1: move and remove with no arguments are ignored, never a 500', function () {
+    $page = Livewire::actingAs($this->finance)->test(Package::class)->set('items', [...$this->overstays, ['kind' => 'ready_made', 'report' => 'rent_roll', 'settings' => []]]);
+    $page->call('moveItem')->assertOk()->call('moveItem', 0)->assertOk()->call('removeItem')->assertOk();
+    expect($page->get('items'))->toHaveCount(2)->and($page->get('items.0.report'))->toBe('overstays');
+});
+
+test('final review I1: a tampered share argument is ignored on both screens, never a 500', function (array $args) {
+    $package = packageWith($this->finance, $this->overstays);
+    foreach ([Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package]),
+        Livewire::actingAs($this->finance)->test(Builder::class, ['report' => $this->saved])] as $screen) {
+        $screen->call('share', ...$args)->assertOk();
+    }
+    expect($package->fresh()->visibility)->toBe('private')->and($this->saved->fresh()->visibility)->toBe('private')
+        ->and(Activity::where('event', 'report.shared')->count())->toBe(0);
+})->with(['array' => [[[1]]], 'null' => [[null]], 'nothing' => [[]], 'text' => [['yes']], 'one' => [[1]]]);
+
+test('final review I1: share still accepts true, false and their string forms', function () {
+    $package = packageWith($this->finance, $this->overstays);
+    $page = Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package]);
+
+    $page->call('share', 'true');
+    expect($package->fresh()->visibility)->toBe('shared');
+    $page->call('share', false);
+    expect($package->fresh()->visibility)->toBe('private');
+});
+
+test('final review I1: a mistyped schedule or staff search is ignored on both screens, never a 500', function (string $property, mixed $value) {
+    $package = packageWith($this->finance, $this->overstays);
+    foreach ([Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package]),
+        Livewire::actingAs($this->finance)->test(Builder::class, ['report' => $this->saved])] as $screen) {
+        $screen->set($property, $value)->assertOk()->call('addSchedule')->assertOk()->assertHasErrors();
+    }
+    expect(ReportSchedule::count())->toBe(0);
+})->with([
+    'schedule as text' => ['schedule', 'x'],
+    'schedule as null' => ['schedule', null],
+    'staff search as an array' => ['staffSearch', ['x']],
+    'staff search as null' => ['staffSearch', null],
+]);
