@@ -10,12 +10,12 @@ use Illuminate\Console\Command;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
-/** Spec §7: claim every due, unpaused schedule once (unique schedule + due time), queue its send, move it on. */
+/** Spec §7: claim every due, unpaused schedule once (unique schedule + due time), queue its send, move it on (spec §7; packages: spec 2026-10-17 §5). */
 class SendScheduledReports extends Command
 {
     protected $signature = 'rms:reports:send-scheduled';
 
-    protected $description = 'Send saved reports whose email schedule is due.';
+    protected $description = 'Send saved reports and report packages whose email schedule is due.';
 
     public function handle(): int
     {
@@ -23,9 +23,9 @@ class SendScheduledReports extends Command
         collect(glob(storage_path('app/private/report-mail/*.xlsx')) ?: [])
             ->filter(fn ($f) => filemtime($f) < now()->subDay()->getTimestamp())->each(fn ($f) => @unlink($f));
 
-        $due = ReportSchedule::query()->whereNull('paused_at')->where('next_run_at', '<=', now())->with(['creator', 'report'])->get();
+        $due = ReportSchedule::query()->whereNull('paused_at')->where('next_run_at', '<=', now())->with(['creator', 'report', 'package'])->get();
         foreach ($due as $schedule) {
-            if ($schedule->report === null || ! $schedule->creator?->active) {
+            if (($schedule->report === null && $schedule->package === null) || ! $schedule->creator?->active) {
                 $schedule->update(['paused_at' => now()]);
 
                 continue;
