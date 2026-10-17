@@ -43,4 +43,25 @@
             @endif
         </div>
     @endif
+
+    @if ($urgent)
+        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="flex items-baseline justify-between gap-2">
+                <span class="text-sm font-medium text-zinc-800 dark:text-white">{{ __('Urgent maintenance') }}</span>
+                <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'all'])" wire:navigate class="text-xs">{{ __('Open: :n', ['n' => $urgent['count']]) }}</flux:link>
+            </div>
+            @if ($urgent['requests']->isEmpty())
+                <flux:text class="mt-2 text-sm">{{ __('No urgent requests.') }}</flux:text>
+            @else
+                <ul class="mt-2 divide-y divide-zinc-200 dark:divide-zinc-700">
+                    @foreach ($urgent['requests'] as $r)
+                        <li wire:key="urgent-{{ $r->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                            <span><flux:link :href="route('maintenance.requests.show', $r)" wire:navigate>{{ $r->number }}</flux:link> · {{ $r->place() }} · {{ $r->summary() }}</span>
+                            <span class="text-zinc-500">{{ $r->created_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    @endif
 </div>

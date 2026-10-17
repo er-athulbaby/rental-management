@@ -50,6 +50,9 @@
     </form>
 
     @if ($unit)
+        @if ($maintenance)
+            <x-maintenance-requests :requests="$maintenance" />
+        @endif
         <livewire:documents.panel :documentable="$unit" :key="'docs-unit-'.$unit->id" />
     @endif
 </section>

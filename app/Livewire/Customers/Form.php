@@ -11,6 +11,7 @@ use App\Enums\InvoiceType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Support\Fils;
 use Flux\Flux;
@@ -74,6 +75,8 @@ class Form extends Component
                 'credit' => Fils::toDecimal(CustomerCredit::fils($customer->id)),
                 'canRecord' => $this->actor()->can('create', Payment::class),
             ] : null,
+            'maintenance' => $customer && $this->actor()->can('maintenance.view')
+                ? MaintenanceRequest::query()->visibleTo($this->actor())->where('customer_id', $customer->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
         ])->title($customer ? $customer->name_en : __('New tenant'));
     }

@@ -71,6 +71,9 @@
     </form>
 
     @if ($customer)
+        @if ($maintenance)
+            <x-maintenance-requests :requests="$maintenance" />
+        @endif
         <livewire:reminders.record-panel :record="$customer" :key="'reminders-customer-'.$customer->id" />
         <livewire:documents.panel :documentable="$customer" :key="'docs-customer-'.$customer->id" />
     @endif

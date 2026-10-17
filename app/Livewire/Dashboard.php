@@ -2,13 +2,17 @@
 
 namespace App\Livewire;
 
+use App\Enums\MaintenancePriority;
+use App\Enums\MaintenanceStatus;
 use App\Enums\PaymentMethod;
 use App\Livewire\Concerns\WithActor;
+use App\Models\MaintenanceRequest;
 use App\Models\Unit;
 use App\Models\User;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Component;
 
 /** Spec §10: 8 number tiles, each needing its report's permission and linking to it; plus two charts (collections, occupancy) under the same permissions. */
@@ -92,6 +96,23 @@ class Dashboard extends Component
         return ['units' => $units, 'occupied' => $occupied, 'percent' => $units > 0 ? round(100 * $occupied / $units, 1) : 0.0];
     }
 
+    /**
+     * Spec 2026-10-17 maintenance §4 step 1: open and in-progress urgent requests in the user's buildings, the five oldest.
+     * A card of its own, not a tile (plan ruling 11). Null without maintenance.view.
+     *
+     * @return array{count: int, requests: Collection<int, MaintenanceRequest>}|null
+     */
+    public static function urgentMaintenance(User $user): ?array
+    {
+        if (! $user->can('maintenance.view')) {
+            return null;
+        }
+        $urgent = fn () => MaintenanceRequest::query()->visibleTo($user)->where('priority', MaintenancePriority::Urgent)
+            ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress]);
+
+        return ['count' => $urgent()->count(), 'requests' => $urgent()->with(['building:id,name', 'unit:id,code'])->orderBy('id')->limit(5)->get()];
+    }
+
     public function render(): View
     {
         $user = $this->actor();
@@ -100,6 +121,7 @@ class Dashboard extends Component
             'tiles' => self::tiles($user),
             'collections' => self::collectionsChart($user),
             'occupancy' => self::occupancy($user),
+            'urgent' => self::urgentMaintenance($user),
         ])->title(__('Dashboard'));
     }
 }

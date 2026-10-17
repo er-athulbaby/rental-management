@@ -8,6 +8,7 @@ use App\Enums\TaxCategory;
 use App\Enums\UnitUse;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
+use App\Models\MaintenanceRequest;
 use App\Models\Unit;
 use App\Models\UnitType;
 use Flux\Flux;
@@ -77,6 +78,8 @@ class Form extends Component
             'types' => UnitType::choices($unit?->type),
             'furnishings' => Furnishing::cases(),
             'taxCategories' => TaxCategory::cases(),
+            'maintenance' => $unit && $this->actor()->can('maintenance.view')
+                ? MaintenanceRequest::query()->visibleTo($this->actor())->where('unit_id', $unit->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $unit ? $this->actor()->can('update', $unit) : true,
         ])->title($unit ? __('Unit :code', ['code' => $unit->code]) : __('New unit'));
     }
