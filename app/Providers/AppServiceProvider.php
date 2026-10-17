@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Audit\AuthEventSubscriber;
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
+use App\Reminders\Channel;
+use App\Reminders\EmailChannel;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(Channel::class, EmailChannel::class); // spec 2026-10-17 §7: WhatsApp later
     }
 
     /**
