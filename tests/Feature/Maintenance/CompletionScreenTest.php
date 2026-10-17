@@ -133,3 +133,22 @@ test('the sheet needs maintenance.view in the request\'s building', function () 
     $elsewhere->buildings()->attach(Building::factory()->create()->id);
     $this->actingAs($elsewhere)->get(route('maintenance.work-orders.sheet', $this->wo))->assertForbidden();
 });
+
+test('a trashed vendor or unit never breaks the sheet or the request page; a trashed building is out of scope, a 403 and not a 500', function () {
+    $this->plumber->delete();
+    $this->unit->delete();
+
+    $this->actingAs($this->pm)->get(route('maintenance.work-orders.sheet', $this->wo))->assertOk()
+        ->assertSee('Ali Plumbing')->assertSee('Seef Tower')->assertSee('101');
+    ($this->page)($this->pm)->assertOk()->assertSee('Copy for WhatsApp');
+
+    $this->building->delete();
+    $this->actingAs($this->pm)->get(route('maintenance.work-orders.sheet', $this->wo))->assertForbidden();
+});
+
+test('a user who can only view cannot open or submit the completion form', function () {
+    $leasing = matrixUser(R::Leasing, $this->building);
+
+    ($this->page)($leasing)->call('openCompletion', $this->wo->id)->assertForbidden();
+    ($this->page)($leasing)->call('complete')->assertForbidden();
+});

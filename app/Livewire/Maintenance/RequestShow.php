@@ -240,6 +240,7 @@ class RequestShow extends Component
             ->with(['building' => fn ($q) => $q->withTrashed(), 'unit' => fn ($q) => $q->withTrashed(), 'customer', 'creator:id,name', 'workOrders.vendor' => fn ($q) => $q->withTrashed(), 'workOrders.expense', 'events.user:id,name', 'events.workOrder:id,number'])
             ->findOrFail($this->requestId);
         abort_unless($this->actor()->can('view', $request), 403);
+        $request->workOrders->each->setRelation('maintenanceRequest', $request); // sheetText() reads it: no query per work order
         $canManage = $this->actor()->can('update', $request);
         $open = ! $request->status->isClosed();
         $expenses = $request->workOrders->pluck('expense')->filter()->values();

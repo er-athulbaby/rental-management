@@ -67,19 +67,19 @@ class MaintenanceRequest extends Model
     /** @return BelongsTo<Building, $this> */
     public function building(): BelongsTo
     {
-        return $this->belongsTo(Building::class);
+        return $this->belongsTo(Building::class)->withTrashed();
     }
 
     /** @return BelongsTo<Unit, $this> */
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(Unit::class)->withTrashed();
     }
 
     /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

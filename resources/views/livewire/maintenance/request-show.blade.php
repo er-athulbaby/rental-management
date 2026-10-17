@@ -180,7 +180,7 @@
                             @endunless
                             <flux:text class="text-sm">{{ __('For :place, dated the completion date.', ['place' => $request->place()]) }}</flux:text>
                             <flux:select wire:model="completion.category" :label="__('Category')">
-                                @foreach ($expenseCategories as $c)<option value="{{ $c->value }}">{{ str($c->value)->headline() }}</option>@endforeach
+                                @foreach ($expenseCategories as $c)<option value="{{ $c->value }}">{{ __(str($c->value)->headline()->toString()) }}</option>@endforeach
                             </flux:select>
                             <flux:input wire:model="completion.description" :label="__('Description')" />
                             <flux:radio.group wire:model.live="completion.charge_to" :label="__('Charge to')" variant="segmented">
