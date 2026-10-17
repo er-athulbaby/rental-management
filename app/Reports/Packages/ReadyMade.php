@@ -9,7 +9,9 @@ use App\Livewire\Reports\DepositsHeldReport;
 use App\Livewire\Reports\ExpiringAgreementsReport;
 use App\Livewire\Reports\IdDocumentsReport;
 use App\Livewire\Reports\IncomeStatementReport;
+use App\Livewire\Reports\MaintenanceCostReport;
 use App\Livewire\Reports\OccupancyReport;
+use App\Livewire\Reports\OpenMaintenanceReport;
 use App\Livewire\Reports\OutstandingReport;
 use App\Livewire\Reports\OverstaysReport;
 use App\Livewire\Reports\OwnerIncomeStatementReport;
@@ -18,7 +20,7 @@ use App\Livewire\Reports\RentRollReport;
 use App\Livewire\Reports\VatSummaryReport;
 use InvalidArgumentException;
 
-/** Spec 2026-10-17 §3: the 14 reports on ReportPage / StatementPage, keyed as their exports audit them, in Reports page order. */
+/** Spec 2026-10-17 §3: the 16 reports on ReportPage / StatementPage, keyed as their exports audit them, in Reports page order. */
 final class ReadyMade
 {
     /** @var array<string, class-string<PackageReport>> */
@@ -30,6 +32,8 @@ final class ReadyMade
         'pending_approvals' => PendingApprovalsReport::class,
         'id_documents' => IdDocumentsReport::class,
         'cheques' => ChequesReport::class,
+        'open_maintenance' => OpenMaintenanceReport::class,
+        'maintenance_cost' => MaintenanceCostReport::class,
         'income_statement' => IncomeStatementReport::class,
         'owner_income_statement' => OwnerIncomeStatementReport::class,
         'outstanding' => OutstandingReport::class,

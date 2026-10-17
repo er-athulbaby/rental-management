@@ -26,6 +26,8 @@ class Index extends Component
                 ['route' => 'reports.approvals', 'label' => __('Pending approvals'), 'icon' => 'check-badge', 'about' => __('Requests waiting for a decision.')],
                 ['route' => 'reports.id-documents', 'label' => __('ID documents expiring'), 'icon' => 'identification', 'about' => __('CPR, passport and CR copies about to expire.')],
                 ['route' => 'reports.cheques', 'label' => __('Cheques'), 'icon' => 'banknotes', 'about' => __('Cheques to deposit, and bounced cheques to chase.')],
+                ['route' => 'reports.open-maintenance', 'label' => __('Open maintenance'), 'icon' => 'wrench-screwdriver', 'about' => __('Requests still open, urgent first, with their age and vendor.')],
+                ['route' => 'reports.maintenance-cost', 'label' => __('Maintenance cost'), 'icon' => 'wrench', 'about' => __('What maintenance cost, by building, unit or category.')],
             ],
             'financial' => [
                 ['route' => 'reports.building-profitability', 'label' => __('Building profitability'), 'icon' => 'chart-bar', 'about' => __('Income against head lease and expenses, per building.')],
@@ -46,7 +48,9 @@ class Index extends Component
     {
         $user = $this->actor();
         $cheques = $user->can('cheques.manage') || $user->can('finance.view'); // spec §10: the cheque reports also need one of these
-        $operational = array_values(array_filter(self::catalogue()['operational'], fn (array $r) => $r['route'] !== 'reports.cheques' || $cheques));
+        $maintenance = $user->can('maintenance.view'); // the maintenance reports also need it (plan ruling 16)
+        $operational = array_values(array_filter(self::catalogue()['operational'], fn (array $r) => ($r['route'] !== 'reports.cheques' || $cheques)
+            && (! in_array($r['route'], ['reports.open-maintenance', 'reports.maintenance-cost'], true) || $maintenance)));
         $groups = array_filter([
             __('Operational') => $user->can('reports.operational') ? $operational : [],
             __('Financial') => $user->can('reports.financial') ? self::catalogue()['financial'] : [],

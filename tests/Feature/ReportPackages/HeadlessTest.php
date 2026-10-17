@@ -23,14 +23,15 @@ beforeEach(function () {
     CompanySetting::factory()->create();
     $this->travelTo(CarbonImmutable::parse('2026-10-15 10:00', 'Asia/Bahrain'));
     [$this->a, $this->b, $this->finance, $this->owner] = reportPackageFixture();
+    $this->finance->givePermissionTo('maintenance.view'); // the maintenance reports need it
     $this->hidden = Building::factory()->create();
     // Finance sees every building (buildings.view_all); this user sees only AAA, so the whitelist can be tested.
     $this->scoped = User::factory()->withTwoFactor()->create()->givePermissionTo(['reports.operational', 'reports.financial']);
     $this->scoped->buildings()->attach($this->a->id);
 });
 
-test('the registry lists the 14 reports under the keys their exports audit', function () {
-    expect(ReadyMade::REPORTS)->toHaveCount(14);
+test('the registry lists the 16 reports under the keys their exports audit', function () {
+    expect(ReadyMade::REPORTS)->toHaveCount(16);
     foreach (ReadyMade::REPORTS as $key => $class) {
         expect($key)->toBe(Str::snake(Str::beforeLast(class_basename($class), 'Report')))
             ->and(is_subclass_of(ReadyMade::get($key), PackageReport::class))->toBeTrue();
@@ -45,8 +46,8 @@ test('the registry lists the 14 reports under the keys their exports audit', fun
         ->and(ReadyMade::get('income_statement')::packageForm($this->finance)['building'])->toBeTrue();
 });
 
-test('final review C1: the browser cannot call the package entry points on any of the 14 report pages', function () {
-    $this->scoped->givePermissionTo('finance.view'); // so the cheques page opens too
+test('final review C1: the browser cannot call the package entry points on any of the 16 report pages', function () {
+    $this->scoped->givePermissionTo(['finance.view', 'maintenance.view']); // so the cheque and maintenance pages open too
     foreach (ReadyMade::REPORTS as $class) {
         foreach ([['sheet', [$this->finance->id, ['to' => '2026-10-15']]], ['packageForm', [$this->finance->id]],
             ['checkSettings', [$this->finance->id, []]], ['formFor', [$this->finance->id]], ['checkFor', [$this->finance->id, []]],
@@ -87,6 +88,8 @@ test('each ready-made report runs headless and gives exactly the header and rows
     'pending approvals' => ['pending_approvals', [], false],
     'ID documents' => ['id_documents', ['window' => '90'], false],
     'cheques' => ['cheques', ['kind' => 'bounced'], false],
+    'open maintenance' => ['open_maintenance', [], false],
+    'maintenance cost' => ['maintenance_cost', ['from' => '2026-09-01', 'to' => '2026-10-31', 'group' => 'building'], false],
     'income statement, one building' => ['income_statement', ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'billed', 'building' => ':a'], true],
     'owner income statement' => ['owner_income_statement', ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'collected', 'owner' => ':owner'], true],
     'outstanding' => ['outstanding', [], true],
