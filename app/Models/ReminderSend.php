@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\PermissionName;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -71,6 +74,44 @@ class ReminderSend extends Model
     public function agreement(): BelongsTo
     {
         return $this->belongsTo(Agreement::class, 'item_id');
+    }
+
+    /**
+     * Rows whose record the user may open (plan ruling 14): invoices and cheques need finance.view, agreements need
+     * agreements.view; building scope is each record's own visibleTo.
+     *
+     * @param  Builder<ReminderSend>  $query
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        $finance = $user->can(PermissionName::FinanceView);
+        $agreements = $user->can(PermissionName::AgreementsView);
+
+        $query->where(function (Builder $q) use ($user, $finance, $agreements) {
+            $q->whereRaw('1 = 0');
+            if ($finance) {
+                $q->orWhere(fn (Builder $i) => $i->where('item_type', 'invoice')->whereIn('item_id', Invoice::query()->visibleTo($user)->select('id')))
+                    ->orWhere(fn (Builder $c) => $c->where('item_type', 'cheque')->whereIn('item_id', Cheque::query()->visibleTo($user)->select('id')));
+            }
+            if ($agreements) {
+                $q->orWhere(fn (Builder $a) => $a->where('item_type', 'agreement')->whereIn('item_id', Agreement::query()->visibleTo($user)->select('id')));
+            }
+        });
+    }
+
+    /**
+     * Rows whose record is in the building, by each record's own inBuilding.
+     *
+     * @param  Builder<ReminderSend>  $query
+     */
+    #[Scope]
+    protected function inBuilding(Builder $query, int $buildingId): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->where(fn (Builder $i) => $i->where('item_type', 'invoice')->whereIn('item_id', Invoice::query()->inBuilding($buildingId)->select('id')))
+            ->orWhere(fn (Builder $c) => $c->where('item_type', 'cheque')->whereIn('item_id', Cheque::query()->inBuilding($buildingId)->select('id')))
+            ->orWhere(fn (Builder $a) => $a->where('item_type', 'agreement')->whereIn('item_id', Agreement::query()->inBuilding($buildingId)->select('id'))));
     }
 
     public function itemLabel(): string

@@ -7,10 +7,12 @@ use App\Enums\RoleName;
 use App\Models\Agreement;
 use App\Models\Bank;
 use App\Models\Building;
+use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Owner;
 use App\Models\OwnerContract;
+use App\Models\ReminderSend;
 use App\Models\ReportPackage;
 use App\Models\Unit;
 use App\Models\User;
@@ -252,4 +254,17 @@ function reminderTenant(array $attributes, string $end, ?Building $building = nu
     $agreement = activeAgreement(['customer_id' => $tenant->id, 'start_date' => '2026-01-01', 'end_date' => $end, 'grace_days' => 5], [$unit]);
 
     return [$tenant, $agreement];
+}
+
+/** A reminder log row for $item (reminder tests): automatic, rule day 1, sent today, its own batch, unless $attributes say otherwise. */
+function logReminder(Customer $tenant, string $type, Invoice|Cheque|Agreement $item, array $attributes = []): ReminderSend
+{
+    return ReminderSend::create([
+        'customer_id' => $tenant->id, 'type' => $type, 'item_id' => $item->id,
+        'item_type' => match (true) {
+            $item instanceof Invoice => 'invoice', $item instanceof Cheque => 'cheque', default => 'agreement'
+        },
+        'rule_day' => 1, 'sent_on' => now('Asia/Bahrain')->toDateString(), 'channel' => 'email', 'status' => 'sent',
+        'batch' => (string) Str::uuid(), ...$attributes,
+    ]);
 }

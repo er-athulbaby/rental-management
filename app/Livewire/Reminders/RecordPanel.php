@@ -14,6 +14,7 @@ use App\Reminders\ReminderSender;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -90,12 +91,22 @@ class RecordPanel extends Component
         $refusal = $item === null ? null : app(ReminderSender::class)->refusal($item->tenant());
         $mail = $item !== null && $refusal === null ? new TenantReminder($item->tenant(), [$item]) : null;
 
+        // Only what the viewer could open (plan ruling 14); on a tenant, every item of theirs.
+        $sends = ReminderSend::query()->visibleTo($this->actor())
+            ->when($record instanceof Customer,
+                fn (Builder $q) => $q->where('customer_id', $record->getKey()),
+                fn (Builder $q) => $q->where('item_type', $this->kind)->where('item_id', $record->getKey()))
+            ->with(['invoice:id,number,status', 'cheque:id,cheque_no', 'agreement:id,number', 'sender:id,name'])
+            ->latest('id')->limit(20)->get();
+
         return view('livewire.reminders.record-panel', [
             'sendable' => $item !== null,
             'refusal' => $refusal === null ? null : ReminderSend::reasonText($refusal),
             'email' => $item?->tenant()->email,
             'subject' => $mail?->subjectLine(),
             'previewHtml' => $mail?->render(),
+            'sends' => $sends,
+            'showItem' => $record instanceof Customer,
         ]);
     }
 }

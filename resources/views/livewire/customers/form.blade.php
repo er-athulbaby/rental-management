@@ -71,6 +71,7 @@
     </form>
 
     @if ($customer)
+        <livewire:reminders.record-panel :record="$customer" :key="'reminders-customer-'.$customer->id" />
         <livewire:documents.panel :documentable="$customer" :key="'docs-customer-'.$customer->id" />
     @endif
 </section>

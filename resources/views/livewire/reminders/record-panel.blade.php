@@ -1,3 +1,5 @@
+@use('App\Models\ReminderSend')
+@use('App\Models\ReminderSetting')
 <div class="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
     <div class="flex flex-wrap items-center justify-between gap-2">
         <flux:heading size="sm">{{ __('Reminders') }}</flux:heading>
@@ -15,6 +17,27 @@
         <flux:text size="sm">{{ __('Can\'t send: :reason', ['reason' => $refusal]) }}</flux:text>
     @endif
     <flux:error name="reminder" />
+
+    @if ($sends->isEmpty())
+        <flux:text size="sm">{{ __('No reminders yet.') }}</flux:text>
+    @else
+        <ul class="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+            @foreach ($sends as $s)
+                <li class="flex flex-wrap items-center gap-2 py-2" wire:key="rs-{{ $s->id }}">
+                    <span class="tabular-nums">{{ $s->sent_on->format('d/m/Y') }}</span>
+                    <span>· {{ ReminderSetting::label($s->type) }}</span>
+                    @if ($showItem)
+                        <span>· <flux:link :href="$s->itemUrl()" wire:navigate>{{ $s->itemLabel() }}</flux:link></span>
+                    @endif
+                    <flux:badge size="sm" :color="$s->statusColor()">{{ $s->statusLabel() }}</flux:badge>
+                    <span class="text-zinc-500">{{ $s->manual ? __('Manual · :name', ['name' => $s->sender?->name]) : __('Automatic') }}</span>
+                    @if ($s->reason !== null)
+                        <span class="text-zinc-500">· {{ ReminderSend::reasonText($s->reason) }}</span>
+                    @endif
+                </li>
+            @endforeach
+        </ul>
+    @endif
 
     @if ($previewHtml !== null)
         <flux:modal name="send-reminder" class="w-full md:max-w-3xl">
