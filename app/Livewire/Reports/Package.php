@@ -81,19 +81,27 @@ class Package extends Component
         $this->add = '';
     }
 
-    public function removeItem(int $index): void
+    public function removeItem(mixed $index): void
     {
         $this->authorizeEdit();
         $items = $this->itemList();
-        unset($items[$index]);
+        if (! is_int($index) && ! (is_string($index) && ctype_digit($index))) {
+            return; // a tampered argument is ignored
+        }
+        unset($items[(int) $index]);
         $this->items = array_values($items);
     }
 
-    public function moveItem(int $index, int $by): void
+    public function moveItem(mixed $index, mixed $by): void
     {
         $this->authorizeEdit();
         $items = $this->itemList();
-        $to = $index + $by;
+        $num = fn (mixed $v): bool => is_int($v) || (is_string($v) && preg_match('/^-?\d+$/', $v) === 1);
+        if (! $num($index) || ! $num($by)) {
+            return;
+        }
+        $index = (int) $index;
+        $to = $index + (int) $by;
         if (isset($items[$index], $items[$to])) {
             [$items[$index], $items[$to]] = [$items[$to], $items[$index]];
             $this->items = $items;
@@ -162,8 +170,13 @@ class Package extends Component
         abort_unless($user->can('view', $package), 403);
         $result = app(PackageRunner::class)->run($package, $user, CarbonImmutable::now('Asia/Bahrain'));
         $path = sys_get_temp_dir().'/rms-package-'.Str::uuid().'.xlsx';
-        PackageWorkbook::write($result, $path);
-        Audit::log('report.exported', properties: ['report' => 'package', 'package' => $package->id], causer: $user);
+        try {
+            PackageWorkbook::write($result, $path);
+            Audit::log('report.exported', properties: ['report' => 'package', 'package' => $package->id], causer: $user);
+        } catch (\Throwable $e) {
+            @unlink($path);
+            throw $e;
+        }
 
         return response()->download($path, (Str::slug($package->name) ?: 'package').'-'.now('Asia/Bahrain')->toDateString().'.xlsx')->deleteFileAfterSend();
     }

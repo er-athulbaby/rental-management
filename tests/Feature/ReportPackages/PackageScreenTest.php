@@ -5,9 +5,11 @@ use App\Livewire\Reports\Index;
 use App\Livewire\Reports\Package;
 use App\Models\Building;
 use App\Models\CompanySetting;
+use App\Models\Owner;
 use App\Models\ReportPackage;
 use App\Models\ReportSchedule;
 use App\Models\SavedReport;
+use App\Models\Unit;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
@@ -177,3 +179,41 @@ test('the move buttons carry labels', function () {
     Livewire::actingAs($this->finance)->test(Package::class)->set('items', $this->overstays)
         ->assertSeeHtml('aria-label="Move up"')->assertSeeHtml('aria-label="Move down"');
 });
+
+test('an Admin cannot open another user\'s private package, but edits a shared one they can see', function () {
+    $admin = matrixUser(RoleName::Admin, $this->a);
+    $package = packageWith($this->finance, $this->overstays);
+    $this->actingAs($admin)->get(route('reports.package', $package))->assertForbidden();
+
+    $package->update(['visibility' => 'shared']);
+    $this->actingAs($admin)->get(route('reports.package', $package))->assertOk();
+    Livewire::actingAs($admin)->test(Package::class, ['package' => $package])->set('name', 'Edited')->call('save')->assertHasNoErrors();
+    expect($package->fresh()->name)->toBe('Edited');
+});
+
+test('an owner outside the editor\'s buildings is refused on both owner-scoped statements', function (string $report, string $error) {
+    $hidden = Building::factory()->create();
+    $stranger = Owner::factory()->create(['name_en' => 'Stranger Owner']);
+    activeOwnerContract(['owner_id' => $stranger->id, 'building_id' => $hidden->id, 'type' => 'leased', 'rent_amount' => '25.000', 'payment_frequency' => 'monthly',
+        'fee_type' => null, 'fee_value' => null, 'deposits_held_by' => null, 'start_date' => '2026-03-01', 'end_date' => '2027-02-28'], [Unit::factory()->for($hidden)->create()]);
+    $finance = $this->leasing;
+    $finance->givePermissionTo('reports.financial'); // scoped to building A only
+
+    Livewire::actingAs($finance)->test(Package::class)->set('name', 'P')
+        ->set('items', [['kind' => 'ready_made', 'report' => $report, 'settings' => ['owner' => (string) $stranger->id, 'period' => 'last_month', 'basis' => 'collected']]])
+        ->assertOk()->call('save')->assertHasErrors($error);
+    expect(ReportPackage::count())->toBe(0);
+})->with([
+    'owner income statement' => ['owner_income_statement', 'items.0.settings.owner'],
+    'company income statement' => ['income_statement', 'items.0.settings.owner'],
+]);
+
+test('move and remove ignore tampered arguments', function (mixed $a, mixed $b) {
+    $page = Livewire::actingAs($this->finance)->test(Package::class)->set('items', [...$this->overstays, ['kind' => 'ready_made', 'report' => 'rent_roll', 'settings' => []]]);
+    $page->call('moveItem', $a, $b)->assertOk()->call('removeItem', $a)->assertOk();
+    expect($page->get('items'))->toHaveCount(2);
+})->with([
+    'array' => [[1], ['x']],
+    'text' => ['abc', 'abc'],
+    'null' => [null, null],
+]);

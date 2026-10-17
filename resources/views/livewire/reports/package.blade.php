@@ -1,8 +1,8 @@
 <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="min-w-0 flex-1">
-            <flux:input wire:model.blur="name" :placeholder="__('Untitled package')" :aria-label="__('Package name')" class="max-w-md" :disabled="! $canEdit" />
-            @error('name')<flux:text class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
+            <flux:input wire:model.blur="name" :placeholder="__('Untitled package')" :aria-label="__('Package name')" aria-describedby="package-name-error" :aria-invalid="$errors->has('name') ? 'true' : null" class="max-w-md" :disabled="! $canEdit" />
+            @error('name')<flux:text id="package-name-error" class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @if ($canEdit)
@@ -11,7 +11,7 @@
             @if ($packageId)
                 <flux:button icon="arrow-down-tray" wire:click="download">{{ __('Download now') }}</flux:button>
                 @if ($canEdit)
-                    <flux:button :icon="$shared ? 'users' : 'lock-closed'" wire:click="share({{ $shared ? 'false' : 'true' }})">{{ $shared ? __('Shared') : __('Only me') }}</flux:button>
+                    <flux:button :icon="$shared ? 'users' : 'lock-closed'" wire:click="share({{ $shared ? 'false' : 'true' }})" aria-pressed="{{ $shared ? 'true' : 'false' }}">{{ $shared ? __('Shared') : __('Only me') }}</flux:button>
                     <flux:button variant="ghost" icon="trash" wire:click="deletePackage" wire:confirm="{{ __('Delete this package?') }}" :aria-label="__('Delete')" />
                 @endif
             @endif
@@ -41,15 +41,15 @@
                 @if ($row['form'] !== null)
                     <div class="mt-3 grid gap-3 sm:grid-cols-4">
                         @if ($row['form']['building'])
-                            <x-building-filter :buildings="$buildings" :model="'items.'.$row['index'].'.settings.building'" :disabled="! $canEdit" />
+                            <x-building-filter :buildings="$buildings" :model="'items.'.$row['index'].'.settings.building'" :label="__('Building').' ('.$row['title'].')'" :disabled="! $canEdit" />
                         @endif
                         @if ($row['form']['dates'] !== 'none')
-                            <flux:select wire:model="items.{{ $row['index'] }}.settings.period" :label="__('Period')" :disabled="! $canEdit">
+                            <flux:select wire:model="items.{{ $row['index'] }}.settings.period" :label="__('Period').' ('.$row['title'].')'" :disabled="! $canEdit">
                                 @foreach ($presets as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
                             </flux:select>
                         @endif
                         @foreach ($row['form']['options'] as $property => $choices)
-                            <flux:select wire:model="items.{{ $row['index'] }}.settings.{{ $property }}" :label="__(str($property)->headline()->toString())" :disabled="! $canEdit">
+                            <flux:select wire:model="items.{{ $row['index'] }}.settings.{{ $property }}" :label="__(str($property)->headline()->toString()).' ('.$row['title'].')'" :disabled="! $canEdit">
                                 @foreach ($choices as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
                             </flux:select>
                         @endforeach
