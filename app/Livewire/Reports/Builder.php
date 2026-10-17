@@ -3,19 +3,15 @@
 namespace App\Livewire\Reports;
 
 use App\Audit\Audit;
-use App\Enums\RoleName;
 use App\Livewire\Concerns\WithActor;
+use App\Livewire\Reports\Concerns\ManagesSchedules;
 use App\Models\Building;
-use App\Models\ReportDelivery;
-use App\Models\ReportSchedule;
 use App\Models\SavedReport;
-use App\Models\User;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\FieldType;
 use App\Reports\Builder\Formatter;
-use App\Reports\Builder\NextRun;
 use App\Reports\Builder\Period;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
@@ -24,11 +20,8 @@ use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -37,7 +30,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /** The report builder (spec §3.2). `def` is the definition being edited; every render validates and runs it. */
 class Builder extends Component
 {
-    use WithActor;
+    use ManagesSchedules, WithActor;
 
     public const int CHART_LIMIT = 50;
 
@@ -52,11 +45,6 @@ class Builder extends Component
     public array $dropped = [];
 
     public string $name = '';
-
-    /** @var array<string, mixed> client-controlled: validated in addSchedule() */
-    public array $schedule = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
-
-    public string $staffSearch = '';
 
     public function mount(?SavedReport $report = null): void
     {
@@ -191,95 +179,12 @@ class Builder extends Component
         $this->redirectRoute('reports.index', navigate: true);
     }
 
-    /** Day follows the frequency: weekly 0-6, monthly 1-28 or 0 for the last day, daily none. */
-    public function updatedSchedule(mixed $value, ?string $key = null): void
-    {
-        if ($key === 'frequency') {
-            $this->schedule['day'] = match ($value) {
-                'weekly' => 0,
-                'monthly' => 1,
-                default => null,
-            };
-        }
-    }
-
-    public function addSchedule(): void
+    protected function scheduleTarget(): SavedReport
     {
         $report = SavedReport::findOrFail((int) $this->reportId);
         abort_unless($this->actor()->can('update', $report), 403);
-        $frequency = $this->schedule['frequency'] ?? null;
-        $this->validate([
-            'schedule.frequency' => ['required', 'in:daily,weekly,monthly'],
-            'schedule.day' => $frequency === 'daily' ? ['nullable'] : ['required', 'integer', $frequency === 'weekly' ? 'between:0,6' : 'between:0,28'],
-            'schedule.hour' => ['required', 'integer', 'between:0,23'],
-            'schedule.recipients' => ['required', 'array', 'min:1', 'max:50'],
-            'schedule.recipients.*' => ['integer', Rule::in($this->eligibleAmong($this->schedule['recipients'] ?? []))],
-        ], ['schedule.recipients.*.in' => __('Pick staff from the list.'), 'schedule.recipients.required' => __('Pick at least one person.'),
-            'schedule.day.required' => __('Pick a day.')]);
-        $data = ['frequency' => (string) $frequency, 'day' => $frequency === 'daily' ? null : (int) $this->schedule['day'], 'hour' => (int) $this->schedule['hour']];
-        $recipients = array_values(array_unique(array_map('intval', $this->schedule['recipients'])));
-        $schedule = ReportSchedule::create([...$data, 'saved_report_id' => $report->id, 'created_by' => $this->actor()->id,
-            'next_run_at' => NextRun::after($data, now()->toImmutable())]);
-        $schedule->recipients()->sync($recipients);
-        Audit::log('report.scheduled', $report, properties: ['schedule' => $schedule->id, ...$data, 'recipients' => $recipients], causer: $this->actor());
-        $this->schedule = ['frequency' => 'monthly', 'day' => 1, 'hour' => 7, 'recipients' => []];
-        Flux::toast(variant: 'success', text: __('Scheduled.'));
-    }
 
-    public function removeSchedule(int $id): void
-    {
-        $report = SavedReport::findOrFail((int) $this->reportId);
-        abort_unless($this->actor()->can('update', $report), 403);
-        $schedule = $report->schedules()->whereKey($id)->first();
-        if ($schedule !== null) {
-            $schedule->delete();
-            Audit::log('report.scheduled', $report, properties: ['schedule' => $id, 'action' => 'removed'], causer: $this->actor());
-            Flux::toast(text: __('Schedule removed.'));
-        }
-    }
-
-    /** Clears the pause and failure count, then waits for the next due time. */
-    public function resumeSchedule(int $id): void
-    {
-        $report = SavedReport::findOrFail((int) $this->reportId);
-        abort_unless($this->actor()->can('update', $report), 403);
-        $schedule = $report->schedules()->whereKey($id)->first();
-        if ($schedule !== null) {
-            $schedule->update(['paused_at' => null, 'consecutive_failures' => 0, 'next_run_at' => NextRun::after($schedule, now()->toImmutable())]);
-            Audit::log('report.scheduled', $report, properties: ['schedule' => $id, 'action' => 'resumed'], causer: $this->actor());
-            Flux::toast(variant: 'success', text: __('Schedule resumed.'));
-        }
-    }
-
-    /** @return list<int> the submitted ids that are eligible recipients, in one query */
-    private function eligibleAmong(mixed $ids): array
-    {
-        $ids = array_values(array_filter(is_array($ids) ? $ids : [], fn ($v) => is_int($v) || (is_string($v) && ctype_digit($v) && strlen($v) < 10)));
-
-        return $ids === [] ? [] : array_values($this->eligible()->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all());
-    }
-
-    /**
-     * Active staff who may receive reports: never Vendor Support or the system user (the job skips them too).
-     *
-     * @return EloquentBuilder<User>
-     */
-    private function eligible(): EloquentBuilder
-    {
-        return User::query()->where('active', true)->where('is_system', false)->withoutRole(RoleName::VendorSupport);
-    }
-
-    /** @return Collection<int, User> what the picker shows: the search matches (max 50) plus everyone already ticked */
-    private function staff(): Collection
-    {
-        $term = trim($this->staffSearch);
-        $picked = $this->eligibleAmong($this->schedule['recipients'] ?? []);
-        $matches = $this->eligible()->orderBy('name')->limit(50)
-            ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', '%'.addcslashes($term, '%_\\').'%')->orWhere('email', 'like', '%'.addcslashes($term, '%_\\').'%')))
-            ->get(['id', 'name', 'email']);
-        $ticked = $picked === [] ? collect() : $this->eligible()->whereIn('id', $picked)->get(['id', 'name', 'email']);
-
-        return $matches->concat($ticked)->unique('id')->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+        return $report;
     }
 
     public function export(): BinaryFileResponse
@@ -403,13 +308,8 @@ class Builder extends Component
             $errors = $e->errors();
         }
 
-        $schedules = $this->reportId === null ? collect() : SavedReport::findOrFail($this->reportId)->schedules()->with('recipients:id,name')->orderBy('id')->get();
-        $lastDelivery = ReportDelivery::whereIn('report_schedule_id', $schedules->pluck('id'))->orderByDesc('due_at')->get()->unique('report_schedule_id')->keyBy('report_schedule_id');
-
         return view('livewire.reports.builder', [
-            'schedules' => $schedules,
-            'lastDelivery' => $lastDelivery,
-            'staff' => $this->reportId === null ? collect() : $this->staff(),
+            ...$this->scheduleData($this->reportId === null ? null : SavedReport::findOrFail($this->reportId)),
             'subjects' => Registry::forUser($user),
             'subject' => $subject,
             'fields' => $fields,

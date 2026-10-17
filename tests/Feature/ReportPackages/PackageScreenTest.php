@@ -217,3 +217,45 @@ test('move and remove ignore tampered arguments', function (mixed $a, mixed $b) 
     'text' => ['abc', 'abc'],
     'null' => [null, null],
 ]);
+
+test('the package screen schedules email to staff like the builder, audited on the package', function () {
+    $package = packageWith($this->finance, $this->overstays);
+
+    Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package])->assertSee('Schedule email')
+        ->set('schedule', ['frequency' => 'weekly', 'day' => 0, 'hour' => 8, 'recipients' => [$this->finance->id]])->call('addSchedule')->assertHasNoErrors();
+
+    $schedule = ReportSchedule::sole();
+    expect($schedule->report_package_id)->toBe($package->id)->and($schedule->saved_report_id)->toBeNull()
+        ->and($schedule->next_run_at->format('Y-m-d H:i'))->toBe('2026-10-18 08:00')
+        ->and($schedule->recipients->pluck('id')->all())->toBe([$this->finance->id])
+        ->and(Activity::where('event', 'report.scheduled')->sole()->subject->is($package))->toBeTrue();
+
+    Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package])
+        ->set('schedule', ['frequency' => 'daily', 'day' => null, 'hour' => 99, 'recipients' => ['x']])->call('addSchedule')
+        ->assertHasErrors(['schedule.hour', 'schedule.recipients.0']);
+    expect(ReportSchedule::count())->toBe(1);
+});
+
+test('only an editor schedules a package; an unsaved package has no schedule form', function () {
+    $package = packageWith($this->finance, $this->overstays, 'Monthly pack', 'shared');
+    $schedule = $package->schedules()->create(['frequency' => 'daily', 'hour' => 7, 'next_run_at' => now()->addDay(), 'created_by' => $this->finance->id]);
+    $other = matrixUser(RoleName::Finance, $this->a);
+
+    Livewire::actingAs($other)->test(Package::class, ['package' => $package])->assertDontSee('Schedule email')
+        ->set('schedule', ['frequency' => 'daily', 'day' => null, 'hour' => 7, 'recipients' => [$other->id]])->call('addSchedule')->assertForbidden();
+    Livewire::actingAs($other)->test(Package::class, ['package' => $package])->call('removeSchedule', $schedule->id)->assertForbidden();
+    Livewire::actingAs($this->finance)->test(Package::class)->assertDontSee('Schedule email')
+        ->set('schedule', ['frequency' => 'daily', 'day' => null, 'hour' => 7, 'recipients' => [$this->finance->id]])->call('addSchedule')->assertNotFound();
+});
+
+test('a package schedule is resumed and removed from the package screen, audited', function () {
+    $package = packageWith($this->finance, $this->overstays);
+    $schedule = $package->schedules()->create(['frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id,
+        'next_run_at' => now()->addDay(), 'paused_at' => now(), 'consecutive_failures' => 3]);
+
+    Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package])->assertSee('Paused')
+        ->call('resumeSchedule', $schedule->id)->call('removeSchedule', $schedule->id);
+
+    expect(ReportSchedule::count())->toBe(0)
+        ->and(Activity::where('event', 'report.scheduled')->get()->map(fn ($a) => $a->properties['action'])->all())->toBe(['resumed', 'removed']);
+});

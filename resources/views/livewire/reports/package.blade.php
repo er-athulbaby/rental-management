@@ -12,12 +12,17 @@
                 <flux:button icon="arrow-down-tray" wire:click="download">{{ __('Download now') }}</flux:button>
                 @if ($canEdit)
                     <flux:button :icon="$shared ? 'users' : 'lock-closed'" wire:click="share({{ $shared ? 'false' : 'true' }})" aria-pressed="{{ $shared ? 'true' : 'false' }}">{{ $shared ? __('Shared') : __('Only me') }}</flux:button>
+                    <flux:modal.trigger name="schedule-email"><flux:button icon="envelope">{{ __('Schedule email') }}</flux:button></flux:modal.trigger>
                     <flux:button variant="ghost" icon="trash" wire:click="deletePackage" wire:confirm="{{ __('Delete this package?') }}" :aria-label="__('Delete')" />
                 @endif
             @endif
             <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
         </div>
     </div>
+
+    @if ($packageId && $canEdit)
+        @include('livewire.reports.partials.schedule-modal', ['intro' => __('Each person gets the package with only the data they are allowed to see.'), 'fixedDates' => false])
+    @endif
 
     <flux:text>{{ __('One Excel workbook, one sheet per report, in this order. Periods are worked out again on every run.') }}</flux:text>
     @error('items')<flux:text class="text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror

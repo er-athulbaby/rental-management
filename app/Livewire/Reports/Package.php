@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Audit\Audit;
 use App\Livewire\Concerns\WithActor;
+use App\Livewire\Reports\Concerns\ManagesSchedules;
 use App\Models\Building;
 use App\Models\ReportPackage;
 use App\Models\ReportPackageItem;
@@ -31,7 +32,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class Package extends Component
 {
-    use WithActor;
+    use ManagesSchedules, WithActor;
 
     #[Locked]
     public ?int $packageId = null;
@@ -190,6 +191,11 @@ class Package extends Component
         return $package;
     }
 
+    protected function scheduleTarget(): ReportPackage
+    {
+        return $this->editable();
+    }
+
     private function authorizeEdit(): void
     {
         if ($this->packageId !== null) {
@@ -298,6 +304,7 @@ class Package extends Component
         $saved = SavedReport::visibleTo($user)->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.reports.package', [
+            ...$this->scheduleData($package),
             'rows' => $this->itemViews($forms, $saved->pluck('name', 'id')->all()),
             'ready' => array_filter($forms, fn (array $f) => $f['allowed']),
             'saved' => $saved,
