@@ -21,7 +21,7 @@ test('it installs everything a new company needs', function () use ($options) {
 
     expect(CompanySetting::current()->name_en)->toBe('Demo Properties W.L.L.')
         ->and(Role::count())->toBe(6)
-        ->and(DB::table('number_sequences')->count())->toBe(16);
+        ->and(DB::table('number_sequences')->count())->toBe(20);
 
     $admin = User::where('email', 'admin@demo.test')->firstOrFail();
     expect($admin->hasRole(RoleName::Admin))->toBeTrue();

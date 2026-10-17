@@ -2,6 +2,8 @@
 
 use App\Actions\Billing\IssueInvoice;
 use App\Actions\EnsureNumberSequences;
+use App\Actions\Maintenance\AddWorkOrder;
+use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
 use App\Models\Agreement;
@@ -10,6 +12,7 @@ use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\MaintenanceRequest;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\ReminderSend;
@@ -17,6 +20,7 @@ use App\Models\ReportPackage;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\WorkOrder;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ReportDefinition;
 use App\Reports\Builder\ReportResult;
@@ -274,4 +278,20 @@ function logReminder(Customer $tenant, string $type, Invoice|Cheque|Agreement $i
 function maintenanceVendor(array $attributes = []): Vendor
 {
     return Vendor::create(['name' => 'Fix-It Co', 'type' => 'company', 'trades' => ['general'], 'mobile' => '+973 3300 0000', 'active' => true, ...$attributes]);
+}
+
+/** A request logged by $by on $unit with its current tenant (maintenance tests): plumbing, normal, entry permitted. Needs this year's number sequences. */
+function maintenanceRequest(User $by, Unit $unit, array $data = []): MaintenanceRequest
+{
+    return app(LogMaintenanceRequest::class)->handle($by, [
+        'building_id' => $unit->building_id, 'unit_id' => $unit->id, 'customer_id' => MaintenanceRequest::currentTenantId($unit->id),
+        'reported_by_name' => 'Front desk', 'channel' => 'phone', 'category' => 'plumbing', 'priority' => 'normal',
+        'description' => 'Kitchen sink leaking', 'entry_permitted' => true, ...$data,
+    ]);
+}
+
+/** A work order on $request for $vendor, added by $by (maintenance tests). */
+function workOrderFor(User $by, MaintenanceRequest $request, Vendor $vendor, array $data = []): WorkOrder
+{
+    return app(AddWorkOrder::class)->handle($by, $request, ['vendor_id' => $vendor->id, ...$data]);
 }

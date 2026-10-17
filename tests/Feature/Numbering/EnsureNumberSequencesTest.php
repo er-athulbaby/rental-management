@@ -4,12 +4,12 @@ use App\Actions\EnsureNumberSequences;
 use Illuminate\Support\Facades\DB;
 
 test('it creates one row per key with the right prefixes, once', function () {
-    expect(app(EnsureNumberSequences::class)(2026))->toBe(8)
+    expect(app(EnsureNumberSequences::class)(2026))->toBe(10)
         ->and(app(EnsureNumberSequences::class)(2026))->toBe(0);
 
     expect(DB::table('number_sequences')->where('year', 2026)->orderBy('key')->pluck('prefix', 'key')->all())->toBe([
-        'agreement' => 'AGR', 'credit_note' => 'CN', 'deposit_settlement' => 'DS', 'invoice' => 'INV',
-        'owner_contract' => 'OC', 'owner_statement' => 'OS', 'payment_out' => 'PO', 'receipt' => 'RCP',
+        'agreement' => 'AGR', 'credit_note' => 'CN', 'deposit_settlement' => 'DS', 'invoice' => 'INV', 'maintenance_request' => 'MR',
+        'owner_contract' => 'OC', 'owner_statement' => 'OS', 'payment_out' => 'PO', 'receipt' => 'RCP', 'work_order' => 'WO',
     ]);
 });
 
@@ -18,5 +18,5 @@ test('the command defaults to next year', function () {
 
     $this->artisan('rms:number-sequences')->assertSuccessful();
 
-    expect(DB::table('number_sequences')->where('year', 2027)->count())->toBe(8);
+    expect(DB::table('number_sequences')->where('year', 2027)->count())->toBe(10);
 });

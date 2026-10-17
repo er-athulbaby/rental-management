@@ -7,6 +7,7 @@ use App\Enums\VendorType;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -40,6 +41,12 @@ class Vendor extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logAll()->logOnlyDirty()->dontLogEmptyChanges();
+    }
+
+    /** @return HasMany<WorkOrder, $this> */
+    public function workOrders(): HasMany
+    {
+        return $this->hasMany(WorkOrder::class);
     }
 
     /** Spec §4 step 2: the vendor's trades include the category, or general. */

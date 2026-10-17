@@ -12,6 +12,8 @@ enum NumberSequenceKey: string
     case PaymentOut = 'payment_out';
     case OwnerStatement = 'owner_statement';
     case DepositSettlement = 'deposit_settlement';
+    case MaintenanceRequest = 'maintenance_request';
+    case WorkOrder = 'work_order';
 
     public function prefix(): string
     {
@@ -24,6 +26,8 @@ enum NumberSequenceKey: string
             self::PaymentOut => 'PO',
             self::OwnerStatement => 'OS',
             self::DepositSettlement => 'DS',
+            self::MaintenanceRequest => 'MR',
+            self::WorkOrder => 'WO',
         };
     }
 }

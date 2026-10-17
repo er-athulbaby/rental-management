@@ -89,7 +89,7 @@ test('categories read in proper English in the panel', function () {
     Livewire::actingAs($this->manager)->test(Panel::class, ['documentable' => $this->building])
         ->assertSee('ID copy')->assertSee('CR copy')->assertSee('Move-out photo')->assertDontSee('Id Copy');
     expect(array_map(fn (DocumentCategory $c) => $c->label(), DocumentCategory::cases()))
-        ->toBe(['Photo', 'ID copy', 'CR copy', 'Signed contract', 'Cheque image', 'Move-out photo', 'Owner approval', 'Generated PDF', 'Other']);
+        ->toBe(['Photo', 'ID copy', 'CR copy', 'Signed contract', 'Cheque image', 'Move-out photo', 'Owner approval', 'Generated PDF', 'Maintenance photo', 'Other']);
 });
 
 test('PDFs and pictures open in the browser with a fixed type; Word and Excel files still download', function () {

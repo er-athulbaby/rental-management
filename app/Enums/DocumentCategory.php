@@ -12,6 +12,7 @@ enum DocumentCategory: string
     case MoveOutPhoto = 'move_out_photo';
     case OwnerApproval = 'owner_approval';
     case GeneratedPdf = 'generated_pdf';
+    case Maintenance = 'maintenance';
     case Other = 'other';
 
     public function label(): string
@@ -25,6 +26,7 @@ enum DocumentCategory: string
             self::MoveOutPhoto => __('Move-out photo'),
             self::OwnerApproval => __('Owner approval'),
             self::GeneratedPdf => __('Generated PDF'),
+            self::Maintenance => __('Maintenance photo'),
             self::Other => __('Other'),
         };
     }
