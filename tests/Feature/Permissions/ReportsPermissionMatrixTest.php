@@ -37,6 +37,7 @@ test('report pages open for exactly the roles the spec allows', function (string
     ['reports.vat', $financial],
     ['reports.income-statement', $financial],
     ['reports.owner-income-statement', $financial],
+    ['reports.package', $operational], // reports.operational or reports.financial (financial ⊂ operational here)
     ['reports.index', R::cases()],
     ['dashboard', R::cases()],
 ]);

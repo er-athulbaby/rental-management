@@ -30,6 +30,31 @@
         </section>
     @endif
 
+    @if ($canPackage)
+        <section class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <flux:heading size="lg">{{ __('Packages') }}</flux:heading>
+                <flux:button icon="plus" :href="route('reports.package')" wire:navigate>{{ __('New package') }}</flux:button>
+            </div>
+            @if ($myPackages->isEmpty() && $sharedPackages->isEmpty())
+                <flux:text>{{ __('Bundle several reports into one Excel workbook, and email it on a schedule.') }}</flux:text>
+            @else
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    @foreach ([[__('Mine'), $myPackages], [__('Shared with me'), $sharedPackages]] as [$heading, $list])
+                        @foreach ($list as $p)
+                            <a href="{{ route('reports.package', $p) }}" wire:navigate class="block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-700 dark:bg-zinc-900">
+                                <span class="block truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $p->name }}</span>
+                                <span class="mt-0.5 block text-sm text-zinc-500">
+                                    {{ __(':n reports', ['n' => $p->items_count]) }} · {{ $heading }}@if ($p->creator && $p->created_by !== auth()->id()) · {{ $p->creator->name }}@endif
+                                </span>
+                            </a>
+                        @endforeach
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    @endif
+
     @forelse ($groups as $group => $reports)
         <section class="space-y-3">
             <flux:heading size="lg">{{ $group }}</flux:heading>
