@@ -62,16 +62,16 @@ class Index extends Component
     {
         abort_unless($this->actor()->canAny(['finance.view', 'agreements.view']), 403);
         $this->validate($this->filterRules());
-        Audit::log('report.exported', properties: ['report' => 'reminders', ...$this->filters()], causer: $this->actor());
 
         $path = sys_get_temp_dir().'/rms-reminders-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
         $writer->addHeader([__('Date'), __('Tenant'), __('Type'), __('Item'), __('Channel'), __('Status'), __('Reason'), __('Sent by')]);
         foreach ($this->query()->get() as $row) { // ponytail: the whole range in memory; chunk it if a range ever holds tens of thousands
             $writer->addRow([$row->sent_on->format('d/m/Y'), $row->customer->name_en ?? '', ReminderSetting::label($row->type), $row->itemLabel(),
-                __('Email'), $row->statusLabel(), ReminderSend::reasonText($row->reason), $row->manual ? ($row->sender->name ?? '') : __('Automatic')]);
+                __('Email'), $row->statusLabel(), ReminderSend::reasonText($row->reason), $row->manual ? __('Manual · :name', ['name' => $row->sender->name ?? '']) : __('Automatic')]);
         }
         $writer->close();
+        Audit::log('report.exported', properties: ['report' => 'reminders', ...$this->filters()], causer: $this->actor()); // only once the file exists
 
         return response()->download($path, "reminders-{$this->from}-{$this->to}.xlsx")->deleteFileAfterSend();
     }
@@ -113,6 +113,7 @@ class Index extends Component
     {
         return view('livewire.reminders.index', [
             'rows' => $this->query()->paginate(50),
+            'valid' => validator($this->filters(), $this->filterRules())->passes(),
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('code')->get(['id', 'code', 'name']),
             'types' => collect(ReminderSetting::TYPES)->mapWithKeys(fn (string $t) => [$t => ReminderSetting::label($t)])->all(),
             'statuses' => ['sent' => __('Sent'), 'failed' => __('Failed'), 'skipped' => __('Skipped')],

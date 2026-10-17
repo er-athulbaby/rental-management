@@ -93,3 +93,29 @@ test('bad URL parameters fall back to the defaults; every role opens the page; a
     $this->actingAs(User::factory()->withTwoFactor()->create())->get(route('reminders.index'))->assertForbidden();
     $this->actingAs($this->finance)->get(route('dashboard'))->assertSee(route('reminders.index'));
 });
+
+test('the export holds exactly the rows on screen, is limited to what the user may see, and its temp file is deleted', function () {
+    $page = Livewire::actingAs($this->finance)->test(Index::class)->set('from', '2026-09-01');
+    $response = $page->instance()->export();
+    $path = $response->getFile()->getPathname();
+    copy($path, $copy = $path.'.copy.xlsx'); // read a copy: Windows will not unlink a file still open
+    $rows = xlsxRows($copy);
+
+    expect($rows)->toHaveCount(5)
+        ->and(array_column($rows, 3))->toContain($this->invA->number, $this->agA->number, $this->invB->number, $this->agB->number)
+        ->and(collect($rows)->flatten()->implode(' '))->toContain('Manual · '.$this->finance->name, 'SMTP said no');
+
+    ob_start();
+    $response->sendContent();
+    ob_end_clean();
+    expect(file_exists($path))->toBeFalse();
+    @unlink($copy);
+
+    $leasing = Livewire::actingAs(matrixUser(RoleName::Leasing, $this->a))->test(Index::class)->set('from', '2026-09-01');
+    $leasingRows = xlsxRows($leasing->instance()->export()->getFile()->getPathname());
+    expect($leasingRows)->toHaveCount(2)->and($leasingRows[1][2])->toBe('Renewal')->and($leasingRows[1][3])->toBe($this->agA->number);
+});
+
+test('an invalid filter says so instead of claiming there are no reminders', function () {
+    Livewire::actingAs($this->finance)->test(Index::class)->set('status', 'queued')->assertSee('Fix the filters above')->assertDontSee('No reminders in this period');
+});

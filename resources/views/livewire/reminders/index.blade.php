@@ -48,7 +48,7 @@
                         <flux:table.cell>{{ $row->manual ? __('Manual · :name', ['name' => $row->sender?->name]) : __('Automatic') }}</flux:table.cell>
                     </flux:table.row>
                 @empty
-                    <flux:table.row><flux:table.cell colspan="8">{{ __('No reminders in this period.') }}</flux:table.cell></flux:table.row>
+                    <flux:table.row><flux:table.cell colspan="8">{{ $valid ? __('No reminders in this period.') : __('Fix the filters above to see reminders.') }}</flux:table.cell></flux:table.row>
                 @endforelse
             </flux:table.rows>
         </flux:table>
