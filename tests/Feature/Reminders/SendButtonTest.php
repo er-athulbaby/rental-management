@@ -73,18 +73,32 @@ test('a manual send does not stop the automatic reminder the same day', function
 test('a held cheque and an agreement ending within 90 days each send their own type', function () {
     Livewire::actingAs($this->finance)->test(RecordPanel::class, ['record' => $this->cheque])
         ->assertSee('Cheque date coming up')->call('send')->assertHasNoErrors();
-    Livewire::actingAs($this->finance)->test(RecordPanel::class, ['record' => $this->agreement])
+    Livewire::actingAs(matrixUser(RoleName::Leasing, $this->a))->test(RecordPanel::class, ['record' => $this->agreement])
         ->assertSee('Agreement ending soon')->call('send')->assertHasNoErrors();
 
     expect(ReminderSend::query()->orderBy('id')->pluck('type')->all())->toBe(['cheque', 'renewal']);
+});
+
+test('sending needs the record\'s manage permission: Finance for invoices and cheques, Leasing for agreements; Management only views', function () {
+    $management = matrixUser(RoleName::Management, $this->a);
+    foreach ([$this->invoice, $this->cheque, $this->agreement] as $record) {
+        Livewire::actingAs($management)->test(RecordPanel::class, ['record' => $record])
+            ->assertDontSee('Send reminder')->call('send')->assertForbidden();
+    }
+    Livewire::actingAs($this->finance)->test(RecordPanel::class, ['record' => $this->agreement])
+        ->assertDontSee('Send reminder')->call('send')->assertForbidden();
+
+    Mail::assertNothingSent();
+    expect(ReminderSend::count())->toBe(0);
 });
 
 test('no button, and send refuses, where there is nothing to remind about', function () {
     [, $farOff] = reminderTenant(['email' => 'beta@tenant.test'], '2027-08-31', $this->a); // ends in more than 90 days
     app(EndCheque::class)->handle($this->finance, $this->cheque, 'cancelled');
 
-    foreach ([$farOff, $this->cheque->fresh()] as $record) {
-        Livewire::actingAs($this->finance)->test(RecordPanel::class, ['record' => $record])->assertDontSee('Send reminder')
+    $leasing = matrixUser(RoleName::Leasing, $this->a);
+    foreach ([[$leasing, $farOff], [$this->finance, $this->cheque->fresh()]] as [$user, $record]) {
+        Livewire::actingAs($user)->test(RecordPanel::class, ['record' => $record])->assertDontSee('Send reminder')
             ->call('send')->assertHasErrors('reminder');
     }
     Mail::assertNothingSent();
@@ -134,7 +148,7 @@ test('send re-checks the policy: a user who loses access after mount gets a 403 
 
 test('the record kind and id are locked: a tampered id is rejected and nothing is sent for it', function () {
     $other = reminderTenant(['email' => 'gamma@tenant.test'], '2027-01-09', $this->b)[1];
-    $page = Livewire::actingAs($this->finance)->test(RecordPanel::class, ['record' => $this->agreement]);
+    $page = Livewire::actingAs(matrixUser(RoleName::Leasing, $this->a))->test(RecordPanel::class, ['record' => $this->agreement]);
 
     expect(fn () => $page->set('recordId', $other->id))->toThrow(Exception::class, 'Cannot update locked property');
     expect(fn () => $page->set('kind', 'invoice'))->toThrow(Exception::class, 'Cannot update locked property');

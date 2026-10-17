@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reminders;
 
+use App\Enums\PermissionName;
 use App\Livewire\Concerns\WithActor;
 use App\Mail\TenantReminder;
 use App\Models\Agreement;
@@ -61,9 +62,23 @@ class RecordPanel extends Component
         return $record;
     }
 
+    /** Sending is for those who manage the record: Finance for invoices and cheques, Leasing for agreements. Viewers only see the list. */
+    private function maySend(): bool
+    {
+        $permission = match ($this->kind) {
+            'invoice' => PermissionName::InvoicesManage,
+            'cheque' => PermissionName::ChequesManage,
+            'agreement' => PermissionName::AgreementsManage,
+            default => null,
+        };
+
+        return $permission !== null && $this->actor()->can($permission->value);
+    }
+
     public function send(ReminderSender $sender): void
     {
         $record = $this->record();
+        abort_unless($this->maySend(), 403);
         $today = CarbonImmutable::today('Asia/Bahrain');
         $item = $record instanceof Customer ? null : ReminderFinder::manual($record, $today);
         if ($item === null) {
@@ -99,7 +114,7 @@ class RecordPanel extends Component
     public function render(): View
     {
         $record = $this->record();
-        $item = $record instanceof Customer ? null : ReminderFinder::manual($record, CarbonImmutable::today('Asia/Bahrain'));
+        $item = $record instanceof Customer || ! $this->maySend() ? null : ReminderFinder::manual($record, CarbonImmutable::today('Asia/Bahrain'));
         $refusal = $item === null ? null : app(ReminderSender::class)->refusal($item->tenant());
         $mail = $item !== null && $refusal === null ? new TenantReminder($item->tenant(), [$item]) : null;
 
