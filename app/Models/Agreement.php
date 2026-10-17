@@ -115,6 +115,12 @@ class Agreement extends Model
         return $this->belongsTo(self::class, 'previous_agreement_id');
     }
 
+    /** @return HasMany<Agreement, $this> agreements that renew this one (spec 2026-10-17 §3, plan ruling 2) */
+    public function renewals(): HasMany
+    {
+        return $this->hasMany(self::class, 'previous_agreement_id');
+    }
+
     /** @return BelongsTo<ContractTemplate, $this> */
     public function contractTemplate(): BelongsTo
     {

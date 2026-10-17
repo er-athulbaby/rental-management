@@ -243,3 +243,13 @@ function sheetFile(array $sheet): string
 
     return $path;
 }
+
+/** A tenant (Customer attributes) with an active agreement from 01/01/2026 to $end, 5 grace days, on a new unit (reminder tests). */
+function reminderTenant(array $attributes, string $end, ?Building $building = null): array
+{
+    $tenant = Customer::factory()->create($attributes);
+    $unit = $building === null ? Unit::factory()->create() : Unit::factory()->for($building)->create();
+    $agreement = activeAgreement(['customer_id' => $tenant->id, 'start_date' => '2026-01-01', 'end_date' => $end, 'grace_days' => 5], [$unit]);
+
+    return [$tenant, $agreement];
+}
