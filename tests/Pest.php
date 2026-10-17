@@ -280,7 +280,7 @@ function maintenanceVendor(array $attributes = []): Vendor
     return Vendor::create(['name' => 'Fix-It Co', 'type' => 'company', 'trades' => ['general'], 'mobile' => '+973 3300 0000', 'active' => true, ...$attributes]);
 }
 
-/** A request logged by $by on $unit with its current tenant (maintenance tests): plumbing, normal, entry permitted. Needs this year's number sequences. */
+/** A request logged by $by on $unit (maintenance tests; the tenant is prefilled here as the form will, but the action stores the customer exactly as given): plumbing, normal, entry permitted. Needs this year's number sequences. */
 function maintenanceRequest(User $by, Unit $unit, array $data = []): MaintenanceRequest
 {
     return app(LogMaintenanceRequest::class)->handle($by, [

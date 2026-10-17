@@ -32,7 +32,7 @@ final class LogMaintenanceRequest
             throw new AuthorizationException;
         }
 
-        $data = array_map(fn (mixed $v) => $v === '' ? null : $v, $data);
+        $data = array_map(fn (mixed $v) => is_string($v) ? (trim($v) === '' ? null : trim($v)) : $v, $data);
         $buildingId = is_numeric($data['building_id'] ?? null) ? (int) $data['building_id'] : 0;
 
         $v = Validator::make($data, [

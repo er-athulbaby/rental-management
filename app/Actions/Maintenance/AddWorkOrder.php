@@ -30,7 +30,7 @@ final class AddWorkOrder
             throw new AuthorizationException;
         }
 
-        $data = array_map(fn (mixed $v) => $v === '' ? null : $v, $data);
+        $data = array_map(fn (mixed $v) => is_string($v) ? (trim($v) === '' ? null : trim($v)) : $v, $data);
         $v = Validator::make($data, [
             'vendor_id' => ['bail', 'required', 'integer', Rule::exists('vendors', 'id')->whereNull('deleted_at')],
             'scheduled_on' => ['nullable', 'date_format:Y-m-d'],
@@ -38,18 +38,17 @@ final class AddWorkOrder
             'estimate' => ['nullable', Fils::rule()],
         ])->validate();
 
-        $vendor = Vendor::query()->findOrFail((int) $v['vendor_id']);
-        if (! $vendor->active) {
-            throw ValidationException::withMessages(['vendor_id' => __('This vendor is inactive and cannot get new work orders.')]);
-        }
-        if (! $vendor->handles($request->category)) {
-            throw ValidationException::withMessages(['vendor_id' => __('This vendor does not do :trade work.', ['trade' => mb_strtolower($request->category->label())])]);
-        }
-
         return DB::transaction(function () use ($actor, $request, $v) {
             $locked = MaintenanceRequest::query()->lockForUpdate()->findOrFail($request->id);
             if ($locked->status->isClosed()) {
                 throw ValidationException::withMessages(['vendor_id' => __('This request is closed.')]);
+            }
+            $vendor = Vendor::query()->lockForUpdate()->findOrFail((int) $v['vendor_id']);
+            if (! $vendor->active) {
+                throw ValidationException::withMessages(['vendor_id' => __('This vendor is inactive and cannot get new work orders.')]);
+            }
+            if (! $vendor->handles($locked->category)) {
+                throw ValidationException::withMessages(['vendor_id' => __('This vendor does not do :trade work.', ['trade' => mb_strtolower($locked->category->label())])]);
             }
 
             $workOrder = new WorkOrder([

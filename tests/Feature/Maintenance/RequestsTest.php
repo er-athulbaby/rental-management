@@ -9,6 +9,7 @@ use App\Enums\WorkOrderStatus;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceRequest;
 use App\Models\Unit;
 use App\Models\User;
@@ -17,6 +18,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
 
@@ -153,4 +155,55 @@ test('the database refuses a completed work order without its completion date', 
     $wo = workOrderFor($this->pm, maintenanceRequest($this->pm, $this->unit), $this->plumber);
 
     expect(fn () => $wo->forceFill(['status' => 'completed'])->save())->toThrow(QueryException::class);
+});
+
+test('the action stores the customer exactly as given and refuses one the user cannot see', function () {
+    $other = activeAgreement(['customer_id' => Customer::factory()->create()->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [Unit::factory()->for(Building::factory()->create())->create()])->customer_id;
+    expect(maintenanceRequest($this->pm, $this->unit, ['customer_id' => null])->customer_id)->toBeNull()
+        ->and(maintenanceRequest($this->pm, $this->unit, ['customer_id' => $this->tenant->id])->customer_id)->toBe($this->tenant->id);
+
+    $scoped = User::factory()->create()->givePermissionTo(['maintenance.view', 'maintenance.manage']);
+    $scoped->buildings()->attach($this->building->id);
+    expect(fn () => maintenanceRequest($scoped, $this->unit, ['customer_id' => $other]))->toThrow(ValidationException::class);
+});
+
+test('text is trimmed before it is saved', function () {
+    $request = maintenanceRequest($this->pm, $this->unit, ['description' => '  Leaking  ', 'reported_by_name' => ' Sara ']);
+    expect($request->description)->toBe('Leaking')->and($request->reported_by_name)->toBe('Sara');
+});
+
+test('a resolved or cancelled request takes no work order', function (string $status) {
+    $request = maintenanceRequest($this->pm, $this->unit);
+    $request->forceFill(['status' => $status, 'resolved_at' => $status === 'resolved' ? now() : null, 'cancel_reason' => $status === 'cancelled' ? 'Duplicate' : null])->save();
+
+    expect(fn () => workOrderFor($this->pm, $request, $this->plumber))->toThrow(ValidationException::class)
+        ->and(WorkOrder::count())->toBe(0);
+})->with(['resolved', 'cancelled']);
+
+test('a missing number sequence row rolls everything back and consumes no number', function () {
+    DB::table('number_sequences')->where('key', 'maintenance_request')->delete();
+    expect(fn () => maintenanceRequest($this->pm, $this->unit))->toThrow(RuntimeException::class)
+        ->and(MaintenanceRequest::count())->toBe(0)->and(MaintenanceEvent::count())->toBe(0);
+
+    app(EnsureNumberSequences::class)(2026);
+    $request = maintenanceRequest($this->pm, $this->unit);
+    expect($request->number)->toBe('MR-2026-000001');
+
+    DB::table('number_sequences')->where('key', 'work_order')->delete();
+    expect(fn () => workOrderFor($this->pm, $request, $this->plumber))->toThrow(RuntimeException::class)
+        ->and(WorkOrder::count())->toBe(0)->and(MaintenanceEvent::count())->toBe(1)
+        ->and($request->fresh()->status)->toBe(MaintenanceStatus::Open);
+});
+
+test('a work order writes a timeline row and audit rows', function () {
+    $request = maintenanceRequest($this->pm, $this->unit);
+    $wo = workOrderFor($this->pm, $request, $this->plumber);
+
+    $audit = fn (string $type, int $id, string $event) => Activity::query()->where('subject_type', $type)->where('subject_id', $id)->where('event', $event)->exists();
+    $event = $request->events()->where('work_order_id', $wo->id)->first();
+
+    expect($event->describe())->toBe('WO-2026-000001: Assigned')
+        ->and($audit(WorkOrder::class, $wo->id, 'created'))->toBeTrue()
+        ->and($audit(MaintenanceEvent::class, $event->id, 'created'))->toBeTrue()
+        ->and($audit(MaintenanceRequest::class, $request->id, 'updated'))->toBeTrue();
 });
