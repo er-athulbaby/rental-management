@@ -147,7 +147,7 @@ trait ReportPage
     /** @param  array<array-key, mixed>  $settings */
     public function checkSettings(User $as, array $settings): void
     {
-        $this->asActor($as, fn () => Validator::make($settings, $this->packageRules($as))->validate());
+        $this->asActor($as, fn () => $this->packageData($as, $settings));
     }
 
     /**
@@ -163,7 +163,7 @@ trait ReportPage
             if (! $this->permission()) {
                 throw new AuthorizationException(__('You do not have access to this report.'));
             }
-            $data = Validator::make($settings, $this->packageRules($as))->validate();
+            $data = $this->packageData($as, $settings);
             $today = now('Asia/Bahrain')->toDateString();
             $this->building = $this->buildingFilter() && filled($data['building'] ?? null) ? (int) $data['building'] : null;
             $this->from = (string) ($data['from'] ?? $today);
@@ -174,6 +174,20 @@ trait ReportPage
 
             return $this->sheetData();
         });
+    }
+
+    /**
+     * Validates $settings. A type pass on the dates comes first: a rule such as after_or_equal reads the other date raw
+     * and throws a TypeError on an array, so a non-string date must fail here instead.
+     *
+     * @param  array<array-key, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private function packageData(User $as, array $settings): array
+    {
+        Validator::make($settings, ['from' => ['nullable', 'string'], 'to' => ['nullable', 'string']])->validate();
+
+        return Validator::make($settings, $this->packageRules($as))->validate();
     }
 
     /**

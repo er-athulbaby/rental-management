@@ -43,8 +43,8 @@ trait StatementPage
     #[Url]
     public mixed $basis = IncomeStatement::COLLECTED;
 
-    /** @var array<int, string>|null owner list, memoised for the request */
-    private ?array $ownerOptionsCache = null;
+    /** @var array<int, array<int, string>> owner list per user id, memoised for the request (never shared between users) */
+    private array $ownerOptionsCache = [];
 
     /** @return array<string, list<mixed>> the screen's own inputs */
     abstract protected function scopeRules(): array;
@@ -151,7 +151,7 @@ trait StatementPage
     /** @return array<int, string> owners with at least one contract in a building the user can see (spec §5) */
     protected function ownerOptions(): array
     {
-        return $this->ownerOptionsCache ??= Owner::query()->whereIn('id', OwnerContract::query()->visibleTo($this->actor())->select('owner_id'))
+        return $this->ownerOptionsCache[$this->actor()->id] ??= Owner::query()->whereIn('id', OwnerContract::query()->visibleTo($this->actor())->select('owner_id'))
             ->orderBy('name_en')->pluck('name_en', 'id')->all();
     }
 

@@ -169,3 +169,21 @@ test('asActor restores the previous user even when the run throws', function () 
         ->and($probe->run($leasing, fn () => auth()->id()))->toBe($leasing->id)
         ->and(auth()->id())->toBe($this->finance->id);
 });
+
+test('a non-string or garbage date fails validation, never an exception', function (string $key, array $settings) {
+    foreach (['checkSettings', 'sheet'] as $method) {
+        expect(fn () => ReadyMade::make($key)->{$method}($this->finance, $settings))->toThrow(ValidationException::class);
+    }
+})->with([
+    'from and to as arrays' => ['collections', ['from' => ['2026-09-01'], 'to' => ['2026-10-31']]],
+    'from as an array' => ['collections', ['from' => ['2026-09-01'], 'to' => '2026-10-31']],
+    'to as an array' => ['vat_summary', ['from' => '2026-09-01', 'to' => ['2026-10-31']]],
+    'garbage strings' => ['collections', ['from' => 'abc', 'to' => 'xyz']],
+    'a statement from as an array' => ['income_statement', ['from' => ['2026-08'], 'to' => ['2026-10'], 'basis' => 'billed']],
+]);
+
+test('a building-scoped user gets only their building in the output', function () {
+    $sheet = ReadyMade::make('rent_roll')->sheet($this->scoped, ['to' => '2026-10-15']);
+
+    expect(collect($sheet['rows'])->pluck(0)->unique()->values()->all())->toBe(['AAA', 'Subtotal AAA', 'Total']);
+});
