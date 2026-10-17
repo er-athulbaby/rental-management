@@ -8,6 +8,7 @@ use App\Models\Building;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\OwnerContract;
+use App\Models\ReportPackage;
 use App\Models\User;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ReportDefinition;
@@ -168,4 +169,16 @@ function fixtureBanks(): void
 function runReport(User $user, array $data): ReportResult
 {
     return app(Engine::class)->run($user, ReportDefinition::fromArray($data, $user));
+}
+
+/** A package by $by with the items in order (report-package tests). Items: ['kind', 'report'?, 'saved_report_id'?, 'settings'?]. */
+function packageWith(User $by, array $items, string $name = 'Monthly pack', string $visibility = 'private'): ReportPackage
+{
+    $package = ReportPackage::create(['name' => $name, 'visibility' => $visibility, 'created_by' => $by->id, 'updated_by' => $by->id]);
+    foreach (array_values($items) as $i => $item) {
+        $package->items()->create(['position' => $i + 1, 'kind' => $item['kind'], 'saved_report_id' => $item['saved_report_id'] ?? null,
+            'report' => $item['report'] ?? null, 'settings' => $item['settings'] ?? []]);
+    }
+
+    return $package;
 }
