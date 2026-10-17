@@ -58,6 +58,7 @@ test('pages open for exactly the roles the spec allows', function (string $route
     ['customers.create', [R::Admin, R::PropertyManager, R::Leasing, R::VendorSupport]],
     ['agreements.index', [R::Admin, R::Management, R::Finance, R::PropertyManager, R::Leasing, R::VendorSupport]],
     ['agreements.create', [R::Admin, R::PropertyManager, R::Leasing, R::VendorSupport]],
+    ['reminders.index', R::cases()],
     ['admin.templates.index', [R::Admin, R::VendorSupport]],
     ['invoices.index', [R::Admin, R::Management, R::Finance, R::VendorSupport]],
 ]);

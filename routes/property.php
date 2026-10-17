@@ -22,6 +22,7 @@ use App\Livewire\OwnerPayables;
 use App\Livewire\Owners;
 use App\Livewire\OwnerStatements;
 use App\Livewire\Payments;
+use App\Livewire\Reminders;
 use App\Livewire\Reports;
 use App\Livewire\Units;
 use App\Models\Expense;
@@ -35,6 +36,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('amendments/{amendment}/edit', Agreements\AmendmentForm::class)->middleware('can:agreements.manage')->name('agreements.amend.edit');
     Route::livewire('agreements/{agreement}', Agreements\Show::class)->middleware('can:agreements.view')->name('agreements.show');
     Route::get('agreements/{agreement}/contract.pdf', AgreementPdfController::class)->middleware('can:agreements.view')->name('agreements.pdf');
+    Route::livewire('reminders', Reminders\Index::class)->name('reminders.index'); // finance.view or agreements.view, checked in mount()
     Route::get('invoices/{invoice}/pdf', InvoicePdfController::class)->middleware('can:finance.view')->name('invoices.pdf');
     Route::get('payments/{payment}/receipt', ReceiptPdfController::class)->middleware('can:finance.view')->name('payments.receipt');
     Route::livewire('approvals', Approvals\Index::class)->middleware('can:approvals.decide')->name('approvals.index');

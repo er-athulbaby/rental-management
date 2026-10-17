@@ -28,6 +28,9 @@
                     @can('agreements.view')
                         <flux:sidebar.item icon="document-text" :href="route('agreements.index')" :current="request()->routeIs('agreements.*')" wire:navigate>{{ __('Agreements') }}</flux:sidebar.item>
                     @endcan
+                    @canany(['finance.view', 'agreements.view'])
+                        <flux:sidebar.item icon="bell" :href="route('reminders.index')" :current="request()->routeIs('reminders.*')" wire:navigate>{{ __('Reminders') }}</flux:sidebar.item>
+                    @endcanany
                 </flux:sidebar.group>
 
                 @can('finance.view')
