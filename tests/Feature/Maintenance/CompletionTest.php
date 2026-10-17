@@ -16,6 +16,7 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\MaintenanceEvent;
 use App\Models\Unit;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -177,6 +178,28 @@ test('VAT defaults from the company rate when VAT-registered, rounded to the fil
 
     CompanySetting::current()->forceFill(['vat_registered' => false])->save();
     expect(CompleteWorkOrder::defaultVat('50'))->toBe('0.000');
+});
+
+test('a user with maintenance.manage and expenses.manage for another building cannot complete, with or without a cost', function (array $change) {
+    $elsewhere = User::factory()->withTwoFactor()->create()->givePermissionTo('maintenance.view', 'maintenance.manage', 'expenses.manage'); // no view-all: scoped to its own building
+    $elsewhere->buildings()->attach(Building::factory()->create()->id);
+
+    expect(fn () => app(CompleteWorkOrder::class)->handle($elsewhere, $this->workOrder, ($this->done)($change)))->toThrow(AuthorizationException::class)
+        ->and($elsewhere->can('create', Expense::class))->toBeTrue()
+        ->and(Expense::count())->toBe(0)
+        ->and($this->workOrder->fresh()->status)->toBe(WorkOrderStatus::Assigned)
+        ->and($this->workOrder->fresh()->expense_id)->toBeNull()
+        ->and($this->request->fresh()->status)->toBe(MaintenanceStatus::InProgress);
+})->with(['with a cost' => [[]], 'without a cost' => [['actual_net' => '', 'actual_tax' => '0']]]);
+
+test('VAT with no net amount is refused', function () {
+    try {
+        ($this->complete)(['actual_net' => '', 'actual_tax' => '5']);
+        $this->fail('A VAT-only cost was accepted.');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('actual_net');
+    }
+    expect(Expense::count())->toBe(0);
 });
 
 test('Leasing and users outside the building cannot complete', function () {

@@ -54,6 +54,9 @@ final class CompleteWorkOrder
 
         $net = Fils::fromDecimal((string) ($v['actual_net'] ?? '0'));
         $tax = Fils::fromDecimal((string) ($v['actual_tax'] ?? '0'));
+        if ($net === 0 && $tax > 0) {
+            throw ValidationException::withMessages(['actual_net' => __('Enter the amount before VAT.')]);
+        }
         $hasCost = $net + $tax > 0;
         if ($hasCost && ! $actor->can('create', Expense::class)) {
             throw new AuthorizationException(__('Recording the cost needs expenses.manage.'));
