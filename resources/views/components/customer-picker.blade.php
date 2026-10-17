@@ -1,8 +1,8 @@
-@props(['results', 'term', 'action'])
+@props(['results', 'term', 'action', 'label' => null])
 
 {{-- Type-to-search customer list for components with a public $customerSearch; clicking a row calls $action(customerId). --}}
 <div class="space-y-2">
-    <flux:input wire:model.live.debounce.300ms="customerSearch" :label="__('Tenant')" :placeholder="__('Name, mobile, ID number or unit code')" icon="magnifying-glass" autocomplete="off" />
+    <flux:input wire:model.live.debounce.300ms="customerSearch" :label="$label ?? __('Tenant')" :placeholder="__('Name, mobile, ID number or unit code')" icon="magnifying-glass" autocomplete="off" />
     @if (mb_strlen(trim($term)) < 2)
         <flux:text class="text-sm">{{ __('Type at least 2 letters or digits.') }}</flux:text>
     @elseif ($results->isEmpty())

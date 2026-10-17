@@ -19,14 +19,20 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-medium">{{ $tenant->name_en }}</span>
                     <span class="text-sm text-zinc-500">· {{ $tenant->mobile }}</span>
+                    <flux:link href="#" wire:click.prevent="$set('choosingTenant', true)" class="text-sm">{{ __('Change') }}</flux:link>
                     <flux:button size="xs" variant="ghost" wire:click="clearTenant">{{ __('Remove') }}</flux:button>
                 </div>
             @else
-                <flux:text class="text-sm">{{ __('No tenant: a common area, or a vacant unit. Search below to add one.') }}</flux:text>
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:text class="text-sm">{{ __('No tenant on a current agreement') }}</flux:text>
+                    <flux:link href="#" wire:click.prevent="$set('choosingTenant', true)" class="text-sm">{{ __('Choose a tenant') }}</flux:link>
+                </div>
             @endif
             <flux:error name="form.customer_id" />
         </flux:field>
-        <x-customer-picker :results="$customerResults" :term="$term" action="pickTenant" />
+        @if ($choosing)
+            <x-customer-picker :results="$customerResults" :term="$term" action="pickTenant" :label="__('Search tenants')" />
+        @endif
 
         <div class="grid gap-4 sm:grid-cols-2">
             <flux:input wire:model="form.reported_by_name" :label="__('Reported by')" />

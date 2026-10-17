@@ -33,12 +33,13 @@ class MaintenanceUpdate extends Mailable implements ShouldQueue
 
     /**
      * Queues the email, sent once the transaction commits, when the tenant can get it: an email on the tenant record,
-     * not opted out of reminders, and mail set up. True when it was queued. A failing queue never blocks the action.
+     * not opted out of reminders, not deleted, and mail set up. True when it was queued. A failure while queuing is
+     * reported, not thrown; with afterCommit the push itself runs after the transaction, outside this try.
      */
     public static function sendFor(MaintenanceRequest $request, string $kind): bool
     {
         $tenant = $request->customer;
-        if ($tenant === null || blank($tenant->email) || $tenant->no_reminders || ! (new EmailChannel)->ready()) {
+        if ($tenant === null || blank($tenant->email) || $tenant->no_reminders || $tenant->trashed() || ! (new EmailChannel)->ready()) {
             return false;
         }
         try {

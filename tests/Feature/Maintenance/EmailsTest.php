@@ -103,3 +103,11 @@ test('the email is queued after commit, so a rolled-back request never emails (M
 
     Mail::assertQueued(MaintenanceUpdate::class, fn (MaintenanceUpdate $m) => $m->afterCommit === true);
 });
+
+test('a tenant deleted after the request was logged is not emailed when it is completed', function () {
+    $request = maintenanceRequest($this->pm, $this->unit);
+    $this->tenant->delete();
+    ($this->finish)(workOrderFor($this->pm, $request, $this->vendor));
+
+    Mail::assertNotQueued(MaintenanceUpdate::class, fn (MaintenanceUpdate $m) => $m->kind === MaintenanceUpdate::COMPLETED);
+});

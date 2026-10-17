@@ -32,6 +32,9 @@ class RequestForm extends Component
 
     public mixed $customerSearch = '';
 
+    /** Whether the tenant search is open; untyped, and only `true` opens it. */
+    public mixed $choosingTenant = false;
+
     public function mount(): void
     {
         abort_unless($this->actor()->can('create', MaintenanceRequest::class), 403);
@@ -48,10 +51,14 @@ class RequestForm extends Component
         if ($key === 'building_id') {
             $this->form['unit_id'] = null;
             $this->form['customer_id'] = null;
+            $this->choosingTenant = false;
         }
         if ($key === 'unit_id') {
             $unit = is_numeric($value) ? $this->units()->firstWhere('id', (int) $value) : null;
-            $this->form['customer_id'] = $unit ? MaintenanceRequest::currentTenantId($unit->id) : null;
+            $tenantId = $unit ? MaintenanceRequest::currentTenantId($unit->id) : null;
+            // a tenant the user cannot see, or who was deleted, is not prefilled (saving would refuse the id)
+            $this->form['customer_id'] = $tenantId !== null && Customer::query()->visibleTo($this->actor())->whereKey($tenantId)->exists() ? $tenantId : null;
+            $this->choosingTenant = false;
         }
     }
 
@@ -67,11 +74,13 @@ class RequestForm extends Component
         }
         $this->form = [...(is_array($this->form) ? $this->form : self::NEW_FORM), 'customer_id' => $customer->id];
         $this->customerSearch = '';
+        $this->choosingTenant = false;
     }
 
     public function clearTenant(): void
     {
         $this->form = [...(is_array($this->form) ? $this->form : self::NEW_FORM), 'customer_id' => null];
+        $this->choosingTenant = false;
     }
 
     public function save(LogMaintenanceRequest $log): void
@@ -105,8 +114,9 @@ class RequestForm extends Component
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('code')->get(['id', 'code', 'name']),
             'units' => $this->units(),
             'tenant' => $customerId ? Customer::query()->visibleTo($this->actor())->find($customerId, ['id', 'name_en', 'mobile']) : null,
+            'choosing' => $this->choosingTenant === true,
             'term' => $term,
-            'customerResults' => Customer::findFor($this->actor(), $term),
+            'customerResults' => $this->choosingTenant === true ? Customer::findFor($this->actor(), $term) : collect(),
             'channels' => MaintenanceChannel::cases(),
             'categories' => Trade::cases(),
             'priorities' => MaintenancePriority::cases(),

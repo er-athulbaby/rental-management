@@ -112,6 +112,8 @@ test('new request: choosing the unit fills in its tenant, who can be changed or 
     $page = Livewire::actingAs($this->pm)->test(RequestForm::class)
         ->set('form.building_id', (string) $this->a->id)->set('form.unit_id', (string) $this->unitA->id)
         ->assertSet('form.customer_id', $this->tenant->id)->assertSee('Sara Tenant')
+        ->assertSee('Change')->assertDontSee('Search tenants')
+        ->call('$set', 'choosingTenant', true)->assertSee('Search tenants')
         ->set('customerSearch', 'Omar')->assertSee('Omar Visitor')
         ->call('pickTenant', $visitor->id)->assertSet('form.customer_id', $visitor->id)->assertSet('customerSearch', '')
         ->call('clearTenant')->assertSet('form.customer_id', null)
@@ -143,6 +145,24 @@ test('the new request form refuses a tenant the user cannot see and tampered inp
         ->set('customerSearch', ['x'])->assertOk()
         ->set('form', 'x')->assertOk()->call('save')->assertHasErrors('form.building_id');
     expect(MaintenanceRequest::count())->toBe(4);
+});
+
+test('new request: an empty tenant shows the text and Choose, and the search opens only when asked', function () {
+    Livewire::actingAs($this->pm)->test(RequestForm::class)
+        ->assertSee('No tenant on a current agreement')->assertSee('Choose a tenant')->assertDontSee('Search tenants')
+        ->set('choosingTenant', true)->assertSee('Search tenants')
+        ->set('choosingTenant', ['x'])->assertOk()->assertDontSee('Search tenants'); // only true opens it
+});
+
+test('new request: a tenant who was deleted is not prefilled', function () {
+    $unit = Unit::factory()->for($this->a)->create(['code' => '102']);
+    $gone = Customer::factory()->create();
+    activeAgreement(['customer_id' => $gone->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$unit]);
+    $gone->delete();
+
+    Livewire::actingAs($this->pm)->test(RequestForm::class)
+        ->set('form.building_id', (string) $this->a->id)->set('form.unit_id', (string) $unit->id)
+        ->assertSet('form.customer_id', null)->assertSee('No tenant on a current agreement');
 });
 
 test('each vendor shows its work orders and their total cost, counting only buildings the viewer can see', function () {

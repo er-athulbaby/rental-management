@@ -48,7 +48,7 @@
         <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <div class="flex items-baseline justify-between gap-2">
                 <span class="text-sm font-medium text-zinc-800 dark:text-white">{{ __('Urgent maintenance') }}</span>
-                <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'all'])" wire:navigate class="text-xs">{{ __('Open: :n', ['n' => $urgent['count']]) }}</flux:link>
+                <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" wire:navigate class="text-xs">{{ __('Open: :n', ['n' => $urgent['count']]) }}</flux:link>
             </div>
             @if ($urgent['requests']->isEmpty())
                 <flux:text class="mt-2 text-sm">{{ __('No urgent requests.') }}</flux:text>

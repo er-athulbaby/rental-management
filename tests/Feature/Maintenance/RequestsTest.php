@@ -207,3 +207,16 @@ test('a work order writes a timeline row and audit rows', function () {
         ->and($audit(MaintenanceEvent::class, $event->id, 'created'))->toBeTrue()
         ->and($audit(MaintenanceRequest::class, $request->id, 'updated'))->toBeTrue();
 });
+
+test('the number-sequence migration lets a request be logged on an installed system, and running it twice is harmless', function () {
+    $migration = require database_path('migrations/2026_12_20_000300_ensure_maintenance_number_sequences.php');
+    DB::table('number_sequences')->whereIn('key', ['maintenance_request', 'work_order'])->delete();
+
+    $migration->up();
+    expect(DB::table('number_sequences')->whereIn('key', ['maintenance_request', 'work_order'])->whereIn('year', [2026, 2027])->count())->toBe(4);
+    expect(maintenanceRequest($this->pm, $this->unit)->number)->toBe('MR-2026-000001');
+
+    $migration->up(); // does not reset the counter
+    expect(DB::table('number_sequences')->where('key', 'maintenance_request')->where('year', 2026)->value('next_value'))->toBe(2)
+        ->and(DB::table('number_sequences')->whereIn('key', ['maintenance_request', 'work_order'])->count())->toBe(4);
+});

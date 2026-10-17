@@ -200,7 +200,7 @@
                                 </flux:field>
                             @endif
                             @if (($completion['charge_to'] ?? '') === 'tenant')
-                                <flux:text class="text-sm">{{ __('The unit\'s current tenant is invoiced for the net amount.') }}</flux:text>
+                                <flux:text class="text-sm">{{ __('The unit\'s tenant on the completion date is invoiced for the net amount.') }}</flux:text>
                             @endif
                         </div>
                     </flux:fieldset>
