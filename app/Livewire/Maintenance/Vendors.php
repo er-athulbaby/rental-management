@@ -45,7 +45,7 @@ class Vendors extends Component
     {
         $trade = Trade::tryFrom(is_string($this->trade) ? $this->trade : '');
         $type = VendorType::tryFrom(is_string($this->type) ? $this->type : '');
-        $search = is_string($this->search) ? trim($this->search) : '';
+        $search = is_string($this->search) ? addcslashes(trim($this->search), '%_\\') : '';
 
         $vendors = Vendor::query()
             ->when($trade, fn ($q, Trade $t) => $q->whereJsonContains('trades', $t->value))

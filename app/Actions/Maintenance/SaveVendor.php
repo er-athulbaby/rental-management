@@ -20,7 +20,7 @@ final class SaveVendor
             throw new AuthorizationException;
         }
 
-        $data = array_map(fn (mixed $v) => $v === '' ? null : $v, $data); // Livewire sends '' for cleared inputs
+        $data = array_map(fn (mixed $v) => is_string($v) && trim($v) === '' ? null : (is_string($v) ? trim($v) : $v), $data); // Livewire sends '' for cleared inputs
 
         $validated = Validator::make($data, [
             'name' => ['required', 'string', 'max:150'],

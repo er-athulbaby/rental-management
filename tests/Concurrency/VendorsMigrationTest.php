@@ -1,0 +1,55 @@
+<?php
+
+use App\Enums\RoleName as R;
+use App\Models\Building;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+
+// Real commits: the migration drops and creates tables, so this cannot run inside the Feature suite's transaction.
+beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $this->building = Building::factory()->create();
+});
+
+test('on an installed system the migration grants the maintenance permissions additively, once, and down() removes them', function () {
+    $migration = require database_path('migrations/2026_12_20_000100_create_vendors_table.php');
+    DB::setDefaultConnection('migrator'); // DDL needs the migrator user; each test gets a fresh app, so no reset
+    $names = ['maintenance.view', 'maintenance.manage'];
+    $held = fn (string $role) => Role::findByName($role)->permissions->pluck('name')->intersect($names)->sort()->values()->all();
+
+    // An install from before this migration: roles exist, the two permissions do not.
+    Permission::whereIn('name', $names)->delete();
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    Role::findByName('admin')->givePermissionTo('users.manage'); // an Admin role edit that must survive
+    Schema::dropIfExists('vendors');
+
+    $migration->up();
+    $expected = [
+        'admin' => ['maintenance.manage', 'maintenance.view'], 'management' => ['maintenance.view'],
+        'property-manager' => ['maintenance.manage', 'maintenance.view'], 'leasing' => ['maintenance.view'],
+        'vendor-support' => ['maintenance.manage', 'maintenance.view'], 'finance' => [],
+    ];
+    foreach ($expected as $role => $permissions) {
+        expect($held($role))->toBe($permissions);
+    }
+    expect(matrixUser(R::Leasing, $this->building)->can('maintenance.view'))->toBeTrue() // the cache was cleared
+        ->and(Role::findByName('admin')->hasPermissionTo('users.manage'))->toBeTrue();
+
+    Schema::dropIfExists('vendors');
+    $migration->up(); // second run changes nothing
+    foreach ($expected as $role => $permissions) {
+        expect($held($role))->toBe($permissions);
+    }
+    expect(Permission::whereIn('name', $names)->count())->toBe(2);
+
+    $migration->down();
+    expect(Permission::whereIn('name', $names)->count())->toBe(0)->and(Schema::hasTable('vendors'))->toBeFalse();
+
+    Role::query()->delete(); // no roles: up() recreates the table only, leaving the schema as the other tests expect
+    $migration->up();
+    expect(Schema::hasTable('vendors'))->toBeTrue();
+});

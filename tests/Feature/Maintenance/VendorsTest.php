@@ -106,3 +106,23 @@ test('Leasing sees vendors but cannot add or change them; Finance has no mainten
     $this->actingAs($this->pm)->get(route('dashboard'))->assertSee(route('maintenance.vendors.index'));
     $this->actingAs($finance)->get(route('dashboard'))->assertDontSee(route('maintenance.vendors.index'));
 });
+
+test('Management sees vendors read-only', function () {
+    $management = matrixUser(R::Management, $this->building);
+    $vendor = maintenanceVendor();
+
+    $this->actingAs($management)->get(route('maintenance.vendors.index'))->assertOk();
+    $this->actingAs($management)->get(route('maintenance.vendors.create'))->assertForbidden();
+    Livewire::actingAs($management)->test(VendorForm::class, ['vendor' => $vendor])->set('form.name', 'Renamed')->call('save')->assertForbidden();
+    expect($vendor->fresh()->name)->toBe('Fix-It Co');
+});
+
+test('vendor search treats % and _ literally and stored text is trimmed', function () {
+    maintenanceVendor(['name' => 'Ali Plumbing']);
+    maintenanceVendor(['name' => '100%_Fix', 'mobile' => '33222222']);
+
+    Livewire::actingAs($this->pm)->test(Vendors::class)->set('search', '%')->assertSee('100%_Fix')->assertDontSee('Ali Plumbing');
+
+    $vendor = app(SaveVendor::class)->handle($this->pm, null, ['name' => '  Spaced Co ', 'type' => 'company', 'trades' => ['ac'], 'mobile' => ' 33000001 ', 'active' => true]);
+    expect($vendor->name)->toBe('Spaced Co')->and($vendor->mobile)->toBe('33000001');
+});
