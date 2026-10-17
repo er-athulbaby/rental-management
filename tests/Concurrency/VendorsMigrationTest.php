@@ -13,10 +13,21 @@ use Spatie\Permission\PermissionRegistrar;
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->building = Building::factory()->create();
+    $this->migration = require database_path('migrations/2026_12_20_000100_create_vendors_table.php');
+});
+
+// Whatever happened in the test, leave the schema migrated: the vendors table back (roles are emptied first, so
+// up() grants nothing; the suite's own truncation clears the rest). Safe when the table already exists.
+afterEach(function () {
+    DB::setDefaultConnection('migrator');
+    if (! Schema::hasTable('vendors')) {
+        Role::query()->delete();
+        $this->migration->up();
+    }
 });
 
 test('on an installed system the migration grants the maintenance permissions additively, once, and down() removes them', function () {
-    $migration = require database_path('migrations/2026_12_20_000100_create_vendors_table.php');
+    $migration = $this->migration;
     DB::setDefaultConnection('migrator'); // DDL needs the migrator user; each test gets a fresh app, so no reset
     $names = ['maintenance.view', 'maintenance.manage'];
     $held = fn (string $role) => Role::findByName($role)->permissions->pluck('name')->intersect($names)->sort()->values()->all();
