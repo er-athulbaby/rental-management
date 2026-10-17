@@ -25,6 +25,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property IdType $id_type
  * @property string $id_number
  * @property string $mobile
+ * @property string|null $email
+ * @property bool $no_reminders "Don't send reminders" (spec 2026-10-17 §3)
  */
 class Customer extends Model
 {
@@ -33,12 +35,12 @@ class Customer extends Model
 
     protected $fillable = [
         'type', 'name_en', 'name_ar', 'id_type', 'id_number', 'nationality', 'mobile', 'email', 'address',
-        'contact_person', 'emergency_contact_name', 'emergency_contact_phone', 'notes',
+        'contact_person', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'no_reminders',
     ];
 
     protected function casts(): array
     {
-        return ['type' => CustomerType::class, 'id_type' => IdType::class];
+        return ['type' => CustomerType::class, 'id_type' => IdType::class, 'no_reminders' => 'boolean'];
     }
 
     public function getActivitylogOptions(): LogOptions

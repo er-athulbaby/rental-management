@@ -10,8 +10,8 @@ abstract class TestCase extends BaseTestCase
     /** DatabaseTruncation runs TRUNCATE, which the app user may not do (spec §8.5). */
     protected array $connectionsToTruncate = ['migrator'];
 
-    /** Reference rows the migrations insert; emptying them would break every later test that saves a unit. */
-    protected array $exceptTables = ['unit_types'];
+    /** Reference rows the migrations insert; emptying them would break every later test that saves a unit or sends a reminder. */
+    protected array $exceptTables = ['unit_types', 'reminder_settings'];
 
     protected function setUp(): void
     {

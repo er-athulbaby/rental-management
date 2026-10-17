@@ -6,6 +6,7 @@ use App\Livewire\Admin\CompanySettings;
 use App\Livewire\Admin\ContractTemplates;
 use App\Livewire\Admin\Facilities;
 use App\Livewire\Admin\Roles;
+use App\Livewire\Admin\TenantReminders;
 use App\Livewire\Admin\UnitTypes;
 use App\Livewire\Admin\Users;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::livewire('facilities', Facilities::class)->middleware('can:settings.manage')->name('facilities');
     Route::livewire('unit-types', UnitTypes::class)->middleware('can:settings.manage')->name('unit-types');
     Route::livewire('banks', Banks::class)->middleware('can:settings.manage')->name('banks');
+    Route::livewire('reminders', TenantReminders::class)->middleware('can:settings.manage')->name('reminders');
 
     Route::livewire('users', Users\Index::class)->middleware('can:users.manage')->name('users.index');
     Route::livewire('users/create', Users\Form::class)->middleware('can:users.manage')->name('users.create');
