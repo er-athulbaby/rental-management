@@ -14,6 +14,7 @@ beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->building = Building::factory()->create();
     $this->migration = require database_path('migrations/2026_12_20_000100_create_vendors_table.php');
+    $this->maintenance = require database_path('migrations/2026_12_20_000200_create_maintenance_tables.php');
 });
 
 // Whatever happened in the test, leave the schema migrated: the vendors table back (roles are emptied first, so
@@ -23,6 +24,9 @@ afterEach(function () {
     if (! Schema::hasTable('vendors')) {
         Role::query()->delete();
         $this->migration->up();
+    }
+    if (! Schema::hasTable('work_orders')) { // the later migration goes back second, in up order
+        $this->maintenance->up();
     }
 });
 
@@ -36,6 +40,9 @@ test('on an installed system the migration grants the maintenance permissions ad
     Permission::whereIn('name', $names)->delete();
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     Role::findByName('admin')->givePermissionTo('users.manage'); // an Admin role edit that must survive
+    if (Schema::hasTable('work_orders')) {
+        $this->maintenance->down(); // real rollback order: the later migration first (work_orders has a foreign key to vendors)
+    }
     Schema::dropIfExists('vendors');
 
     $migration->up();
@@ -50,6 +57,9 @@ test('on an installed system the migration grants the maintenance permissions ad
     expect(matrixUser(R::Leasing, $this->building)->can('maintenance.view'))->toBeTrue() // the cache was cleared
         ->and(Role::findByName('admin')->hasPermissionTo('users.manage'))->toBeTrue();
 
+    if (Schema::hasTable('work_orders')) {
+        $this->maintenance->down(); // real rollback order: the later migration first (work_orders has a foreign key to vendors)
+    }
     Schema::dropIfExists('vendors');
     $migration->up(); // second run changes nothing
     foreach ($expected as $role => $permissions) {
@@ -63,4 +73,6 @@ test('on an installed system the migration grants the maintenance permissions ad
     Role::query()->delete(); // no roles: up() recreates the table only, leaving the schema as the other tests expect
     $migration->up();
     expect(Schema::hasTable('vendors'))->toBeTrue();
+    $this->maintenance->up(); // back in up order, so the schema is whole for the tests after this one
+    expect(Schema::hasTable('work_orders'))->toBeTrue();
 });

@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\EnsureNumberSequences;
+use App\Actions\Expenses\RecordExpense;
 use App\Actions\Expenses\ReverseExpense;
 use App\Actions\Maintenance\CompleteWorkOrder;
 use App\Actions\Maintenance\ResolveMaintenanceRequest;
@@ -103,4 +104,60 @@ test('a tampered grouping or date is a message, never a 500', function () {
     Livewire::actingAs($this->pm)->test(MaintenanceCostReport::class)->set('group', 'vendor')->assertOk()->assertHasErrors('group');
     Livewire::actingAs($this->pm)->test(MaintenanceCostReport::class)->set('group', ['unit'])->assertOk()->assertHasErrors('group');
     Livewire::actingAs($this->pm)->test(MaintenanceCostReport::class)->set('from', '31/10/2026')->assertOk()->assertHasErrors('from');
+});
+
+test('Maintenance cost: a building-scoped user sees only their building; the building filter cannot widen it; a trashed building is out of every scope', function () {
+    ($this->complete)(workOrderFor($this->pm, $this->old, $this->plumber), '100', '10');
+    ($this->complete)(workOrderFor($this->pm, maintenanceRequest($this->pm, $this->unitB, ['category' => 'ac']), $this->cool), '20', '2');
+    $leasing = matrixUser(R::Leasing, $this->a);
+    $page = fn ($user, array $set = []) => tap(Livewire::actingAs($user)->test(MaintenanceCostReport::class), fn ($p) => collect(['from' => '2026-10-01', 'to' => '2026-10-31', ...$set])->each(fn ($v, $k) => $p->set($k, $v)))->html();
+
+    $own = $page($leasing);
+    expect(reportRowText($own, 'AAA'))->toBe('AAA 1 100.000 0.000')
+        ->and(reportRowText($own, 'BBB'))->toBe('')
+        ->and(reportRowText($own, 'Total'))->toBe('Total 1 100.000 0.000');
+    // Another building's id in the filter gives nothing, never that building's rows.
+    expect(reportRowText($page($leasing, ['building' => $this->b->id]), 'BBB'))->toBe('')
+        ->and(reportRowText($page($leasing, ['building' => $this->b->id]), 'Total'))->toBe('')
+        ->and(reportRowText($page($leasing, ['building' => $this->a->id]), 'AAA'))->toBe('AAA 1 100.000 0.000');
+
+    $this->b->delete();
+    $admin = matrixUser(R::Admin, $this->a); // buildings.view-all
+    $all = $page($admin);
+    expect(reportRowText($all, 'AAA'))->toBe('AAA 1 100.000 0.000')
+        ->and(reportRowText($all, 'BBB'))->toBe('')
+        ->and(reportRowText($all, 'Total'))->toBe('Total 1 100.000 0.000');
+});
+
+test('Maintenance cost agrees with Building profitability once unlinked and reversed expenses are accounted for', function () {
+    ($this->complete)(workOrderFor($this->pm, $this->old, $this->plumber), '100', '10');
+    ($this->complete)(workOrderFor($this->pm, maintenanceRequest($this->pm, $this->unitB, ['category' => 'ac']), $this->cool), '20', '2');
+    $reversed = ($this->complete)(workOrderFor($this->pm, maintenanceRequest($this->pm, $this->unitA), $this->plumber), '30', '3');
+    app(ReverseExpense::class)->handle(matrixUser(R::Finance, $this->a), $reversed->expense, 'Entered twice');
+    // A company expense that no work order links to: Building profitability counts it, the cost report must not.
+    app(RecordExpense::class)->handle($this->pm, ['building_id' => $this->a->id, 'unit_id' => $this->unitA->id, 'category' => 'maintenance',
+        'description' => 'Light bulbs', 'expense_date' => '2026-10-17', 'net' => '40', 'tax_amount' => '4', 'charge_to' => 'company']);
+    $unlinked = ['net' => '40.000', 'total' => '44.000'];
+
+    foreach ([true, false] as $registered) {
+        CompanySetting::current()->forceFill(['vat_registered' => $registered])->save();
+        $key = $registered ? 'net' : 'total';
+        $html = tap(Livewire::actingAs($this->pm)->test(MaintenanceCostReport::class), fn ($p) => $p->set('from', '2026-10-01')->set('to', '2026-10-31'))->html();
+        $linked = $registered ? ['AAA' => '100.000', 'BBB' => '20.000'] : ['AAA' => '110.000', 'BBB' => '22.000'];
+        foreach ([$this->a, $this->b] as $building) {
+            $expenses = BuildingProfitability::for($building, '2026-10-01', '2026-10-31')['expenses'];
+            $unlinkedFils = $building->is($this->a) ? Fils::fromDecimal($unlinked[$key]) : 0;
+            $cost = reportRowText($html, $building->code);
+            expect($cost)->toBe("{$building->code} 1 {$linked[$building->code]} 0.000")
+                ->and($expenses - $unlinkedFils)->toBe(Fils::fromDecimal($linked[$building->code])) // profitability = linked + unlinked, the reversed 33 in neither
+                ->and($expenses)->toBeGreaterThan(0);
+        }
+    }
+});
+
+test('Maintenance cost by unit keeps the code of a trashed unit', function () {
+    ($this->complete)(workOrderFor($this->pm, $this->old, $this->plumber), '100', '10');
+    $this->unitA->delete();
+    $html = Livewire::actingAs($this->pm)->test(MaintenanceCostReport::class)->set('from', '2026-10-01')->set('to', '2026-10-31')->set('group', 'unit')->html();
+    expect(reportRowText($html, 'AAA/101'))->toBe('AAA/101 1 100.000 0.000');
 });

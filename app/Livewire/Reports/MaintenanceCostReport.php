@@ -72,7 +72,7 @@ class MaintenanceCostReport extends Component implements PackageReport
         $workOrders = WorkOrder::query()->visibleTo($this->actor())
             ->whereHas('expense', fn ($e) => $e->where('status', ExpenseStatus::Recorded)->whereBetween('expense_date', [$this->from, $this->to])
                 ->when($this->building, fn ($q, $b) => $q->where('building_id', $b)))
-            ->with(['expense', 'expense.building:id,code', 'expense.unit:id,code', 'maintenanceRequest:id,category'])
+            ->with(['expense', 'expense.building:id,code', 'expense.unit' => fn ($q) => $q->withTrashed()->select('id', 'code'), 'maintenanceRequest:id,category'])
             ->get();
 
         $groups = [];
