@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\RoleName;
+use App\Livewire\Reports\Builder;
 use App\Livewire\Reports\Index;
 use App\Livewire\Reports\Package;
 use App\Models\Building;
@@ -259,3 +260,74 @@ test('a package schedule is resumed and removed from the package screen, audited
     expect(ReportSchedule::count())->toBe(0)
         ->and(Activity::where('event', 'report.scheduled')->get()->map(fn ($a) => $a->properties['action'])->all())->toBe(['resumed', 'removed']);
 });
+
+test('resuming a package schedule clears the pause and failures and recomputes the next run', function () {
+    $package = packageWith($this->finance, $this->overstays);
+    $schedule = $package->schedules()->create(['frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id,
+        'next_run_at' => now()->subDays(3), 'paused_at' => now(), 'consecutive_failures' => 3]);
+
+    Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package])->call('resumeSchedule', $schedule->id);
+
+    $schedule->refresh();
+    expect($schedule->paused_at)->toBeNull()->and($schedule->consecutive_failures)->toBe(0)
+        ->and($schedule->next_run_at->timezone('Asia/Bahrain')->format('Y-m-d H:i'))->toBe('2026-10-16 07:00');
+});
+
+test('a package screen never touches the schedule of another package or a saved report', function () {
+    $package = packageWith($this->finance, $this->overstays);
+    $other = packageWith($this->finance, $this->overstays, 'Other pack');
+    $row = ['frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id, 'next_run_at' => now()->addDay(), 'paused_at' => now(), 'consecutive_failures' => 2];
+    $foreign = $other->schedules()->create($row);
+    $report = $this->saved->schedules()->create($row);
+
+    $screen = Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package]);
+    foreach ([$foreign, $report] as $s) {
+        $screen->call('resumeSchedule', $s->id)->call('removeSchedule', $s->id);
+    }
+
+    expect(ReportSchedule::count())->toBe(2)->and($foreign->fresh()->paused_at)->not->toBeNull()->and($report->fresh()->consecutive_failures)->toBe(2)
+        ->and(Activity::where('event', 'report.scheduled')->count())->toBe(0);
+});
+
+test('vendor support and inactive staff are not accepted as package recipients', function () {
+    $package = packageWith($this->finance, $this->overstays);
+    $vendor = matrixUser(RoleName::VendorSupport, $this->a);
+    $gone = matrixUser(RoleName::Leasing, $this->a);
+    $gone->forceFill(['active' => false])->save();
+
+    foreach ([$vendor, $gone] as $user) {
+        Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package])
+            ->set('schedule', ['frequency' => 'daily', 'day' => null, 'hour' => 7, 'recipients' => [$user->id]])->call('addSchedule')->assertHasErrors('schedule.recipients.0');
+    }
+    expect(ReportSchedule::count())->toBe(0);
+});
+
+test('a package schedule day outside the range is rejected', function (string $frequency, int $day) {
+    $package = packageWith($this->finance, $this->overstays);
+
+    Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package])
+        ->set('schedule', ['frequency' => $frequency, 'day' => $day, 'hour' => 7, 'recipients' => [$this->finance->id]])->call('addSchedule')->assertHasErrors('schedule.day');
+    expect(ReportSchedule::count())->toBe(0);
+})->with([['weekly', 7], ['weekly', -1], ['monthly', 29], ['monthly', -1]]);
+
+test('a viewer of a shared package cannot resume its schedules', function () {
+    $package = packageWith($this->finance, $this->overstays, 'Monthly pack', 'shared');
+    $schedule = $package->schedules()->create(['frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id, 'next_run_at' => now()->addDay(), 'paused_at' => now()]);
+    $viewer = matrixUser(RoleName::Finance, $this->a);
+
+    Livewire::actingAs($viewer)->test(Package::class, ['package' => $package])->call('resumeSchedule', $schedule->id)->assertForbidden();
+    expect($schedule->fresh()->paused_at)->not->toBeNull();
+});
+
+test('a tampered schedule id on remove or resume is ignored on both screens, never a 500', function (mixed $id) {
+    $package = packageWith($this->finance, $this->overstays);
+    $row = ['frequency' => 'daily', 'hour' => 7, 'created_by' => $this->finance->id, 'next_run_at' => now()->addDay(), 'paused_at' => now()];
+    $package->schedules()->create($row);
+    $this->saved->schedules()->create($row);
+
+    foreach ([Livewire::actingAs($this->finance)->test(Package::class, ['package' => $package]),
+        Livewire::actingAs($this->finance)->test(Builder::class, ['report' => $this->saved])] as $screen) {
+        $screen->call('removeSchedule', $id)->assertOk()->call('resumeSchedule', $id)->assertOk();
+    }
+    expect(ReportSchedule::count())->toBe(2)->and(ReportSchedule::whereNull('paused_at')->count())->toBe(0);
+})->with(['text' => 'abc', 'array' => [[1]], 'null' => null, 'negative' => '-5', 'huge' => '99999999999999999999']);

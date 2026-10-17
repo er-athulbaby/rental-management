@@ -62,10 +62,11 @@ trait ManagesSchedules
         Flux::toast(variant: 'success', text: __('Scheduled.'));
     }
 
-    public function removeSchedule(int $id): void
+    public function removeSchedule(mixed $id): void
     {
         $target = $this->scheduleTarget();
-        $schedule = $target->schedules()->whereKey($id)->first();
+        $id = is_int($id) || (is_string($id) && ctype_digit($id) && strlen($id) < 10) ? (int) $id : 0; // a tampered argument finds nothing
+        $schedule = $id > 0 ? $target->schedules()->whereKey($id)->first() : null;
         if ($schedule !== null) {
             $schedule->delete();
             Audit::log('report.scheduled', $target, properties: ['schedule' => $id, 'action' => 'removed'], causer: $this->actor());
@@ -74,10 +75,11 @@ trait ManagesSchedules
     }
 
     /** Clears the pause and failure count, then waits for the next due time. */
-    public function resumeSchedule(int $id): void
+    public function resumeSchedule(mixed $id): void
     {
         $target = $this->scheduleTarget();
-        $schedule = $target->schedules()->whereKey($id)->first();
+        $id = is_int($id) || (is_string($id) && ctype_digit($id) && strlen($id) < 10) ? (int) $id : 0; // a tampered argument finds nothing
+        $schedule = $id > 0 ? $target->schedules()->whereKey($id)->first() : null;
         if ($schedule !== null) {
             $schedule->update(['paused_at' => null, 'consecutive_failures' => 0, 'next_run_at' => NextRun::after($schedule, now()->toImmutable())]);
             Audit::log('report.scheduled', $target, properties: ['schedule' => $id, 'action' => 'resumed'], causer: $this->actor());

@@ -37,22 +37,22 @@
             @endforelse
 
             <div class="grid grid-cols-3 gap-2">
-                <flux:select wire:model.live="schedule.frequency" :label="__('Repeat')">
+                <flux:select wire:model.live="schedule.frequency" :label="__('Repeat')" :aria-invalid="$errors->has('schedule.frequency') ? 'true' : null">
                     @foreach ($freqLabels as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach
                 </flux:select>
                 @if ($freq === 'weekly')
-                    <flux:select wire:model="schedule.day" :label="__('Day')">
+                    <flux:select wire:model="schedule.day" :label="__('Day')" :aria-invalid="$errors->has('schedule.day') ? 'true' : null">
                         @foreach ($days as $n => $d)<option value="{{ $n }}">{{ $d }}</option>@endforeach
                     </flux:select>
                 @elseif ($freq === 'monthly')
-                    <flux:select wire:model="schedule.day" :label="__('Day')">
+                    <flux:select wire:model="schedule.day" :label="__('Day')" :aria-invalid="$errors->has('schedule.day') ? 'true' : null">
                         @for ($n = 1; $n <= 28; $n++)<option value="{{ $n }}">{{ $n }}</option>@endfor
                         <option value="0">{{ __('Last day') }}</option>
                     </flux:select>
                 @else
                     <div></div>
                 @endif
-                <flux:select wire:model="schedule.hour" :label="__('Time')">
+                <flux:select wire:model="schedule.hour" :label="__('Time')" :aria-invalid="$errors->has('schedule.hour') ? 'true' : null">
                     @for ($h = 0; $h < 24; $h++)<option value="{{ $h }}">{{ sprintf('%02d:00', $h) }}</option>@endfor
                 </flux:select>
             </div>
