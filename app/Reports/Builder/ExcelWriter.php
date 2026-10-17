@@ -7,12 +7,12 @@ use Spatie\SimpleExcel\SimpleExcelWriter;
 /** The builder's Excel file: one header row, raw values, then the grand total (spec §5). */
 final class ExcelWriter
 {
+    /** Streams the rows to the file, so a large report is not held twice in memory (final review minor 4). */
     public static function write(ReportResult $result, string $path): void
     {
-        $sheet = self::sheet($result);
         $writer = SimpleExcelWriter::create($path);
-        $writer->addHeader($sheet['columns']);
-        foreach ($sheet['rows'] as $row) {
+        $writer->addHeader(self::columns($result));
+        foreach (self::rows($result) as $row) {
             $writer->addRow($row);
         }
         $writer->close();
@@ -25,19 +25,30 @@ final class ExcelWriter
      */
     public static function sheet(ReportResult $result): array
     {
-        $rows = [];
+        return ['columns' => self::columns($result), 'rows' => iterator_to_array(self::rows($result), false)];
+    }
+
+    /** @return list<string> */
+    private static function columns(ReportResult $result): array
+    {
+        return array_map(fn (Field $f) => $f->label, $result->columns);
+    }
+
+    /** @return \Generator<int, array<array-key, mixed>> */
+    private static function rows(ReportResult $result): \Generator
+    {
         if ($result->groups === []) {
             foreach ($result->rows as $row) {
-                $rows[] = self::line($result->columns, $row);
+                yield self::line($result->columns, $row);
             }
         } else {
             $deepest = collect($result->groups)->max('level');
             $byGroup = Grouping::rowsByGroup($result->rows);
             foreach ($result->groups as $g) {
-                $rows[] = self::subtotal($result->columns, $g);
+                yield self::subtotal($result->columns, $g);
                 if ($g['level'] === $deepest) {
                     foreach ($byGroup[Grouping::keyId($g['keys'])] ?? [] as $row) {
-                        $rows[] = self::line($result->columns, $row);
+                        yield self::line($result->columns, $row);
                     }
                 }
             }
@@ -51,12 +62,10 @@ final class ExcelWriter
                 }
             }
         }
-        $rows[] = $total;
+        yield $total;
         if ($result->comparison !== null) {
-            array_push($rows, ...self::comparison($result));
+            yield from self::comparison($result);
         }
-
-        return ['columns' => array_map(fn (Field $f) => $f->label, $result->columns), 'rows' => $rows];
     }
 
     /**

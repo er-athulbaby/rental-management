@@ -262,7 +262,7 @@ trait StatementPage
             $headline = null;
             foreach ($statement['rows'] as $row) {
                 if ($row['kind'] === 'total') {
-                    $headline = $row['label'].': '.Fils::toDecimal($row['total']); // the last total row: Result / Net income to owner
+                    $headline = $row['label'].': '.Fils::grouped($row['total']); // the last total row: Result / Net income to owner
                 }
             }
 

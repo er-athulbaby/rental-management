@@ -6,6 +6,7 @@ use App\Audit\Audit;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\User;
+use App\Support\Fils;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Validator;
@@ -247,7 +248,7 @@ trait ReportPage
             foreach ($this->numeric() as $key) {
                 $value = $row[$key] ?? null;
                 if (isset($columns[$key]) && is_string($value) && preg_match('/^-?\d+\.\d{3}$/', $value) === 1) {
-                    $headline = "{$columns[$key]}: {$value}";
+                    $headline = $columns[$key].': '.Fils::grouped(Fils::fromDecimal($value)); // the builder's format (final review minor 1)
                     break;
                 }
             }

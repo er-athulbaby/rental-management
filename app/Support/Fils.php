@@ -32,6 +32,12 @@ final class Fils
         return sprintf('%s%d.%03d', $sign, intdiv($abs, 1000), $abs % 1000);
     }
 
+    /** toDecimal() with a thousands separator ("1,250.000"), as the builder's totals show money. */
+    public static function grouped(int $fils): string
+    {
+        return (string) preg_replace('/\B(?=(\d{3})+\.)/', ',', self::toDecimal($fils));
+    }
+
     /** Validation rule for a non-negative money input with at most 3 decimals. */
     public static function rule(): string
     {

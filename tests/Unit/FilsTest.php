@@ -24,3 +24,10 @@ test('divRound rounds half away from zero', function () {
         ->and(Fils::divRound(-5, 2))->toBe(-3)
         ->and(Fils::divRound(0, 7))->toBe(0);
 });
+
+test('grouped adds a thousands separator, as the builder shows money totals', function () {
+    expect(Fils::grouped(0))->toBe('0.000')
+        ->and(Fils::grouped(800000))->toBe('800.000')
+        ->and(Fils::grouped(1250000))->toBe('1,250.000')
+        ->and(Fils::grouped(-1250000500))->toBe('-1,250,000.500');
+});
