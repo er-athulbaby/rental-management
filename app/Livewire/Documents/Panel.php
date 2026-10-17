@@ -13,10 +13,12 @@ use App\Models\Cheque;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Expense;
+use App\Models\MaintenanceRequest;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Payment;
 use App\Models\Unit;
+use App\Models\WorkOrder;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -34,7 +36,8 @@ class Panel extends Component
     use WithActor, WithFileUploads;
 
     /** Record types that may carry documents; later milestones add theirs. */
-    public const array ALLOWED = [Agreement::class, AgreementUnit::class, Building::class, Cheque::class, Customer::class, Expense::class, Owner::class, OwnerContract::class, Payment::class, Unit::class];
+    public const array ALLOWED = [Agreement::class, AgreementUnit::class, Building::class, Cheque::class, Customer::class, Expense::class,
+        MaintenanceRequest::class, Owner::class, OwnerContract::class, Payment::class, Unit::class, WorkOrder::class];
 
     #[Locked]
     public string $type = '';
@@ -55,6 +58,8 @@ class Panel extends Component
 
         $this->type = $documentable::class;
         $this->recordId = (int) $documentable->getKey();
+        // Spec 2026-10-17 maintenance §3.2-§3.3: before- and after-photos (plan ruling 10).
+        $this->category = in_array($documentable::class, [MaintenanceRequest::class, WorkOrder::class], true) ? DocumentCategory::Maintenance->value : 'other';
     }
 
     private function documentable(): Model

@@ -103,6 +103,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');
     Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');
     Route::livewire('maintenance/vendors', Maintenance\Vendors::class)->middleware('can:maintenance.view')->name('maintenance.vendors.index');
+    Route::livewire('maintenance/requests/{maintenanceRequest}', Maintenance\RequestShow::class)->middleware('can:maintenance.view')->name('maintenance.requests.show');
     Route::livewire('maintenance/vendors/create', Maintenance\VendorForm::class)->middleware('can:maintenance.manage')->name('maintenance.vendors.create');
     Route::livewire('maintenance/vendors/{vendor}/edit', Maintenance\VendorForm::class)->middleware('can:maintenance.view')->name('maintenance.vendors.edit');
     Route::livewire('import', Import\Index::class)->middleware('can:import.run')->name('import.index');

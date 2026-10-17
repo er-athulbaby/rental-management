@@ -7,9 +7,9 @@
     $label = $status instanceof \BackedEnum ? (method_exists($status, 'label') ? $status->label() : str($status->value)->headline()->toString()) : (string) $status;
     $key = $status instanceof \BackedEnum ? $status->value : str($label)->snake()->toString();
     $color = match ($key) {
-        'active', 'paid', 'cleared', 'confirmed', 'available', 'finalised', 'approved', 'completed', 'recorded' => 'green',
-        'issued', 'occupied', 'deposited', 'unpaid', 'partially_paid' => 'blue',
-        'pending_approval', 'reserved', 'held', 'notice_given', 'draft' => 'amber',
+        'active', 'paid', 'cleared', 'confirmed', 'available', 'finalised', 'approved', 'completed', 'recorded', 'resolved' => 'green',
+        'issued', 'occupied', 'deposited', 'unpaid', 'partially_paid', 'in_progress', 'assigned' => 'blue',
+        'pending_approval', 'reserved', 'held', 'notice_given', 'draft', 'open' => 'amber',
         'overdue', 'bounced', 'blocked', 'reversed', 'rejected', 'terminated', 'expired' => 'red',
         default => 'zinc', // scheduled, closed, renewed, ended, replaced, returned, cancelled, credit note
     };
