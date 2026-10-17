@@ -46,7 +46,7 @@ test('items run in package order as the given user, each with its title, real da
         ['Collections by date and method', '01/09/2026 – 30/09/2026', 2, 'Amount: 100.000', null],
         ['Monthly collections', '01/09/2026 – 30/09/2026', 1, 'Amount: 100.000', null],
     ])
-        ->and($result->sheets[0]->columns)->toBe(ReadyMade::make('rent_roll')->sheet($this->finance, ['to' => '2026-10-15'])['columns'])
+        ->and($result->sheets[0]->columns)->toBe(ReadyMade::get('rent_roll')::sheet($this->finance, ['to' => '2026-10-15'])['columns'])
         ->and($result->periodLabel())->toBe('As at 15/10/2026')
         ->and($result->allSkipped())->toBeFalse()
         ->and($result->lines()[0])->toBe('Rent roll, As at 15/10/2026: 6 rows · Monthly rent: 800.000')
@@ -83,7 +83,7 @@ test('a period that is not a relative preset is refused', function (mixed $perio
 })->with(['custom' => ['custom'], 'unknown' => ['fortnight'], 'array' => [['last_month']], 'missing' => [null]]);
 
 test('clean keeps only what the report takes, and an empty building means all', function () {
-    $form = ReadyMade::make('expiring_agreements')->packageForm($this->finance);
+    $form = ReadyMade::get('expiring_agreements')::packageForm($this->finance);
 
     expect(PackageRunner::clean($form, ['building' => '', 'period' => 'today', 'window' => '60', 'from' => '2020-01-01', 'evil' => 1]))->toBe(['building' => null, 'window' => '60'])
         ->and(PackageRunner::clean($form, ['building' => (string) $this->a->id]))->toBe(['building' => $this->a->id])

@@ -200,8 +200,35 @@ trait StatementPage
         return ['columns' => $columns, 'rows' => $rows];
     }
 
+    /**
+     * The PackageReport entry points are static on purpose: Livewire dispatches only public instance methods, so the
+     * browser can never call them (final review C1). Each runs on a fresh, unmounted instance (plan ruling 1), so the
+     * owner cache starts empty.
+     *
+     * @return array{title: string, dates: string, building: bool, options: array<string, array<array-key, string>>, allowed: bool}
+     */
+    public static function packageForm(User $as): array
+    {
+        return (new self)->formFor($as);
+    }
+
+    /** @param  array<array-key, mixed>  $settings */
+    public static function checkSettings(User $as, array $settings): void
+    {
+        (new self)->checkFor($as, $settings);
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $settings
+     * @return array{columns: list<string>, rows: list<array<array-key, mixed>>, headline: ?string}
+     */
+    public static function sheet(User $as, array $settings): array
+    {
+        return (new self)->sheetFor($as, $settings);
+    }
+
     /** @return array{title: string, dates: string, building: bool, options: array<string, array<array-key, string>>, allowed: bool} */
-    public function packageForm(User $as): array
+    private function formFor(User $as): array
     {
         return $this->asActor($as, fn () => ['title' => $this->title(), 'dates' => 'months', 'building' => array_key_exists('building', $this->scopeRules()),
             'options' => ['basis' => [IncomeStatement::COLLECTED => __('Collected'), IncomeStatement::BILLED => __('Billed')], ...$this->scopeOptions()],
@@ -209,7 +236,7 @@ trait StatementPage
     }
 
     /** @param  array<array-key, mixed>  $settings */
-    public function checkSettings(User $as, array $settings): void
+    private function checkFor(User $as, array $settings): void
     {
         $this->asActor($as, function () use ($settings) {
             $this->loadSettings($settings);
@@ -223,7 +250,7 @@ trait StatementPage
      * @param  array<array-key, mixed>  $settings
      * @return array{columns: list<string>, rows: list<array<array-key, mixed>>, headline: ?string}
      */
-    public function sheet(User $as, array $settings): array
+    private function sheetFor(User $as, array $settings): array
     {
         return $this->asActor($as, function () use ($as, $settings) {
             if (! $as->can('reports.financial')) {

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -32,16 +33,34 @@ test('the registry lists the 14 reports under the keys their exports audit', fun
     expect(ReadyMade::REPORTS)->toHaveCount(14);
     foreach (ReadyMade::REPORTS as $key => $class) {
         expect($key)->toBe(Str::snake(Str::beforeLast(class_basename($class), 'Report')))
-            ->and(ReadyMade::make($key))->toBeInstanceOf(PackageReport::class);
+            ->and(is_subclass_of(ReadyMade::get($key), PackageReport::class))->toBeTrue();
     }
 
-    expect(ReadyMade::make('rent_roll')->packageForm($this->finance))->toBe(['title' => 'Rent roll', 'dates' => 'single', 'building' => true, 'options' => [], 'allowed' => true])
-        ->and(ReadyMade::make('expiring_agreements')->packageForm($this->finance)['options'])->toBe(['window' => ['30' => 'Next 30 days', '60' => 'Next 60 days', '90' => 'Next 90 days']])
-        ->and(ReadyMade::make('id_documents')->packageForm($this->finance)['building'])->toBeFalse()
-        ->and(ReadyMade::make('owner_income_statement')->packageForm($this->finance))->toBe(['title' => 'Owner income statement', 'dates' => 'months', 'building' => false,
+    expect(ReadyMade::get('rent_roll')::packageForm($this->finance))->toBe(['title' => 'Rent roll', 'dates' => 'single', 'building' => true, 'options' => [], 'allowed' => true])
+        ->and(ReadyMade::get('expiring_agreements')::packageForm($this->finance)['options'])->toBe(['window' => ['30' => 'Next 30 days', '60' => 'Next 60 days', '90' => 'Next 90 days']])
+        ->and(ReadyMade::get('id_documents')::packageForm($this->finance)['building'])->toBeFalse()
+        ->and(ReadyMade::get('owner_income_statement')::packageForm($this->finance))->toBe(['title' => 'Owner income statement', 'dates' => 'months', 'building' => false,
             'options' => ['basis' => ['collected' => 'Collected', 'billed' => 'Billed'], 'owner' => [$this->owner->id => 'Leila Owner']], 'allowed' => true])
-        ->and(ReadyMade::make('income_statement')->packageForm($this->finance)['options']['owner'])->toBe(['' => 'All owners', $this->owner->id => 'Leila Owner'])
-        ->and(ReadyMade::make('income_statement')->packageForm($this->finance)['building'])->toBeTrue();
+        ->and(ReadyMade::get('income_statement')::packageForm($this->finance)['options']['owner'])->toBe(['' => 'All owners', $this->owner->id => 'Leila Owner'])
+        ->and(ReadyMade::get('income_statement')::packageForm($this->finance)['building'])->toBeTrue();
+});
+
+test('final review C1: the browser cannot call the package entry points on any of the 14 report pages', function () {
+    $this->scoped->givePermissionTo('finance.view'); // so the cheques page opens too
+    foreach (ReadyMade::REPORTS as $class) {
+        foreach ([['sheet', [$this->finance->id, ['to' => '2026-10-15']]], ['packageForm', [$this->finance->id]],
+            ['checkSettings', [$this->finance->id, []]], ['formFor', [$this->finance->id]], ['checkFor', [$this->finance->id, []]],
+            ['sheetFor', [$this->finance->id, []]]] as [$method, $args]) {
+            $page = Livewire::actingAs($this->scoped)->test($class)->assertOk(); // a refused call leaves the test client unusable
+            try {
+                $page->call($method, ...$args);
+                $this->fail("{$class}::{$method} was callable from the browser");
+            } catch (MethodNotFoundException) {
+                // refused before the method runs, so nothing is returned
+            }
+        }
+        expect(auth()->id())->toBe($this->scoped->id);
+    }
 });
 
 test('each ready-made report runs headless and gives exactly the header and rows its own Excel export writes', function (string $key, array $settings, bool $hasRows) {
@@ -54,7 +73,7 @@ test('each ready-made report runs headless and gives exactly the header and rows
     }
     $exported = xlsxRows($page->instance()->export()->getFile()->getPathname());
 
-    $sheet = ReadyMade::make($key)->sheet($this->finance, $settings);
+    $sheet = ReadyMade::get($key)::sheet($this->finance, $settings);
 
     expect(xlsxRows(sheetFile($sheet)))->toBe($exported);
     if ($hasRows) {
@@ -81,17 +100,17 @@ test('a headless run acts as the given user and always puts the signed-in user b
     $leasingB = matrixUser(RoleName::Leasing, $this->b);
     $this->actingAs($this->finance);
 
-    $sheet = ReadyMade::make('rent_roll')->sheet($leasingB, ['to' => '2026-10-15']);
+    $sheet = ReadyMade::get('rent_roll')::sheet($leasingB, ['to' => '2026-10-15']);
 
     expect(auth()->id())->toBe($this->finance->id)
         ->and(collect($sheet['rows'])->pluck(0)->unique()->values()->all())->toBe(['BBB', 'Subtotal BBB', 'Total'])
         ->and($sheet['columns'])->not->toContain('Monthly rent'); // leasing has no reports.financial
 
-    expect(fn () => ReadyMade::make('rent_roll')->sheet($leasingB, ['to' => 'yesterday']))->toThrow(ValidationException::class)
+    expect(fn () => ReadyMade::get('rent_roll')::sheet($leasingB, ['to' => 'yesterday']))->toThrow(ValidationException::class)
         ->and(auth()->id())->toBe($this->finance->id);
 
     Auth::forgetUser();
-    ReadyMade::make('rent_roll')->sheet($leasingB, ['to' => '2026-10-15']);
+    ReadyMade::get('rent_roll')::sheet($leasingB, ['to' => '2026-10-15']);
     expect(Auth::hasUser())->toBeFalse();
 });
 
@@ -102,7 +121,7 @@ test('settings are whitelisted for the user who runs them, and tampered values a
 
     foreach (['checkSettings', 'sheet'] as $method) {
         try {
-            ReadyMade::make($key)->{$method}($this->scoped, $settings);
+            ReadyMade::get($key)::{$method}($this->scoped, $settings);
             $this->fail("{$method} accepted the settings");
         } catch (ValidationException $e) {
             expect($e->errors())->toHaveKey($error);
@@ -124,9 +143,9 @@ test('settings are whitelisted for the user who runs them, and tampered values a
 ]);
 
 test('valid settings pass the check', function () {
-    ReadyMade::make('owner_income_statement')->checkSettings($this->scoped, ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'collected', 'owner' => $this->owner->id]);
-    ReadyMade::make('income_statement')->checkSettings($this->scoped, ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'collected', 'building' => '', 'owner' => '']);
-    ReadyMade::make('rent_roll')->checkSettings($this->scoped, ['to' => '2026-10-15', 'building' => (string) $this->a->id]);
+    ReadyMade::get('owner_income_statement')::checkSettings($this->scoped, ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'collected', 'owner' => $this->owner->id]);
+    ReadyMade::get('income_statement')::checkSettings($this->scoped, ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'collected', 'building' => '', 'owner' => '']);
+    ReadyMade::get('rent_roll')::checkSettings($this->scoped, ['to' => '2026-10-15', 'building' => (string) $this->a->id]);
 
     expect(true)->toBeTrue();
 });
@@ -134,15 +153,15 @@ test('valid settings pass the check', function () {
 test('a user without the report\'s permission is refused', function () {
     $leasing = matrixUser(RoleName::Leasing, $this->a);
 
-    expect(ReadyMade::make('outstanding')->packageForm($leasing)['allowed'])->toBeFalse()
-        ->and(ReadyMade::make('income_statement')->packageForm($leasing)['allowed'])->toBeFalse()
-        ->and(ReadyMade::make('rent_roll')->packageForm($leasing)['allowed'])->toBeTrue()
-        ->and(fn () => ReadyMade::make('outstanding')->sheet($leasing, []))->toThrow(AuthorizationException::class)
-        ->and(fn () => ReadyMade::make('income_statement')->sheet($leasing, ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'billed']))->toThrow(AuthorizationException::class);
+    expect(ReadyMade::get('outstanding')::packageForm($leasing)['allowed'])->toBeFalse()
+        ->and(ReadyMade::get('income_statement')::packageForm($leasing)['allowed'])->toBeFalse()
+        ->and(ReadyMade::get('rent_roll')::packageForm($leasing)['allowed'])->toBeTrue()
+        ->and(fn () => ReadyMade::get('outstanding')::sheet($leasing, []))->toThrow(AuthorizationException::class)
+        ->and(fn () => ReadyMade::get('income_statement')::sheet($leasing, ['from' => '2026-08', 'to' => '2026-10', 'basis' => 'billed']))->toThrow(AuthorizationException::class);
 });
 
 test('the headline is the first money figure of the last total row, or none', function () {
-    $headline = fn (string $key, array $settings) => ReadyMade::make($key)->sheet($this->finance, $settings)['headline'];
+    $headline = fn (string $key, array $settings) => ReadyMade::get($key)::sheet($this->finance, $settings)['headline'];
 
     expect($headline('rent_roll', ['to' => '2026-10-15']))->toBe('Monthly rent: 800.000')
         ->and($headline('collections', ['from' => '2026-09-01', 'to' => '2026-10-31']))->toBe('Amount: 400.000')
@@ -172,7 +191,7 @@ test('asActor restores the previous user even when the run throws', function () 
 
 test('a non-string or garbage date fails validation, never an exception', function (string $key, array $settings) {
     foreach (['checkSettings', 'sheet'] as $method) {
-        expect(fn () => ReadyMade::make($key)->{$method}($this->finance, $settings))->toThrow(ValidationException::class);
+        expect(fn () => ReadyMade::get($key)::{$method}($this->finance, $settings))->toThrow(ValidationException::class);
     }
 })->with([
     'from and to as arrays' => ['collections', ['from' => ['2026-09-01'], 'to' => ['2026-10-31']]],
@@ -183,7 +202,7 @@ test('a non-string or garbage date fails validation, never an exception', functi
 ]);
 
 test('a building-scoped user gets only their building in the output', function () {
-    $sheet = ReadyMade::make('rent_roll')->sheet($this->scoped, ['to' => '2026-10-15']);
+    $sheet = ReadyMade::get('rent_roll')::sheet($this->scoped, ['to' => '2026-10-15']);
 
     expect(collect($sheet['rows'])->pluck(0)->unique()->values()->all())->toBe(['AAA', 'Subtotal AAA', 'Total']);
 });

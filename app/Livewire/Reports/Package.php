@@ -68,7 +68,7 @@ class Package extends Component
             return;
         }
         [$kind, $ref] = array_pad(explode(':', is_string($this->add) ? $this->add : '', 2), 2, '');
-        $form = $kind === 'ready' && isset(ReadyMade::REPORTS[$ref]) ? ReadyMade::make($ref)->packageForm($user) : null;
+        $form = $kind === 'ready' && isset(ReadyMade::REPORTS[$ref]) ? ReadyMade::get($ref)::packageForm($user) : null;
         if ($kind === 'saved' && ctype_digit($ref) && SavedReport::visibleTo($user)->whereKey((int) $ref)->exists()) {
             $items[] = ['kind' => 'saved', 'saved_report_id' => (int) $ref, 'report' => null, 'settings' => []];
         } elseif ($form !== null && $form['allowed']) {
@@ -222,14 +222,14 @@ class Package extends Component
         if ($kind !== 'ready_made' || ! is_string($key) || ! isset(ReadyMade::REPORTS[$key])) {
             throw ValidationException::withMessages(["items.{$i}" => __('Pick a report from the list.')]);
         }
-        $report = ReadyMade::make($key);
-        $form = $report->packageForm($user);
+        $report = ReadyMade::get($key);
+        $form = $report::packageForm($user);
         if (! $form['allowed']) {
             throw ValidationException::withMessages(["items.{$i}" => __('You do not have access to this report.')]);
         }
         $settings = PackageRunner::clean($form, is_array($item['settings'] ?? null) ? $item['settings'] : []);
         try {
-            $report->checkSettings($user, PackageRunner::resolve($form, $settings, CarbonImmutable::now('Asia/Bahrain'))['settings']);
+            $report::checkSettings($user, PackageRunner::resolve($form, $settings, CarbonImmutable::now('Asia/Bahrain'))['settings']);
         } catch (ValidationException $e) {
             throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn (array $m, string $k) => ["items.{$i}.settings.{$k}" => $m])->all());
         }
@@ -299,7 +299,7 @@ class Package extends Component
         $package = $this->packageId === null ? null : ReportPackage::findOrFail($this->packageId);
         $forms = [];
         foreach (array_keys(ReadyMade::REPORTS) as $key) {
-            $forms[$key] = ReadyMade::make($key)->packageForm($user);
+            $forms[$key] = ReadyMade::get($key)::packageForm($user);
         }
         $saved = SavedReport::visibleTo($user)->orderBy('name')->get(['id', 'name']);
 

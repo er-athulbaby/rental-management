@@ -39,11 +39,13 @@ final class ReadyMade
         'vat_summary' => VatSummaryReport::class,
     ];
 
-    /** A fresh, unmounted instance (plan ruling 1): its sheet() sets everything it needs. */
-    public static function make(string $key): PackageReport
+    /**
+     * The report's class. Its static packageForm(), checkSettings() and sheet() each run on a fresh instance (ruling 1).
+     *
+     * @return class-string<PackageReport>
+     */
+    public static function get(string $key): string
     {
-        $class = self::REPORTS[$key] ?? throw new InvalidArgumentException("Unknown ready-made report [{$key}].");
-
-        return new $class;
+        return self::REPORTS[$key] ?? throw new InvalidArgumentException("Unknown ready-made report [{$key}].");
     }
 }

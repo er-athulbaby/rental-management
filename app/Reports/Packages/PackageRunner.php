@@ -108,14 +108,14 @@ class PackageRunner
         if (! isset(ReadyMade::REPORTS[$key])) {
             return PackageSheet::skip($key, __('This report is no longer available.'));
         }
-        $report = ReadyMade::make($key);
-        $form = $report->packageForm($as);
+        $report = ReadyMade::get($key);
+        $form = $report::packageForm($as);
         if (! $form['allowed']) {
             return PackageSheet::skip($form['title'], __('You do not have access to this report.'));
         }
         try {
             $run = self::resolve($form, self::clean($form, $item->settings), $now);
-            $sheet = $report->sheet($as, $run['settings']);
+            $sheet = $report::sheet($as, $run['settings']);
         } catch (AuthorizationException) {
             return PackageSheet::skip($form['title'], __('You do not have access to this report.'));
         } catch (ValidationException $e) {

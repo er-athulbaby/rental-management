@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * A ready-made report a package can run headless (spec 2026-10-17 §2, §4). Implemented by the ReportPage and
  * StatementPage traits, so the sheet is exactly what the report's own Excel export writes.
+ * Static so that Livewire, which dispatches only public instance methods, never lets the browser call them (review C1).
  *
  * @phpstan-type Form array{title: string, dates: string, building: bool, options: array<string, array<array-key, string>>, allowed: bool}
  */
@@ -20,14 +21,14 @@ interface PackageReport
      *
      * @return Form
      */
-    public function packageForm(User $as): array;
+    public static function packageForm(User $as): array;
 
     /**
      * @param  array<array-key, mixed>  $settings  the report's own settings (dates already resolved)
      *
      * @throws ValidationException
      */
-    public function checkSettings(User $as, array $settings): void;
+    public static function checkSettings(User $as, array $settings): void;
 
     /**
      * @param  array<array-key, mixed>  $settings
@@ -36,5 +37,5 @@ interface PackageReport
      * @throws AuthorizationException when $as may not run the report
      * @throws ValidationException when the settings do not validate for $as
      */
-    public function sheet(User $as, array $settings): array;
+    public static function sheet(User $as, array $settings): array;
 }
