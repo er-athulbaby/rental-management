@@ -3,10 +3,15 @@
 namespace App\Livewire\Maintenance;
 
 use App\Actions\Maintenance\SaveVendor;
+use App\Enums\ExpenseStatus;
 use App\Enums\Trade;
 use App\Enums\VendorType;
 use App\Livewire\Concerns\WithActor;
+use App\Models\Building;
+use App\Models\Expense;
 use App\Models\Vendor;
+use App\Models\WorkOrder;
+use App\Support\Fils;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -57,6 +62,15 @@ class VendorForm extends Component
 
         return view('livewire.maintenance.vendor-form', [
             'vendor' => $vendor,
+            'workOrders' => $vendor ? WorkOrder::query()->visibleTo($this->actor())->where('vendor_id', $vendor->id)
+                ->with(['maintenanceRequest:id,number,building_id,unit_id', 'maintenanceRequest.building:id,code', 'maintenanceRequest.unit:id,code'])
+                ->latest('id')->limit(50)->get() : collect(),
+            'totalCost' => $vendor ? Fils::toDecimal(Fils::fromDecimal((string) (Expense::query()
+                ->join('work_orders', 'work_orders.expense_id', '=', 'expenses.id')
+                ->where('work_orders.vendor_id', $vendor->id)
+                ->where('expenses.status', ExpenseStatus::Recorded)
+                ->whereIn('expenses.building_id', Building::query()->visibleTo($this->actor())->select('buildings.id'))
+                ->sum('expenses.total') ?: '0'))) : null,
             'trades' => Trade::cases(),
             'types' => VendorType::cases(),
             'canEdit' => $vendor ? $this->actor()->can('update', $vendor) : true,

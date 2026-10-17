@@ -104,6 +104,9 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');
     Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');
     Route::livewire('maintenance/vendors', Maintenance\Vendors::class)->middleware('can:maintenance.view')->name('maintenance.vendors.index');
+    Route::livewire('maintenance/requests', Maintenance\Requests::class)->middleware('can:maintenance.view')->name('maintenance.requests.index');
+    Route::livewire('maintenance/requests/create', Maintenance\RequestForm::class)->middleware('can:maintenance.manage')->name('maintenance.requests.create');
+    Route::livewire('maintenance/work-orders', Maintenance\WorkOrders::class)->middleware('can:maintenance.view')->name('maintenance.work-orders.index');
     Route::livewire('maintenance/requests/{maintenanceRequest}', Maintenance\RequestShow::class)->middleware('can:maintenance.view')->name('maintenance.requests.show');
     Route::get('maintenance/work-orders/{workOrder}/sheet', WorkOrderSheetController::class)->middleware('can:maintenance.view')->name('maintenance.work-orders.sheet');
     Route::livewire('maintenance/vendors/create', Maintenance\VendorForm::class)->middleware('can:maintenance.manage')->name('maintenance.vendors.create');

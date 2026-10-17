@@ -74,6 +74,8 @@
 
                 @can('maintenance.view')
                     <flux:sidebar.group :heading="__('Maintenance')" class="grid">
+                        <flux:sidebar.item icon="wrench-screwdriver" :href="route('maintenance.requests.index')" :current="request()->routeIs('maintenance.requests.*')" wire:navigate>{{ __('Requests') }}</flux:sidebar.item>
+                        <flux:sidebar.item icon="clipboard-document-check" :href="route('maintenance.work-orders.index')" :current="request()->routeIs('maintenance.work-orders.*')" wire:navigate>{{ __('Work orders') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="truck" :href="route('maintenance.vendors.index')" :current="request()->routeIs('maintenance.vendors.*')" wire:navigate>{{ __('Vendors') }}</flux:sidebar.item>
                     </flux:sidebar.group>
                 @endcan

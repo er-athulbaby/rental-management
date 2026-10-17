@@ -30,6 +30,8 @@
                 <flux:table.column>{{ __('Type') }}</flux:table.column>
                 <flux:table.column>{{ __('Trades') }}</flux:table.column>
                 <flux:table.column>{{ __('Mobile') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Work orders') }}</flux:table.column>
+                <flux:table.column align="end">{{ __('Cost (BHD)') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
@@ -39,10 +41,12 @@
                         <flux:table.cell>{{ $vendor->type->label() }}</flux:table.cell>
                         <flux:table.cell>{{ $vendor->tradeLabels() }}</flux:table.cell>
                         <flux:table.cell>{{ $vendor->mobile }}</flux:table.cell>
+                        <flux:table.cell class="text-end tabular-nums">{{ $vendor->work_orders_count }}</flux:table.cell>
+                        <flux:table.cell class="text-end tabular-nums">{{ \App\Support\Fils::grouped(\App\Support\Fils::fromDecimal((string) $vendor->cost)) }}</flux:table.cell>
                         <flux:table.cell><flux:badge size="sm" :color="$vendor->active ? 'green' : 'zinc'">{{ $vendor->active ? __('Active') : __('Inactive') }}</flux:badge></flux:table.cell>
                     </flux:table.row>
                 @empty
-                    <flux:table.row><flux:table.cell colspan="5">{{ __('No vendors found.') }}</flux:table.cell></flux:table.row>
+                    <flux:table.row><flux:table.cell colspan="7">{{ __('No vendors found.') }}</flux:table.cell></flux:table.row>
                 @endforelse
             </flux:table.rows>
         </flux:table>

@@ -110,7 +110,7 @@ class MaintenanceRequest extends Model
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {
-        $query->whereHas('building', fn (Builder $q) => $q->visibleTo($user));
+        $query->whereHas('building', fn (Builder $q) => $q->withoutTrashed()->visibleTo($user)); // the relation is withTrashed()
     }
 
     /** @param  Builder<MaintenanceRequest>  $query */

@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Maintenance;
 
+use App\Enums\ExpenseStatus;
 use App\Enums\Trade;
 use App\Enums\VendorType;
 use App\Livewire\Concerns\WithActor;
+use App\Models\Building;
+use App\Models\Expense;
 use App\Models\Vendor;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Title;
@@ -52,6 +55,13 @@ class Vendors extends Component
             ->when($type, fn ($q, VendorType $t) => $q->where('type', $t))
             ->when(in_array($this->active, ['0', '1'], true), fn ($q) => $q->where('active', $this->active === '1'))
             ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', '%'.$search.'%')->orWhere('mobile', 'like', '%'.$search.'%')))
+            // Plan ruling 15: only work orders in buildings this user sees; cost = their recorded expenses' totals.
+            ->withCount(['workOrders' => fn ($q) => $q->visibleTo($this->actor())])
+            ->addSelect(['cost' => Expense::query()->selectRaw('COALESCE(SUM(expenses.total), 0)')
+                ->join('work_orders', 'work_orders.expense_id', '=', 'expenses.id')
+                ->whereColumn('work_orders.vendor_id', 'vendors.id')
+                ->where('expenses.status', ExpenseStatus::Recorded)
+                ->whereIn('expenses.building_id', Building::query()->visibleTo($this->actor())->select('buildings.id'))])
             ->orderBy('name')
             ->paginate(25);
 

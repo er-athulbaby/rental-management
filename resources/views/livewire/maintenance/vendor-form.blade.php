@@ -23,4 +23,24 @@
             <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
         @endif
     </form>
+
+    @if ($vendor)
+        <div class="space-y-3">
+            <flux:heading size="lg">{{ __('Work orders') }}</flux:heading>
+            <flux:text class="text-sm font-medium">{{ __('Total cost: :amount BHD', ['amount' => $totalCost]) }}</flux:text>
+            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                @forelse ($workOrders as $wo)
+                    <li wire:key="vwo-{{ $wo->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                        <span>
+                            <flux:link :href="route('maintenance.requests.show', $wo->maintenance_request_id)" wire:navigate>{{ $wo->number }}</flux:link>
+                            · {{ $wo->maintenanceRequest->number }} · {{ $wo->maintenanceRequest->building->code }} / {{ $wo->maintenanceRequest->unit?->code ?? __('Common area') }}
+                        </span>
+                        <x-status-badge :status="$wo->status" />
+                    </li>
+                @empty
+                    <li class="py-2"><flux:text>{{ __('No work orders yet.') }}</flux:text></li>
+                @endforelse
+            </ul>
+        </div>
+    @endif
 </section>

@@ -134,10 +134,11 @@ class Customer extends Model
     protected function search(Builder $query, string $term): void
     {
         $term = trim($term);
+        $like = '%'.addcslashes($term, '%_\\').'%';
         $query->where(fn (Builder $q) => $q
-            ->where('name_en', 'like', '%'.$term.'%')
-            ->orWhere('name_ar', 'like', '%'.$term.'%')
-            ->orWhere('mobile', 'like', '%'.$term.'%')
+            ->where('name_en', 'like', $like)
+            ->orWhere('name_ar', 'like', $like)
+            ->orWhere('mobile', 'like', $like)
             ->orWhere('id_number', $term)
             ->orWhereHas('agreements.agreementUnits.unit', fn (Builder $u) => $u->where('code', $term)));
     }
