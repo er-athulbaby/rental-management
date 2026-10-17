@@ -5,12 +5,13 @@ namespace App\Livewire\Reports;
 use App\Billing\CustomerCredit;
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Customer;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Livewire\Component;
 
 /** Spec §10: outstanding by customer = Σ invoice balances − customer credit. */
-class OutstandingReport extends Component
+class OutstandingReport extends Component implements PackageReport
 {
     use ReportPage;
 

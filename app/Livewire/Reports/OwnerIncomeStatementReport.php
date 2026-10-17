@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\StatementPage;
 use App\Reports\IncomeStatement;
+use App\Reports\Packages\PackageReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
@@ -16,7 +17,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  *
  * @phpstan-import-type Statement from IncomeStatement
  */
-class OwnerIncomeStatementReport extends Component
+class OwnerIncomeStatementReport extends Component implements PackageReport
 {
     use StatementPage;
 
@@ -37,8 +38,19 @@ class OwnerIncomeStatementReport extends Component
         $this->owner = null;
     }
 
+    protected function title(): string
+    {
+        return __('Owner income statement');
+    }
+
+    /** @return array<string, array<array-key, string>> */
+    protected function scopeOptions(): array
+    {
+        return ['owner' => $this->ownerOptions()];
+    }
+
     /** @return Statement|null */
-    private function compute(): ?array
+    protected function compute(): ?array
     {
         $owner = $this->idOrNull($this->owner);
         if ($owner === null) {

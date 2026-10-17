@@ -5,12 +5,13 @@ namespace App\Livewire\Reports;
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Customer;
 use App\Models\Owner;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /** Spec §10, plan ruling 7: customer and owner ID or CR copies expiring, by name only — never the ID number. */
-class IdDocumentsReport extends Component
+class IdDocumentsReport extends Component implements PackageReport
 {
     use ReportPage;
 

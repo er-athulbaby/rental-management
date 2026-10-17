@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Livewire\Reports\Concerns\StatementPage;
 use App\Models\Building;
 use App\Reports\IncomeStatement;
+use App\Reports\Packages\PackageReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
@@ -17,7 +18,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  *
  * @phpstan-import-type Statement from IncomeStatement
  */
-class IncomeStatementReport extends Component
+class IncomeStatementReport extends Component implements PackageReport
 {
     use StatementPage;
 
@@ -42,8 +43,19 @@ class IncomeStatementReport extends Component
         $this->owner = null;
     }
 
+    protected function title(): string
+    {
+        return __('Income statement');
+    }
+
+    /** @return array<string, array<array-key, string>> */
+    protected function scopeOptions(): array
+    {
+        return ['owner' => ['' => __('All owners')] + $this->ownerOptions()];
+    }
+
     /** @return Statement */
-    private function compute(): array
+    protected function compute(): array
     {
         [$from, $to] = $this->period();
 

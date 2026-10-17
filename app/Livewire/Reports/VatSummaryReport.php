@@ -10,12 +10,13 @@ use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Invoice;
 use App\Models\OwnerContract;
 use App\Models\Unit;
+use App\Reports\Packages\PackageReport;
 use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 /** Spec §10: output VAT by category from issued invoices and credit notes (by issue date), plus VAT on management fees (by posted_at). */
-class VatSummaryReport extends Component
+class VatSummaryReport extends Component implements PackageReport
 {
     use ReportPage;
 
@@ -71,7 +72,7 @@ class VatSummaryReport extends Component
             $rows[] = ['source' => __('Management fees'), 'category' => TaxCategory::Standard->label(),
                 'net' => Fils::toDecimal(Fils::fromDecimal((string) $fees->net)), 'vat' => Fils::toDecimal(Fils::fromDecimal((string) $fees->vat))];
         }
-        $rows[] = ['source' => __('Total output VAT'), 'category' => '', 'net' => '', 'vat' => Fils::toDecimal($total)];
+        $rows[] = ['source' => __('Total output VAT'), 'category' => '', 'net' => '', 'vat' => Fils::toDecimal($total), '_kind' => 'total'];
 
         return $rows;
     }

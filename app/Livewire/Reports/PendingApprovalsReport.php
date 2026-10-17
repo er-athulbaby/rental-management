@@ -4,11 +4,12 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Approval;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use Livewire\Component;
 
 /** Spec §10: pending approvals the viewer may see, plus their own requests. */
-class PendingApprovalsReport extends Component
+class PendingApprovalsReport extends Component implements PackageReport
 {
     use ReportPage;
 

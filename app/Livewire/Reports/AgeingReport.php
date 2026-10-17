@@ -4,12 +4,13 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Customer;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Livewire\Component;
 
 /** Spec §10: overdue balances by days past grace_until — 1–30 / 31–60 / 61–90 / 91+. */
-class AgeingReport extends Component
+class AgeingReport extends Component implements PackageReport
 {
     use ReportPage;
 

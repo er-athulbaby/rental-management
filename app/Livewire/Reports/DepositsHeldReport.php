@@ -4,12 +4,13 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Unit;
+use App\Reports\Packages\PackageReport;
 use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 /** Spec §10, §7.6: the deposit held per agreement unit is Σ movements, as at a date. */
-class DepositsHeldReport extends Component
+class DepositsHeldReport extends Component implements PackageReport
 {
     use ReportPage;
 
@@ -66,7 +67,7 @@ class DepositsHeldReport extends Component
             $rows[] = ['unit' => $r->building.' / '.$r->unit, 'agreement' => $r->agreement, 'customer' => $r->customer, 'held' => Fils::toDecimal($fils)];
         }
         if ($rows !== []) {
-            $rows[] = ['unit' => __('Total'), 'agreement' => '', 'customer' => '', 'held' => Fils::toDecimal($total)];
+            $rows[] = ['unit' => __('Total'), 'agreement' => '', 'customer' => '', 'held' => Fils::toDecimal($total), '_kind' => 'total'];
         }
 
         return $rows;

@@ -4,12 +4,13 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Cheque;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /** Spec §10: the cheque reports, which also need cheques.manage or finance.view. */
-class ChequesReport extends Component
+class ChequesReport extends Component implements PackageReport
 {
     use ReportPage;
 

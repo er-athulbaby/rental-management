@@ -4,11 +4,12 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Agreement;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use Livewire\Component;
 
 /** Spec §10: expired agreements not closed — still holding a unit. */
-class OverstaysReport extends Component
+class OverstaysReport extends Component implements PackageReport
 {
     use ReportPage;
 

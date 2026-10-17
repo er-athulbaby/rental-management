@@ -6,13 +6,14 @@ use App\Enums\PaymentMethod;
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Payment;
 use App\Models\PaymentTender;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Livewire\Component;
 
 /** Spec §10: collections by date and method; deposit_applied is excluded from the total and shown separately. */
-class CollectionsReport extends Component
+class CollectionsReport extends Component implements PackageReport
 {
     use ReportPage;
 
@@ -58,7 +59,7 @@ class CollectionsReport extends Component
                 'amount' => Fils::toDecimal($group->sum(fn ($p) => Fils::fromDecimal($p->amount))),
             ])->all());
 
-        $rows[] = ['date' => '', 'method' => __('Total collected'), 'count' => $collected->count(), 'amount' => Fils::toDecimal($collected->sum(fn ($p) => Fils::fromDecimal($p->amount)))];
+        $rows[] = ['date' => '', 'method' => __('Total collected'), 'count' => $collected->count(), 'amount' => Fils::toDecimal($collected->sum(fn ($p) => Fils::fromDecimal($p->amount))), '_kind' => 'total'];
         if ($applied->isNotEmpty()) {
             $rows[] = ['date' => '', 'method' => __('Deposit applied (not a collection)'), 'count' => $applied->count(), 'amount' => Fils::toDecimal($applied->sum(fn ($p) => Fils::fromDecimal($p->amount)))];
         }

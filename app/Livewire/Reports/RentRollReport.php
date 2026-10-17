@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Unit;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
@@ -15,7 +16,7 @@ use Livewire\Component;
  * Occupancy report (Queries::currentAgreementUnits; % = occupied ÷ (units − blocked)). Rent = the occupying agreement
  * unit's rent charges (plan ruling 2); deposit held as at the date; balance owed live, once per agreement (ruling 4).
  */
-class RentRollReport extends Component
+class RentRollReport extends Component implements PackageReport
 {
     use ReportPage;
 

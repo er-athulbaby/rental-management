@@ -8,12 +8,17 @@ use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\Owner;
 use App\Models\OwnerContract;
+use App\Models\User;
 use App\Reports\IncomeStatement;
+use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator as ValidationValidator;
 use Livewire\Attributes\Url;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -46,6 +51,18 @@ trait StatementPage
 
     /** Clears the screen's own inputs (a bad URL). */
     abstract protected function resetScope(): void;
+
+    abstract protected function title(): string;
+
+    /**
+     * The screen's own inputs a package item may set, with their choices; a '' choice means optional.
+     *
+     * @return array<string, array<array-key, string>>
+     */
+    abstract protected function scopeOptions(): array;
+
+    /** @return Statement|null */
+    abstract protected function compute(): ?array;
 
     /** A validated id (an int, or a numeric string from a select) as an int; anything else is null. */
     protected function idOrNull(mixed $value): ?int
@@ -151,17 +168,103 @@ trait StatementPage
 
         $path = sys_get_temp_dir().'/rms-'.$report.'-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
-        // A month whose fee is not final carries a " *" on its header, so the figures stay numeric (the screen's marker).
-        $pending = $statement['fee_pending'] ?? [];
-        $writer->addHeader([__('Line'), ...array_map(fn (string $m) => CarbonImmutable::parse($m.'-01')->format('m/Y').(in_array($m, $pending, true) ? ' *' : ''), $statement['months']), __('Total')]);
-        foreach ($statement['rows'] as $row) {
-            $writer->addRow([$row['label'], ...array_map(fn (?int $v) => $v === null ? '–' : $v / 1000, array_values($row['amounts'])), $row['total'] / 1000]);
-        }
-        if ($pending !== []) {
-            $writer->addRow([__('Fee not final until the owner statement for this month is finalised.')]);
+        $sheet = $this->statementSheet($statement);
+        $writer->addHeader($sheet['columns']);
+        foreach ($sheet['rows'] as $row) {
+            $writer->addRow($row);
         }
         $writer->close();
 
         return response()->download($path, Str::slug($report)."-{$this->from}-{$this->to}.xlsx")->deleteFileAfterSend();
+    }
+
+    /**
+     * The Excel table. A month whose fee is not final carries a " *" on its header, so the figures stay numeric, and the
+     * footnote follows the rows.
+     *
+     * @param  Statement  $statement
+     * @return array{columns: list<string>, rows: list<array<array-key, mixed>>}
+     */
+    protected function statementSheet(array $statement): array
+    {
+        $pending = $statement['fee_pending'] ?? [];
+        $columns = [__('Line'), ...array_map(fn (string $m) => CarbonImmutable::parse($m.'-01')->format('m/Y').(in_array($m, $pending, true) ? ' *' : ''), $statement['months']), __('Total')];
+        $rows = [];
+        foreach ($statement['rows'] as $row) {
+            $rows[] = [$row['label'], ...array_map(fn (?int $v) => $v === null ? '–' : $v / 1000, array_values($row['amounts'])), $row['total'] / 1000];
+        }
+        if ($pending !== []) {
+            $rows[] = [__('Fee not final until the owner statement for this month is finalised.')];
+        }
+
+        return ['columns' => $columns, 'rows' => $rows];
+    }
+
+    /** @return array{title: string, dates: string, building: bool, options: array<string, array<array-key, string>>, allowed: bool} */
+    public function packageForm(User $as): array
+    {
+        return $this->asActor($as, fn () => ['title' => $this->title(), 'dates' => 'months', 'building' => array_key_exists('building', $this->scopeRules()),
+            'options' => ['basis' => [IncomeStatement::COLLECTED => __('Collected'), IncomeStatement::BILLED => __('Billed')], ...$this->scopeOptions()],
+            'allowed' => $as->can('reports.financial')]);
+    }
+
+    /** @param  array<array-key, mixed>  $settings */
+    public function checkSettings(User $as, array $settings): void
+    {
+        $this->asActor($as, function () use ($settings) {
+            $this->loadSettings($settings);
+            $this->packageValidator()->validate();
+        });
+    }
+
+    /**
+     * Spec 2026-10-17 §4: what download() writes, for $settings, run as $as.
+     *
+     * @param  array<array-key, mixed>  $settings
+     * @return array{columns: list<string>, rows: list<array<array-key, mixed>>, headline: ?string}
+     */
+    public function sheet(User $as, array $settings): array
+    {
+        return $this->asActor($as, function () use ($as, $settings) {
+            if (! $as->can('reports.financial')) {
+                throw new AuthorizationException(__('You do not have access to this report.'));
+            }
+            $this->loadSettings($settings);
+            $this->packageValidator()->validate();
+            $statement = $this->compute() ?? throw ValidationException::withMessages(['owner' => __('Choose an owner.')]);
+            $headline = null;
+            foreach ($statement['rows'] as $row) {
+                if ($row['kind'] === 'total') {
+                    $headline = $row['label'].': '.Fils::toDecimal($row['total']); // the last total row: Result / Net income to owner
+                }
+            }
+
+            return [...$this->statementSheet($statement), 'headline' => $headline];
+        });
+    }
+
+    /**
+     * The props are untyped (mixed), so any value is assigned and then validated.
+     *
+     * @param  array<array-key, mixed>  $settings
+     */
+    private function loadSettings(array $settings): void
+    {
+        foreach (['from', 'to', 'basis', ...array_keys($this->scopeRules())] as $key) {
+            $this->{$key} = $settings[$key] ?? null;
+        }
+    }
+
+    /** The screen's rules; an option offered without a '' choice is required (the owner of an owner statement). */
+    private function packageValidator(): ValidationValidator
+    {
+        $rules = $this->statementRules();
+        foreach ($this->scopeOptions() as $key => $choices) {
+            if (! array_key_exists('', $choices)) {
+                $rules[$key] = ['required', ...$rules[$key]];
+            }
+        }
+
+        return Validator::make($this->all(), $rules);
     }
 }

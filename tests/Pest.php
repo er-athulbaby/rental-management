@@ -1,14 +1,18 @@
 <?php
 
 use App\Actions\Billing\IssueInvoice;
+use App\Actions\EnsureNumberSequences;
+use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
 use App\Models\Agreement;
 use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\ReportPackage;
+use App\Models\Unit;
 use App\Models\User;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ReportDefinition;
@@ -19,6 +23,8 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Spatie\SimpleExcel\SimpleExcelReader;
+use Spatie\SimpleExcel\SimpleExcelWriter;
 use Tests\TestCase;
 
 /*
@@ -181,4 +187,59 @@ function packageWith(User $by, array $items, string $name = 'Monthly pack', stri
     }
 
     return $package;
+}
+
+/**
+ * Report-package fixture (needs roles seeded, a CompanySetting and a travelled clock): buildings AAA and BBB, Finance
+ * on both, one active agreement (rent 400) and one issued invoice per building, payments of 100 (10/09/2026) and 300
+ * (05/10/2026), and a leased owner contract over a vacant unit in AAA.
+ *
+ * @return array{0: Building, 1: Building, 2: User, 3: Owner}
+ */
+function reportPackageFixture(): array
+{
+    app(EnsureNumberSequences::class)(2026);
+    $a = Building::factory()->create(['code' => 'AAA']);
+    $b = Building::factory()->create(['code' => 'BBB']);
+    $finance = matrixUser(RoleName::Finance, $a);
+    $finance->buildings()->attach($b->id);
+    $alpha = Customer::factory()->create(['name_en' => 'Alpha Tenant']);
+    $beta = Customer::factory()->create(['name_en' => 'Beta Tenant']);
+    $agA = activeAgreement(['customer_id' => $alpha->id, 'start_date' => '2025-01-01', 'end_date' => '2026-11-10'], [Unit::factory()->for($a)->create()]);
+    $agB = activeAgreement(['customer_id' => $beta->id, 'start_date' => '2025-01-01', 'end_date' => '2027-08-31'], [Unit::factory()->for($b)->create()]);
+    issuedInvoice($alpha, [['net' => '900.000', 'au' => $agA->agreementUnits->first()]], '2026-08-01', $agA);
+    issuedInvoice($beta, [['net' => '100.000', 'au' => $agB->agreementUnits->first()]], '2026-09-01', $agB);
+    $pay = fn (Customer $c, string $on, string $amount) => app(RecordPayment::class)->handle($finance, $c, ['received_on' => $on, 'method' => 'cash', 'amount' => $amount]);
+    $pay($alpha, '2026-10-05', '300.000');
+    $pay($alpha, '2026-09-10', '100.000');
+    $owner = Owner::factory()->create(['name_en' => 'Leila Owner']);
+    activeOwnerContract(['owner_id' => $owner->id, 'building_id' => $a->id, 'type' => 'leased', 'rent_amount' => '25.000', 'payment_frequency' => 'monthly',
+        'fee_type' => null, 'fee_value' => null, 'deposits_held_by' => null, 'start_date' => '2026-03-01', 'end_date' => '2027-02-28'], [Unit::factory()->for($a)->create()]);
+
+    return [$a, $b, $finance, $owner];
+}
+
+/** An Excel file's rows as lists (row 0 is the header), blank rows kept; one sheet by name, or the first. */
+function xlsxRows(string $path, ?string $sheet = null): array
+{
+    $reader = SimpleExcelReader::create($path, 'xlsx')->noHeaderRow()->preserveEmptyRows();
+    if ($sheet !== null) {
+        $reader->fromSheetName($sheet);
+    }
+
+    return $reader->getRows()->map(fn (array $r) => array_values($r))->all();
+}
+
+/** Writes a headless sheet (header + rows) as its own file, the way a report's export does. */
+function sheetFile(array $sheet): string
+{
+    $path = sys_get_temp_dir().'/sheet-'.Str::uuid().'.xlsx';
+    $writer = SimpleExcelWriter::create($path);
+    $writer->addHeader($sheet['columns']);
+    foreach ($sheet['rows'] as $row) {
+        $writer->addRow($row);
+    }
+    $writer->close();
+
+    return $path;
 }

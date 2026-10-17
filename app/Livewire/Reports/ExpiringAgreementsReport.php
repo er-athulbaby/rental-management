@@ -4,12 +4,13 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Agreement;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /** Spec §10: active agreements expiring in the next 30/60/90 days. */
-class ExpiringAgreementsReport extends Component
+class ExpiringAgreementsReport extends Component implements PackageReport
 {
     use ReportPage;
 

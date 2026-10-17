@@ -4,11 +4,12 @@ namespace App\Livewire\Reports;
 
 use App\Livewire\Reports\Concerns\ReportPage;
 use App\Models\Building;
+use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use Livewire\Component;
 
 /** Spec §10: unit availability and occupancy by building, as at a date. Occupancy % = occupied ÷ (units − blocked). */
-class OccupancyReport extends Component
+class OccupancyReport extends Component implements PackageReport
 {
     use ReportPage;
 
