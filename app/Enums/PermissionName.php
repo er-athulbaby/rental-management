@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-/** The 25 permissions of spec §8.1. The values are the names stored by spatie/laravel-permission. */
+/** The 25 permissions of spec §8.1 plus the two of the maintenance spec (2026-10-17 §6). The values are the names stored by spatie/laravel-permission. */
 enum PermissionName: string
 {
     case UsersManage = 'users.manage';
@@ -30,6 +30,8 @@ enum PermissionName: string
     case ReportsFinancial = 'reports.financial';
     case ApprovalsDecide = 'approvals.decide';
     case ImportRun = 'import.run';
+    case MaintenanceView = 'maintenance.view';
+    case MaintenanceManage = 'maintenance.manage';
 
     /**
      * "Finance *.manage" (spec §8.1).

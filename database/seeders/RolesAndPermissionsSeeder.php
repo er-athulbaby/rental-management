@@ -44,10 +44,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 P::CustomersView, P::CustomersManage,
                 P::AgreementsView, P::AgreementsManage,
                 P::FinanceView, // invoices, payments, payments out, expenses: view only
+                P::MaintenanceView, P::MaintenanceManage,
                 ...$reports,
             ],
             RoleName::Management->value => [
-                ...$view, P::BuildingsViewAll, P::ApprovalsDecide, P::AuditView, ...$reports,
+                ...$view, P::BuildingsViewAll, P::ApprovalsDecide, P::AuditView, P::MaintenanceView, ...$reports,
             ],
             RoleName::Finance->value => [
                 ...$view, P::BuildingsViewAll, P::OwnersManage, ...P::financeManage(), ...$reports,
@@ -55,11 +56,11 @@ class RolesAndPermissionsSeeder extends Seeder
             RoleName::PropertyManager->value => [
                 P::BuildingsView, P::BuildingsManage, P::BuildingsViewAll, P::OwnersView,
                 P::CustomersView, P::CustomersManage, P::AgreementsView, P::AgreementsManage,
-                P::ExpensesManage, P::ReportsOperational,
+                P::ExpensesManage, P::ReportsOperational, P::MaintenanceView, P::MaintenanceManage,
             ],
             RoleName::Leasing->value => [ // assigned buildings only (spec §8.2)
                 P::BuildingsView, P::CustomersView, P::CustomersManage,
-                P::AgreementsView, P::AgreementsManage, P::ReportsOperational,
+                P::AgreementsView, P::AgreementsManage, P::ReportsOperational, P::MaintenanceView,
             ],
             RoleName::VendorSupport->value => array_values(array_filter(
                 P::cases(),

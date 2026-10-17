@@ -14,13 +14,13 @@ function roleHas(RoleName $role, P $permission): bool
     return Role::findByName($role->value)->hasPermissionTo($permission->value);
 }
 
-test('exactly the 25 spec permissions and 6 roles exist', function () {
+test('exactly the 27 permissions and 6 roles exist', function () {
     expect(Permission::pluck('name')->sort()->values()->all())->toBe(collect([
         'users.manage', 'roles.manage', 'settings.manage', 'templates.manage', 'audit.view',
         'buildings.view', 'buildings.manage', 'buildings.view-all', 'owners.view', 'owners.manage',
         'owners.bank.manage', 'customers.view', 'customers.manage', 'agreements.view', 'agreements.manage',
         'finance.view', 'invoices.manage', 'payments.manage', 'cheques.manage', 'disbursements.manage',
-        'expenses.manage', 'reports.operational', 'reports.financial', 'approvals.decide', 'import.run',
+        'expenses.manage', 'reports.operational', 'reports.financial', 'approvals.decide', 'import.run', 'maintenance.view', 'maintenance.manage',
     ])->sort()->values()->all())
         ->and(Role::pluck('name')->sort()->values()->all())
         ->toBe(['admin', 'finance', 'leasing', 'management', 'property-manager', 'vendor-support']);
@@ -29,7 +29,7 @@ test('exactly the 25 spec permissions and 6 roles exist', function () {
 test('seeding twice changes nothing', function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 
-    expect(Permission::count())->toBe(25)->and(Role::count())->toBe(6);
+    expect(Permission::count())->toBe(27)->and(Role::count())->toBe(6);
 });
 
 test('Admin cannot post money or approve', function () {

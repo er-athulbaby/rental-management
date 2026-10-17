@@ -72,6 +72,12 @@
                     @endcan
                 </flux:sidebar.group>
 
+                @can('maintenance.view')
+                    <flux:sidebar.group :heading="__('Maintenance')" class="grid">
+                        <flux:sidebar.item icon="truck" :href="route('maintenance.vendors.index')" :current="request()->routeIs('maintenance.vendors.*')" wire:navigate>{{ __('Vendors') }}</flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endcan
+
                 @canany(['users.manage', 'roles.manage', 'settings.manage', 'templates.manage', 'audit.view', 'import.run'])
                     <flux:sidebar.group :heading="__('Administration')" class="grid">
                         @can('users.manage')

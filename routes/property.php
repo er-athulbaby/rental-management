@@ -17,6 +17,7 @@ use App\Livewire\Disbursements;
 use App\Livewire\Expenses;
 use App\Livewire\Import;
 use App\Livewire\Invoices;
+use App\Livewire\Maintenance;
 use App\Livewire\OwnerContracts;
 use App\Livewire\OwnerPayables;
 use App\Livewire\Owners;
@@ -101,6 +102,9 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('payments', Payments\Index::class)->middleware('can:finance.view')->name('payments.index');
     Route::livewire('payments/create', Payments\Create::class)->middleware('can:payments.manage')->name('payments.create');
     Route::livewire('payments/{payment}', Payments\Show::class)->middleware('can:finance.view')->name('payments.show');
+    Route::livewire('maintenance/vendors', Maintenance\Vendors::class)->middleware('can:maintenance.view')->name('maintenance.vendors.index');
+    Route::livewire('maintenance/vendors/create', Maintenance\VendorForm::class)->middleware('can:maintenance.manage')->name('maintenance.vendors.create');
+    Route::livewire('maintenance/vendors/{vendor}/edit', Maintenance\VendorForm::class)->middleware('can:maintenance.view')->name('maintenance.vendors.edit');
     Route::livewire('import', Import\Index::class)->middleware('can:import.run')->name('import.index');
     Route::get('import/templates/{kind}', ImportTemplateController::class)->middleware('can:import.run')->name('import.template');
 });

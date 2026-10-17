@@ -16,6 +16,7 @@ use App\Models\ReminderSend;
 use App\Models\ReportPackage;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Reports\Builder\Engine;
 use App\Reports\Builder\ReportDefinition;
 use App\Reports\Builder\ReportResult;
@@ -267,4 +268,10 @@ function logReminder(Customer $tenant, string $type, Invoice|Cheque|Agreement $i
         'rule_day' => 1, 'sent_on' => now('Asia/Bahrain')->toDateString(), 'channel' => 'email', 'status' => 'sent',
         'batch' => (string) Str::uuid(), ...$attributes,
     ]);
+}
+
+/** A vendor (maintenance tests): an active company named "Fix-It Co" doing general work, unless $attributes say otherwise. */
+function maintenanceVendor(array $attributes = []): Vendor
+{
+    return Vendor::create(['name' => 'Fix-It Co', 'type' => 'company', 'trades' => ['general'], 'mobile' => '+973 3300 0000', 'active' => true, ...$attributes]);
 }
