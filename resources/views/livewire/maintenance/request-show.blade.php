@@ -38,7 +38,7 @@
     <livewire:documents.panel :documentable="$request" :key="'docs-request-'.$request->id" />
 
     <div class="space-y-3">
-        <flux:heading size="lg">{{ __('Work orders') }}</flux:heading>
+        <flux:heading size="lg" level="2">{{ __('Work orders') }}</flux:heading>
         <flux:error name="workOrders" />
         @forelse ($request->workOrders as $wo)
             <div wire:key="wo-{{ $wo->id }}" class="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
@@ -54,9 +54,9 @@
                     <div class="flex flex-wrap gap-2">
                         @if ($canManage && $wo->status->isOpen())
                             @if ($wo->status->value === 'assigned')
-                                <flux:button size="sm" wire:click="startWorkOrder({{ $wo->id }})">{{ __('Start') }}</flux:button>
+                                <flux:button size="sm" wire:click="startWorkOrder({{ $wo->id }})" :aria-label="__('Start :number', ['number' => $wo->number])">{{ __('Start') }}</flux:button>
                             @endif
-                            <flux:button size="sm" variant="ghost" wire:click="openCancel({{ $wo->id }})">{{ __('Cancel') }}</flux:button>
+                            <flux:button size="sm" variant="ghost" wire:click="openCancel({{ $wo->id }})" :aria-label="__('Cancel :number', ['number' => $wo->number])">{{ __('Cancel') }}</flux:button>
                         @endif
                     </div>
                 </div>
@@ -84,7 +84,7 @@
 
     @if ($canSeeExpenses && $expenses->isNotEmpty())
         <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Expenses') }}</flux:heading>
+            <flux:heading size="lg" level="2">{{ __('Expenses') }}</flux:heading>
             <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($expenses as $expense)
                     <li wire:key="exp-{{ $expense->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
@@ -94,19 +94,22 @@
                 @endforeach
             </ul>
             <flux:text class="text-sm font-medium">{{ __('Total: :amount BHD', ['amount' => $expenseTotal]) }}</flux:text>
+            @if ($expenses->contains(fn ($e) => $e->status !== \App\Enums\ExpenseStatus::Recorded))
+                <flux:text class="text-sm">{{ __('Reversed expenses are not counted in the total.') }}</flux:text>
+            @endif
         </div>
     @endif
 
     <div class="space-y-3">
-        <flux:heading size="lg">{{ __('Timeline') }}</flux:heading>
-        <ul class="space-y-2">
+        <flux:heading size="lg" level="2">{{ __('Timeline') }}</flux:heading>
+        <ol class="space-y-2">
             @foreach ($request->events as $event)
                 <li wire:key="ev-{{ $event->id }}" class="text-sm">
-                    <span class="text-zinc-500">{{ $event->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }} · {{ $event->user->name }}</span>
+                    <span class="text-zinc-500"><time datetime="{{ $event->created_at->toIso8601String() }}">{{ $event->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</time> · {{ $event->user->name }}</span>
                     <span class="whitespace-pre-line">{{ $event->describe() }}</span>
                 </li>
             @endforeach
-        </ul>
+        </ol>
         @if ($canManage)
             <form wire:submit="addNote" class="space-y-2">
                 <flux:textarea wire:model="note" :label="__('Note')" rows="2" />

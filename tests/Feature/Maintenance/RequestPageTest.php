@@ -95,6 +95,7 @@ test('Leasing sees the page without any action, and a call from the browser is r
     ($this->page)(matrixUser(R::Leasing, $this->building))
         ->assertSee($wo->number)->assertDontSee('Add work order')->assertDontSee('Add note')->assertDontSee('Cancel request')
         ->call('startWorkOrder', $wo->id)->assertForbidden();
+    ($this->page)(matrixUser(R::Leasing, $this->building))->call('openCancel', $wo->id)->assertForbidden();
     expect($wo->fresh()->status)->toBe(WorkOrderStatus::Assigned);
 });
 
@@ -112,6 +113,8 @@ test('tampered input is a message, never a 500', function (Closure $tamper, stri
     'the work order form as text' => [fn ($page) => $page->set('workOrder', 'x')->call('addWorkOrder'), 'workOrder.vendor_id'],
     'an inactive vendor' => [fn ($page) => $page->set('workOrder.vendor_id', (string) maintenanceVendor(['trades' => ['plumbing'], 'active' => false])->id)->call('addWorkOrder'), 'workOrder.vendor_id'],
     'a note as an array' => [fn ($page) => $page->set('note', ['x'])->call('addNote'), 'note'],
+    'start with no argument' => [fn ($page) => $page->call('startWorkOrder'), 'workOrders'],
+    'open cancel with no argument' => [fn ($page) => $page->call('openCancel'), 'workOrders'],
     'a cancel reason as an array' => [fn ($page) => $page->set('cancelReason', ['x'])->call('cancelRequest'), 'cancelReason'],
 ]);
 

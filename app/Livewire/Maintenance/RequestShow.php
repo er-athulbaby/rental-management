@@ -91,11 +91,11 @@ class RequestShow extends Component
         Flux::toast(variant: 'success', text: __('Work order :number added.', ['number' => $workOrder->number]));
     }
 
-    public function startWorkOrder(mixed $workOrderId, ChangeWorkOrderStatus $change): void
+    public function startWorkOrder(mixed $workOrderId = null): void
     {
         $this->resetErrorBag();
         try {
-            $change->handle($this->actor(), $this->workOrderOf($workOrderId, 'workOrders'), WorkOrderStatus::InProgress->value);
+            app(ChangeWorkOrderStatus::class)->handle($this->actor(), $this->workOrderOf($workOrderId, 'workOrders'), WorkOrderStatus::InProgress->value);
         } catch (AuthorizationException) {
             abort(403);
         } catch (ValidationException $e) {
@@ -103,9 +103,10 @@ class RequestShow extends Component
         }
     }
 
-    public function openCancel(mixed $workOrderId): void
+    public function openCancel(mixed $workOrderId = null): void
     {
         $this->resetErrorBag();
+        abort_unless($this->actor()->can('update', $this->request()), 403);
         $this->cancelling = ['work_order_id' => $this->workOrderOf($workOrderId, 'workOrders')->id, 'reason' => ''];
         Flux::modal('cancel-work-order')->show();
     }
@@ -170,7 +171,7 @@ class RequestShow extends Component
     public function render(): View
     {
         $request = MaintenanceRequest::query()
-            ->with(['building', 'unit', 'customer', 'creator:id,name', 'workOrders.vendor', 'workOrders.expense', 'events.user:id,name', 'events.workOrder:id,number'])
+            ->with(['building' => fn ($q) => $q->withTrashed(), 'unit' => fn ($q) => $q->withTrashed(), 'customer', 'creator:id,name', 'workOrders.vendor' => fn ($q) => $q->withTrashed(), 'workOrders.expense', 'events.user:id,name', 'events.workOrder:id,number'])
             ->findOrFail($this->requestId);
         abort_unless($this->actor()->can('view', $request), 403);
         $canManage = $this->actor()->can('update', $request);
