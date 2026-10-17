@@ -11,12 +11,14 @@ use App\Enums\RoleName;
 use App\Models\Agreement;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\ReminderSetting;
 use App\Models\User;
 use App\Reminders\ReminderFinder;
 use App\Reminders\ReminderItem;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /** [type, item_type, item id, rule day] for each of the tenant's matches on the date, optionally of one type. */
@@ -164,3 +166,128 @@ test('the day rolls over at midnight Asia/Bahrain, not UTC', function () {
     expect(ReminderFinder::due(CarbonImmutable::today('Asia/Bahrain'))[$this->tenant->id] ?? [])->toBe([]);
     CarbonImmutable::setTestNow();
 });
+
+test('manual ignores the switch, and still refuses what fails the type\'s own rule', function () {
+    ReminderSetting::query()->update(['enabled' => false]);
+    $on = CarbonImmutable::parse('2026-11-10', 'Asia/Bahrain');
+
+    expect(ReminderFinder::due($on))->toBe([])
+        ->and(ReminderFinder::manual($this->invoice, $on)->type)->toBe('rent_due')
+        ->and(ReminderFinder::manual($this->agreement, $on)->type)->toBe('renewal');
+
+    $this->agreement->forceFill(['notice_date' => '2026-11-01', 'planned_exit_date' => '2027-01-09'])->save();
+    expect(ReminderFinder::manual($this->agreement->fresh(), $on))->toBeNull();
+});
+
+test('manual and due use the Bahrain calendar day however the date is given', function () {
+    $lastGraceDay = CarbonImmutable::parse('2026-11-18 15:00', 'Asia/Bahrain'); // a time of day, not a date
+    $lateUtc = CarbonImmutable::parse('2026-11-09 21:30', 'UTC'); // 00:30 on 10/11 in Bahrain
+
+    expect(ReminderFinder::manual($this->invoice, $lastGraceDay)->type)->toBe('rent_due')
+        ->and(ReminderFinder::due($lateUtc)[$this->tenant->id][0]->ruleDay)->toBe(3);
+});
+
+/** Walks an agreement through the statuses its trigger allows (draft → pending_approval → active → ended). */
+function reminderWalk(Agreement $agreement, string $to): void
+{
+    foreach (['draft' => [], 'pending_approval' => ['pending_approval'], 'active' => ['pending_approval', 'active'],
+        'expired' => ['pending_approval', 'active', 'expired']][$to] as $step) {
+        $agreement->forceFill($step === 'active' ? ['status' => 'active', 'number' => 'AGR-R-'.$agreement->id, 'verify_token' => str_repeat('a', 32)] : ['status' => $step])->save();
+    }
+}
+
+test('renewals in draft, pending approval or active block a renewal reminder; sent-back, ended or soft-deleted ones do not', function (string $to, bool $blocks, bool $deleted) {
+    $renewal = Agreement::factory()->create(['customer_id' => $this->tenant->id, 'previous_agreement_id' => $this->agreement->id,
+        'start_date' => '2027-01-10', 'end_date' => '2028-01-09']);
+    reminderWalk($renewal, $to);
+    if ($to === 'pending_approval' && ! $blocks) { // the approval was rejected: back to draft, then dropped
+        $renewal->forceFill(['status' => 'draft'])->save();
+        $renewal->delete();
+    }
+    if ($deleted) {
+        $renewal->delete();
+    }
+
+    expect(reminderMatches($this->tenant, '2026-11-10', 'renewal'))->toHaveCount($blocks ? 0 : 1);
+})->with([
+    'draft' => ['draft', true, false],
+    'pending approval' => ['pending_approval', true, false],
+    'active' => ['active', true, false],
+    'expired' => ['expired', false, false],
+    'a rejected one, dropped' => ['pending_approval', false, false],
+    'a deleted draft' => ['draft', false, true],
+]);
+
+test('renewals are not matched the day before or after a rule day', function (string $date) {
+    expect(reminderMatches($this->tenant, $date, 'renewal'))->toBe([]);
+})->with(['59 days' => '2026-11-11', '61 days' => '2026-11-09', '29 days' => '2026-12-11', '31 days' => '2026-12-09']);
+
+test('only active agreements are matched', function (string $to) {
+    $this->agreement->forceFill(['status' => 'expired'])->save();
+    if ($to !== 'expired') {
+        $this->agreement->forceFill(['status' => $to])->save();
+    }
+
+    expect(reminderMatches($this->tenant, '2026-11-10', 'renewal'))->toBe([]);
+})->with(['expired', 'closed', 'terminated', 'renewed']);
+
+test('a deleted tenant drops out of every type', function () {
+    $cheque = app(RecordCheques::class)->handle($this->finance, $this->tenant, $this->agreement,
+        [['cheque_no' => '501', 'bank_name' => 'NBB', 'cheque_date' => '2026-11-12', 'amount' => '400.000']])->first();
+    expect(reminderMatches($this->tenant, '2026-11-10'))->toHaveCount(3);
+
+    $this->tenant->delete(); // an active agreement itself cannot be soft-deleted: its trigger freezes it
+    expect(reminderMatches($this->tenant, '2026-11-10'))->toBe([])
+        ->and(ReminderFinder::manual($cheque, CarbonImmutable::parse('2026-11-10', 'Asia/Bahrain')))->toBeNull()
+        ->and(ReminderFinder::manual($this->agreement, CarbonImmutable::parse('2026-11-10', 'Asia/Bahrain')))->toBeNull();
+});
+
+test('only held received cheques match: not deposited, cleared, bounced or issued ones', function (string $to) {
+    $cheque = app(RecordCheques::class)->handle($this->finance, $this->tenant, $this->agreement,
+        [['cheque_no' => '501', 'bank_name' => 'NBB', 'cheque_date' => '2026-11-12', 'amount' => '400.000']])->first();
+    expect(reminderMatches($this->tenant, '2026-11-10', 'cheque'))->toHaveCount(1);
+
+    foreach (['deposited' => ['deposited'], 'bounced' => ['deposited', 'bounced']][$to] as $step) {
+        DB::table('cheques')->where('id', $cheque->id)->update(['status' => $step]);
+    }
+
+    expect(reminderMatches($this->tenant, '2026-11-10', 'cheque'))->toBe([]);
+})->with(['deposited', 'bounced']);
+
+test('a cheque we issued is not matched, even on the date', function () {
+    DB::table('cheques')->insert(['direction' => 'issued', 'customer_id' => $this->tenant->id, 'cheque_no' => '9', 'bank_name' => 'NBB',
+        'cheque_date' => '2026-11-12', 'amount' => '1.000', 'status' => 'issued', 'created_by' => $this->finance->id, 'created_at' => now(), 'updated_at' => now()]);
+
+    expect(reminderMatches($this->tenant, '2026-11-10', 'cheque'))->toBe([]);
+});
+
+test('only issued invoices with a balance match: not draft or cancelled ones; part-paid ones do; a credit note never has a balance', function () {
+    $draft = fn (array $attributes = []) => (new Invoice)->forceFill([
+        'type' => 'manual', 'customer_id' => $this->tenant->id, 'issue_date' => '2026-11-13', 'due_date' => '2026-11-13', 'status' => 'draft',
+        'subtotal' => '10.000', 'tax_total' => '0.000', 'total' => '10.000', ...$attributes,
+    ]);
+    $draftInvoice = $draft();
+    $draftInvoice->save();
+    $cancelled = $draft();
+    $cancelled->save();
+    $cancelled->forceFill(['status' => 'cancelled'])->save();
+    $note = $draft(['type' => 'credit_note']);
+    $note->save();
+
+    expect($draftInvoice->fresh()->balance)->toBe('10.000')->and($cancelled->fresh()->balance)->toBe('10.000')
+        ->and($note->fresh()->balance)->toBe('0.000') // the schema zeroes a credit note's balance, so `type != credit_note` is defence in depth
+        ->and(reminderMatches($this->tenant, '2026-11-10', 'rent_due'))->toBe([['rent_due', 'invoice', $this->invoice->id, 3]]);
+
+    app(RecordPayment::class)->handle($this->finance, $this->tenant, ['received_on' => '2026-11-10', 'method' => 'cash', 'amount' => '100.000']);
+    expect($this->invoice->fresh()->balance)->toBe('300.000')
+        ->and(reminderMatches($this->tenant, '2026-11-10', 'rent_due'))->toBe([['rent_due', 'invoice', $this->invoice->id, 3]]);
+});
+
+test('a tenant with no email and an opted-out tenant are each still matched, for the sender to skip', function (array $attributes) {
+    [$tenant] = reminderTenant($attributes, '2027-01-09');
+
+    expect(reminderMatches($tenant, '2026-11-10', 'renewal'))->toHaveCount(1);
+})->with([
+    'no email' => [['email' => null]],
+    'opted out' => [['email' => 'out@tenant.test', 'no_reminders' => true]],
+]);

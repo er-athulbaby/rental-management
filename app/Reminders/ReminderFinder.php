@@ -32,6 +32,7 @@ final class ReminderFinder
      */
     public static function due(CarbonImmutable $today, ?int $customerId = null): array
     {
+        $today = $today->setTimezone('Asia/Bahrain')->startOfDay();
         $settings = ReminderSetting::query()->where('enabled', true)->get()->keyBy('type');
         $found = [];
         foreach (ReminderSetting::TYPES as $type) {
@@ -55,6 +56,7 @@ final class ReminderFinder
      */
     public static function manual(Invoice|Cheque|Agreement $record, CarbonImmutable $today): ?ReminderItem
     {
+        $today = $today->setTimezone('Asia/Bahrain')->startOfDay();
         $type = match (true) {
             $record instanceof Invoice => $record->grace_until !== null && $record->grace_until->lt($today) ? 'overdue' : 'rent_due',
             $record instanceof Cheque => 'cheque',
