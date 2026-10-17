@@ -11,6 +11,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -30,6 +31,12 @@ class SendTenantReminders implements ShouldQueue
 
     public function handle(ReminderSender $sender): void
     {
+        // A late job (worker was down) must not send an old day's reminders: a missed day is not caught up (spec §3).
+        if ($this->date !== CarbonImmutable::today('Asia/Bahrain')->toDateString()) {
+            Log::warning('Tenant reminder job dropped: its run date has passed', ['customer' => $this->customerId, 'date' => $this->date]);
+
+            return;
+        }
         $tenant = Customer::query()->find($this->customerId);
         if ($tenant === null) {
             return;

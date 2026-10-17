@@ -24,9 +24,9 @@ class SendTenantRemindersCommand extends Command
             return self::SUCCESS;
         }
         if (! $channel->ready()) {
-            $this->warn('Mail is not set up (MAIL_MAILER is log or array); nothing sent.');
+            $this->error('Email is not set up (MAIL_MAILER is log or array); nothing sent.');
 
-            return self::SUCCESS;
+            return self::FAILURE; // no heartbeat ping: silent health would hide it
         }
 
         $today = CarbonImmutable::today('Asia/Bahrain');

@@ -78,7 +78,10 @@ final class ReminderFinder
     {
         return match ($type) {
             'overdue', 'rent_due' => Invoice::query()->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)
-                ->where('balance', '>', 0)->whereHas('customer')->with(['customer', 'lines.unit.building']),
+                ->where('balance', '>', 0)->whereHas('customer')->with(['customer', 'lines.unit.building'])
+                // Paid by a received cheque still held or deposited (cheques.invoice_id): no rent reminder until it bounces.
+                ->whereNotExists(fn ($q) => $q->from('cheques')->whereColumn('cheques.invoice_id', 'invoices.id')
+                    ->where('cheques.direction', ChequeDirection::Received)->whereIn('cheques.status', [ChequeStatus::Held, ChequeStatus::Deposited])),
             'cheque' => Cheque::query()->where('direction', ChequeDirection::Received)->where('status', ChequeStatus::Held)
                 ->whereHas('customer')->with('customer'),
             default => Agreement::query()->where('status', AgreementStatus::Active)->whereNull('notice_date')

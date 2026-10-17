@@ -181,3 +181,17 @@ test('the tenant form has the "Don\'t send reminders" switch; tampered values ar
     }
     expect($this->tenant->fresh()->no_reminders)->toBeTrue();
 });
+
+test('a second send of the same reminder within a minute is refused: two rapid sends email once', function () {
+    $page = Livewire::actingAs($this->finance)->test(RecordPanel::class, ['record' => $this->invoice]);
+
+    $page->call('send')->assertHasNoErrors();
+    $page->call('send')->assertHasErrors('reminder');
+
+    Mail::assertSentCount(1);
+    expect(ReminderSend::count())->toBe(1);
+
+    $this->travelTo(now()->addSeconds(61));
+    $page->call('send')->assertHasNoErrors();
+    Mail::assertSentCount(2);
+});

@@ -1,6 +1,9 @@
 <section class="w-full max-w-3xl space-y-6">
     <flux:heading size="xl" level="1">{{ __('Tenant reminders') }}</flux:heading>
     <flux:text>{{ __('Emails sent to tenants every morning at 08:00: one email per tenant, in English and Arabic. Each type stays off until you switch it on. Staff can still send a reminder by hand from an invoice, cheque or agreement.') }}</flux:text>
+    @unless ($mailReady)
+        <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Email is not set up, so no reminders are sent. Ask your administrator to configure mail.')" />
+    @endunless
     <flux:error name="settings" />
 
     <form wire:submit="save" class="space-y-4">

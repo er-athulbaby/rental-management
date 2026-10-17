@@ -93,21 +93,33 @@ test('one job per tenant; an item that stopped qualifying before its job ran is 
     expect(ReminderSend::query()->where('item_type', 'cheque')->exists())->toBeFalse();
 });
 
-test('nothing is sent while every type is off or mail is not set up', function (string $case, string $message) {
-    match ($case) {
-        'off' => ReminderSetting::query()->update(['enabled' => false]),
-        default => config(['mail.default' => $case]),
-    };
+test('nothing is sent while every type is off, and that is a success', function () {
+    ReminderSetting::query()->update(['enabled' => false]);
 
-    $this->artisan('rms:reminders:send')->expectsOutputToContain($message)->assertSuccessful();
+    $this->artisan('rms:reminders:send')->expectsOutputToContain('No reminder type is switched on')->assertSuccessful();
 
     Mail::assertNothingSent();
     expect(ReminderSend::count())->toBe(0);
-})->with([
-    'all types off' => ['off', 'No reminder type is switched on'],
-    'mail to the log' => ['log', 'Mail is not set up'],
-    'mail to an array' => ['array', 'Mail is not set up'],
-]);
+});
+
+test('a type is on but mail is not set up: nothing is sent and the command fails, so the heartbeat is not pinged', function (string $mailer) {
+    config(['mail.default' => $mailer]);
+
+    $this->artisan('rms:reminders:send')->expectsOutputToContain('Email is not set up')->assertFailed();
+
+    Mail::assertNothingSent();
+    expect(ReminderSend::count())->toBe(0);
+})->with(['log', 'array']);
+
+test('a job that runs after its day does not send a backlog of old reminders', function () {
+    $job = new SendTenantReminders($this->alpha->id, '2026-11-10');
+    $this->travelTo(CarbonImmutable::parse('2026-11-11 09:00', 'Asia/Bahrain'));
+
+    app()->call([$job, 'handle']);
+
+    Mail::assertNothingSent();
+    expect(ReminderSend::count())->toBe(0);
+});
 
 test('only switched-on types are sent', function () {
     ReminderSetting::query()->where('type', '!=', 'renewal')->update(['enabled' => false]);

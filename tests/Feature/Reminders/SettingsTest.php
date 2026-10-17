@@ -108,3 +108,11 @@ test('the log refuses unknown types, items and statuses, and an automatic row wi
     'status' => [['status' => 'queued']],
     'automatic without a rule day' => [['rule_day' => null]],
 ]);
+
+test('the settings page warns when email is not set up, and not when it is', function (string $mailer, bool $warns) {
+    config(['mail.default' => $mailer]);
+
+    $page = Livewire::actingAs($this->admin)->test(TenantReminders::class);
+
+    $warns ? $page->assertSee('Email is not set up, so no reminders are sent') : $page->assertDontSee('Email is not set up');
+})->with([['log', true], ['array', true], ['smtp', false]]);

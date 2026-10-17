@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Livewire\Concerns\WithActor;
 use App\Models\ReminderSetting;
+use App\Reminders\Channel;
 use Closure;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
@@ -70,6 +71,7 @@ class TenantReminders extends Component
     public function render(): View
     {
         return view('livewire.admin.tenant-reminders', [
+            'mailReady' => app(Channel::class)->ready(),
             'types' => [
                 'rent_due' => [__('Rent due'), __('Days before the due date')],
                 'overdue' => [__('Overdue'), __('Days after the grace period ends')],

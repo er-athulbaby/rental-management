@@ -16,6 +16,7 @@ use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -74,7 +75,18 @@ class RecordPanel extends Component
             throw ValidationException::withMessages(['reminder' => __('Can\'t send: :reason', ['reason' => ReminderSend::reasonText($refusal)])]);
         }
 
-        $status = $sender->send($tenant, [$item], $today, $this->actor());
+        // A second send of the same reminder within a minute (double click, two tabs) is refused; the lock covers two at once.
+        $lock = Cache::lock("reminder-manual:{$item->itemType()}:{$item->record->getKey()}", 60);
+        $recent = ReminderSend::query()->where('manual', true)->where('item_type', $item->itemType())->where('item_id', $item->record->getKey())
+            ->where('type', $item->type)->whereIn('status', ['sending', 'sent'])->where('created_at', '>=', now()->subSeconds(60))->exists();
+        if ($recent || ! $lock->get()) {
+            throw ValidationException::withMessages(['reminder' => __('A reminder was just sent for this record.')]);
+        }
+        try {
+            $status = $sender->send($tenant, [$item], $today, $this->actor());
+        } finally {
+            $lock->release();
+        }
 
         Flux::modal('send-reminder')->close();
         if ($status === 'sent') {

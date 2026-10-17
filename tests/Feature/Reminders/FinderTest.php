@@ -291,3 +291,21 @@ test('a tenant with no email and an opted-out tenant are each still matched, for
     'no email' => [['email' => null]],
     'opted out' => [['email' => 'out@tenant.test', 'no_reminders' => true]],
 ]);
+
+test('an invoice covered by a held or deposited received cheque gets no rent reminder; once it bounces, it does again', function (string $status, bool $included) {
+    $cheque = app(RecordCheques::class)->handle($this->finance, $this->tenant, $this->agreement,
+        [['cheque_no' => '601', 'bank_name' => 'NBB', 'cheque_date' => '2026-11-30', 'amount' => '400.000', 'invoice_id' => $this->invoice->id]])->first();
+    foreach ($status === 'bounced' ? ['deposited', 'bounced'] : [$status] as $step) { // the database allows held -> deposited -> bounced
+        DB::table('cheques')->where('id', $cheque->id)->update(['status' => $step]);
+    }
+
+    $on = fn (string $date) => CarbonImmutable::parse($date, 'Asia/Bahrain');
+    expect(reminderMatches($this->tenant, '2026-11-10', 'rent_due') !== [])->toBe($included)
+        ->and(reminderMatches($this->tenant, '2026-11-25', 'overdue') !== [])->toBe($included) // grace until 18/11: 25/11 is overdue day 7
+        ->and(ReminderFinder::manual($this->invoice->fresh(), $on('2026-11-10')) !== null)->toBe($included);
+})->with([['held', false], ['deposited', false], ['bounced', true]]);
+
+test('an invoice with no cheque still gets its rent reminder', function () {
+    expect(reminderMatches($this->tenant, '2026-11-10', 'rent_due'))->toHaveCount(1)
+        ->and(ReminderFinder::manual($this->invoice, CarbonImmutable::parse('2026-11-10', 'Asia/Bahrain')))->not->toBeNull();
+});
