@@ -4,6 +4,7 @@ namespace App\Actions\Maintenance;
 
 use App\Enums\MaintenanceStatus;
 use App\Enums\WorkOrderStatus;
+use App\Mail\MaintenanceUpdate;
 use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -50,5 +51,6 @@ final class ResolveMaintenanceRequest
         $from = $locked->status;
         $locked->forceFill(['status' => MaintenanceStatus::Resolved, 'resolved_at' => now()])->save();
         MaintenanceEvent::record($locked, $actor, from: $from->value, to: MaintenanceStatus::Resolved->value);
+        MaintenanceUpdate::sendFor($locked, MaintenanceUpdate::COMPLETED); // spec §4 step 5: resolution happens once (ruling 4)
     }
 }

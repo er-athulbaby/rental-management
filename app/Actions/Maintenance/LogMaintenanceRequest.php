@@ -8,6 +8,7 @@ use App\Enums\MaintenancePriority;
 use App\Enums\MaintenanceStatus;
 use App\Enums\NumberSequenceKey;
 use App\Enums\Trade;
+use App\Mail\MaintenanceUpdate;
 use App\Models\Building;
 use App\Models\Customer;
 use App\Models\MaintenanceEvent;
@@ -60,6 +61,7 @@ final class LogMaintenanceRequest
                 'number' => ($this->next)(NumberSequenceKey::MaintenanceRequest), 'status' => MaintenanceStatus::Open, 'created_by' => $actor->id,
             ])->save();
             MaintenanceEvent::record($request, $actor, to: MaintenanceStatus::Open->value);
+            MaintenanceUpdate::sendFor($request, MaintenanceUpdate::RECEIVED); // spec §4 step 1; after commit
 
             return $request;
         });

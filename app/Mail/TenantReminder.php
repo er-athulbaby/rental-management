@@ -56,7 +56,6 @@ class TenantReminder extends Mailable
 
     public function content(): Content
     {
-        $company = CompanySetting::current();
         $settings = ReminderSetting::query()->get()->keyBy('type');
         $today = CarbonImmutable::today('Asia/Bahrain');
         $sections = [];
@@ -74,8 +73,6 @@ class TenantReminder extends Mailable
             'nameEn' => $this->tenant->name_en,
             'nameAr' => $this->tenant->displayName('ar'),
             'sections' => $sections,
-            'company' => ['name_en' => $company->name_en, 'name_ar' => $company->name_ar, 'phone' => $company->phone, 'email' => $company->email,
-                'address_en' => $company->address_en, 'address_ar' => $company->address_ar],
         ]);
     }
 
