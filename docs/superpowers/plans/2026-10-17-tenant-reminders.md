@@ -1284,6 +1284,7 @@ In `app/Providers/AppServiceProvider.php` add `use App\Reminders\Channel;` and `
 namespace App\Mail;
 
 use App\Models\AgreementUnit;
+use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -1376,7 +1377,7 @@ class TenantReminder extends Mailable
                     $days === null ? null : 'أيام التأخير '.$days])),
             ];
         }
-        if ($r instanceof \App\Models\Cheque) {
+        if ($r instanceof Cheque) {
             $amount = Fils::grouped(Fils::fromDecimal($r->amount));
             $date = $r->cheque_date->format('d/m/Y');
 
@@ -1407,8 +1408,6 @@ class TenantReminder extends Mailable
     }
 }
 ```
-
-Import `App\Models\Cheque` at the top and write `$r instanceof Cheque` (the `\App\Models\Cheque` above only shows the class; Pint keeps the import form).
 
 - [ ] **Step 5: The view.** Create `resources/views/mail/tenant-reminder.blade.php`:
 
@@ -2931,7 +2930,7 @@ EOF
   - §8 storage: Task 1, with the generated key (ruling 3) and no triggers.
   - §9 safety: read-only finder, email only from the tenant record, policy checks in `RecordPanel`, mixed and validated inputs (ruling 15), and `__()` throughout.
   - §10 testing: every bullet maps to a test in `FinderTest`, `EmailTest`, `DailyRunTest`, `SendButtonTest`, `RecordListsTest`, `LogPageTest` or `SettingsTest`.
-- **Placeholder scan:** none. One instruction in Task 3 Step 4 concerns an import line only: write `Cheque` with a `use` statement.
+- **Placeholder scan:** none.
 - **Type consistency:**
   - `ReminderItem(string $type, Invoice|Cheque|Agreement $record, ?int $ruleDay)` with `itemType()` and `tenant()`: the same in Tasks 2–6.
   - `ReminderFinder::due(CarbonImmutable, ?int): array<int, list<ReminderItem>>` and `::manual(record, CarbonImmutable): ?ReminderItem`: the same in Tasks 2, 4 and 5.
