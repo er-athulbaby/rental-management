@@ -158,5 +158,6 @@
     "Shared with tenant": "مشارك مع المستأجر",
     "Stop sharing": "إيقاف المشاركة",
     "Only documents on a tenant, an agreement or an invoice can be shared with the tenant.": "يمكن مشاركة المستندات المرفقة بالمستأجر أو بالعقد أو بالفاتورة فقط مع المستأجر.",
-    "Choose a document from the list.": "اختر مستندًا من القائمة."
+    "Choose a document from the list.": "اختر مستندًا من القائمة.",
+    "Portal": "البوابة"
 }

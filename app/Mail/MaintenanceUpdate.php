@@ -43,7 +43,7 @@ class MaintenanceUpdate extends Mailable implements ShouldQueue
             return false;
         }
         try {
-            Mail::to(new Address((string) $tenant->email, $tenant->name_en))->queue((new self($request, $kind))->afterCommit());
+            Mail::to(new Address((string) $tenant->email, $tenant->name_en))->queue((new self($request, $kind))->locale('en')->afterCommit()); // plan ruling 6
         } catch (Throwable $e) {
             report($e);
 
