@@ -31,8 +31,13 @@ class AuthEventSubscriber
     public function logUserEvent(Login|Logout|PasswordReset|TwoFactorAuthenticationEvent|RecoveryCodesGenerated $event): void
     {
         $user = $event->user instanceof Model ? $event->user : null;
+        $name = self::USER_EVENTS[$event::class];
+        // Spec 2026-10-18 tenant portal §3: the tenant guard's events are the portal's own (plan ruling 9).
+        if (($event instanceof Login || $event instanceof Logout) && $event->guard === 'tenant') {
+            $name = $event instanceof Login ? 'portal.login' : 'portal.logout';
+        }
 
-        Audit::log(self::USER_EVENTS[$event::class], $user, causer: $user);
+        Audit::log($name, $user, causer: $user);
     }
 
     public function logFailedLogin(Failed $event): void

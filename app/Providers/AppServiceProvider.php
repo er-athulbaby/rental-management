@@ -4,15 +4,21 @@ namespace App\Providers;
 
 use App\Audit\AuthEventSubscriber;
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
+use App\Http\Middleware\PortalSession;
 use App\Reminders\Channel;
 use App\Reminders\EmailChannel;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
+use Livewire\Mechanisms\HandleRequests\HandleRequests;
+
+use function Livewire\on;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,8 +42,17 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
 
-        // Livewire update requests re-run this against the component's original page route.
-        Livewire::addPersistentMiddleware([EnsureTwoFactorIsConfirmed::class]);
+        // Livewire update requests re-run these against the component's original page route.
+        Livewire::addPersistentMiddleware([EnsureTwoFactorIsConfirmed::class, PortalSession::class]);
+
+        // Livewire applies persistent middleware once per route per update request (PersistentMiddleware.php:109), so in a
+        // bundle of staff, portal, staff snapshots the third would keep the tenant guard as the default. Each snapshot's
+        // own page decides the default guard; its auth middleware already passed for that route (tenant portal plan ruling 1).
+        on('snapshot-verified', function (array $snapshot): void {
+            if (app(HandleRequests::class)->isLivewireRoute()) {
+                Auth::shouldUse(Str::is(['portal', 'portal/*'], $snapshot['memo']['path'] ?? '') ? 'tenant' : 'web');
+            }
+        });
 
         Event::subscribe(AuthEventSubscriber::class);
     }

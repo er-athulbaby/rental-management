@@ -22,6 +22,7 @@ class EnsureTwoFactorIsConfirmed
         'two-factor.*',
         'logout',
         '*livewire.update',
+        'portal.*', // the tenant portal: no staff 2FA (spec 2026-10-18 tenant portal, plan ruling 1)
     ];
 
     public function handle(Request $request, Closure $next): Response

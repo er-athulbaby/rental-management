@@ -27,6 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Reset links and redirects are built only for our own host (spec §8.6).
         $middleware->trustHosts(at: fn () => [(string) parse_url((string) config('app.url'), PHP_URL_HOST)], subdomains: false);
 
+        // Spec 2026-10-18 tenant portal: each guard has its own sign-in page (plan ruling 1).
+        $portal = fn (Request $request): bool => $request->is('portal', 'portal/*');
+        $middleware->redirectGuestsTo(fn (Request $request) => $portal($request) ? route('portal.login') : route('login'));
+        $middleware->redirectUsersTo(fn (Request $request) => $portal($request) ? route('portal.home') : route('dashboard'));
+
         // Every web request, including Livewire's update endpoint and Fortify's routes.
         $middleware->web(append: [
             EnsureUserIsActive::class,

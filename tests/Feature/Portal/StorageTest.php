@@ -137,12 +137,13 @@ test('a staff session stays owned by the staff user while the tenant guard is in
     expect($row()->exists())->toBeFalse();
 });
 
-test('every route in the web group takes the web guard, unless it is a guest, public or Livewire route', function () {
-    $public = ['home', 'agreements.verify', 'livewire.preview-file', 'livewire.upload-file', 'default-livewire.update'];
+test('every route in the web group takes the web guard, or for portal.* the tenant guard, unless it is a guest, public or Livewire route', function () {
+    $public = ['home', 'agreements.verify', 'livewire.preview-file', 'livewire.upload-file', 'default-livewire.update', 'portal.locale'];
+    $guard = fn (Route $r) => str_starts_with((string) $r->getName(), 'portal.') ? 'tenant' : 'web';
     $unguarded = collect(app('router')->getRoutes()->getRoutes())
         ->filter(fn (Route $r) => in_array('web', $r->gatherMiddleware(), true))
-        ->reject(fn (Route $r) => in_array($r->getName(), $public, true) || in_array('guest:web', $r->gatherMiddleware(), true))
-        ->reject(fn (Route $r) => in_array('auth:web', $r->gatherMiddleware(), true))
+        ->reject(fn (Route $r) => in_array($r->getName(), $public, true) || in_array('guest:'.$guard($r), $r->gatherMiddleware(), true))
+        ->reject(fn (Route $r) => in_array('auth:'.$guard($r), $r->gatherMiddleware(), true))
         ->map(fn (Route $r) => $r->uri())->values()->all();
 
     expect($unguarded)->toBe([]);
