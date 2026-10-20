@@ -6,16 +6,18 @@ use App\Audit\Audit;
 use App\Billing\CustomerStatement;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\User;
 use App\Pdf\PdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 
 final class CustomerStatementPdfController
 {
     public function __invoke(Request $request, Customer $customer, PdfRenderer $pdf): Response
     {
-        $user = $request->user();
-        abort_unless($user !== null && Customer::visibleTo($user)->whereKey($customer->id)->exists(), 403);
+        $user = Auth::guard('web')->user();
+        abort_unless($user instanceof User && Customer::visibleTo($user)->whereKey($customer->id)->exists(), 403);
         $range = $request->validate([
             'from' => ['required', 'date_format:Y-m-d'],
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],

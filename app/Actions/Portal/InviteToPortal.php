@@ -9,6 +9,7 @@ use App\Models\PortalAccount;
 use App\Models\User;
 use App\Reminders\EmailChannel;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -38,16 +39,20 @@ final class InviteToPortal
             throw ValidationException::withMessages(['portal' => __('Another tenant\'s portal account uses this email.')]);
         }
 
-        $account = DB::transaction(function () use ($actor, $customer, $email) {
-            $account = PortalAccount::query()->where('customer_id', $customer->id)->lockForUpdate()->first() ?? new PortalAccount;
-            $resent = $account->exists && $account->disabled_at === null;
-            $account->forceFill([
-                'customer_id' => $customer->id, 'email' => $email, 'disabled_at' => null, 'invited_at' => now(), 'invited_by' => $actor->id,
-            ])->save();
-            Audit::log('portal.invited', $account, properties: ['customer_id' => $customer->id, 'email' => $email, 'resent' => $resent], causer: $actor);
+        try {
+            $account = DB::transaction(function () use ($actor, $customer, $email) {
+                $account = PortalAccount::query()->where('customer_id', $customer->id)->lockForUpdate()->first() ?? new PortalAccount;
+                $resent = $account->exists && $account->disabled_at === null;
+                $account->forceFill([
+                    'customer_id' => $customer->id, 'email' => $email, 'disabled_at' => null, 'invited_at' => now(), 'invited_by' => $actor->id,
+                ])->save();
+                Audit::log('portal.invited', $account, properties: ['customer_id' => $customer->id, 'email' => $email, 'resent' => $resent], causer: $actor);
 
-            return $account;
-        });
+                return $account;
+            });
+        } catch (UniqueConstraintViolationException) { // a racing invite or save took this email
+            throw ValidationException::withMessages(['portal' => __('Another tenant\'s portal account uses this email.')]);
+        }
 
         try {
             Mail::to(new Address($email, $customer->name_en))->queue(new PortalInvitation($account));

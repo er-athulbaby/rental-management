@@ -8,10 +8,12 @@ use App\Models\Customer;
 use App\Models\PortalAccount;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator as ValidatorInstance;
 
 /** Spec §5.1: one master record per customer. */
@@ -73,14 +75,18 @@ final class SaveCustomer
         $id = $customer?->id;
 
         // Retry-safe: each attempt re-reads the row; the caller's model loses its dirty state on the first save.
-        return DB::transaction(function () use ($id, $validated) {
-            $customer = $id !== null ? Customer::query()->lockForUpdate()->findOrFail($id) : new Customer;
-            $customer->fill($validated)->save();
-            if (filled($customer->email)) {
-                PortalAccount::query()->where('customer_id', $customer->id)->update(['email' => Str::lower((string) $customer->email)]);
-            }
+        try {
+            return DB::transaction(function () use ($id, $validated) {
+                $customer = $id !== null ? Customer::query()->lockForUpdate()->findOrFail($id) : new Customer;
+                $customer->fill($validated)->save();
+                if (filled($customer->email)) {
+                    PortalAccount::query()->where('customer_id', $customer->id)->update(['email' => Str::lower((string) $customer->email)]);
+                }
 
-            return $customer;
-        }, attempts: 3);
+                return $customer;
+            }, attempts: 3);
+        } catch (UniqueConstraintViolationException) { // a racing invite or save took this email
+            throw ValidationException::withMessages(['email' => __('Another tenant\'s portal account uses this email.')]);
+        }
     }
 }
