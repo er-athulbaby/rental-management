@@ -5,6 +5,7 @@ use App\Actions\EnsureNumberSequences;
 use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
+use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
 use App\Mail\PortalSignInCode;
 use App\Models\Agreement;
@@ -12,6 +13,7 @@ use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\MaintenanceRequest;
 use App\Models\Owner;
@@ -32,6 +34,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Spatie\SimpleExcel\SimpleExcelWriter;
@@ -319,4 +322,19 @@ function portalCodeFor(string $email): string
     }
 
     return $mail->code;
+}
+
+/** A stored contract PDF on $agreement, as StoreApprovedContract leaves it (portal tests; needs Storage::fake('local')). */
+function portalStoredContract(Agreement $agreement): Document
+{
+    $path = 'documents/2026/10/'.Str::uuid().'.pdf';
+    Storage::disk('local')->put($path, '%PDF-1.4 contract');
+    $document = new Document([
+        'category' => DocumentCategory::GeneratedPdf, 'disk' => 'local', 'path' => $path, 'original_name' => $agreement->number.'.pdf',
+        'mime' => 'application/pdf', 'size' => 17, 'uploaded_by' => $agreement->created_by,
+    ]);
+    $document->documentable()->associate($agreement);
+    $document->save();
+
+    return $document;
 }

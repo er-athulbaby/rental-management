@@ -4,7 +4,10 @@ namespace App\Models;
 
 use App\Enums\CustomerType;
 use App\Enums\IdType;
+use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
 use App\Enums\PermissionName;
+use App\Support\Fils;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -77,6 +80,13 @@ class Customer extends Model
     public function portalAccount(): HasOne
     {
         return $this->hasOne(PortalAccount::class);
+    }
+
+    /** Σ balance of issued invoices, credit notes left out: the tenant page's "Outstanding" and the portal's "Balance owed" (plan ruling 12). */
+    public function outstandingFils(): int
+    {
+        return Fils::fromDecimal((string) (Invoice::query()->where('customer_id', $this->id)
+            ->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)->sum('balance') ?: '0'));
     }
 
     /**

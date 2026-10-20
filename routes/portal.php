@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Portal\DownloadController;
 use App\Http\Controllers\Portal\LocaleController;
 use App\Http\Controllers\Portal\LogoutController;
 use App\Http\Middleware\PortalSession;
@@ -16,6 +17,13 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
 
     Route::middleware('auth:tenant')->group(function () {
         Route::livewire('/', Portal\Home::class)->name('home');
+        Route::livewire('agreements', Portal\Agreements::class)->name('agreements');
+        Route::get('agreements/{agreement}/contract', [DownloadController::class, 'agreement'])->whereNumber('agreement')->name('agreements.pdf');
+        Route::livewire('invoices', Portal\Invoices::class)->name('invoices');
+        Route::get('invoices/{invoice}/pdf', [DownloadController::class, 'invoice'])->whereNumber('invoice')->name('invoices.pdf');
+        Route::livewire('payments', Portal\Payments::class)->name('payments');
+        Route::get('payments/{payment}/receipt', [DownloadController::class, 'receipt'])->whereNumber('payment')->name('payments.receipt');
+        Route::livewire('cheques', Portal\Cheques::class)->name('cheques');
         Route::post('logout', LogoutController::class)->name('logout');
     });
 });

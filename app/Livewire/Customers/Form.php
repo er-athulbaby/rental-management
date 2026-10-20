@@ -8,11 +8,8 @@ use App\Actions\Portal\SetPortalAccess;
 use App\Billing\CustomerCredit;
 use App\Enums\CustomerType;
 use App\Enums\IdType;
-use App\Enums\InvoiceStatus;
-use App\Enums\InvoiceType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
-use App\Models\Invoice;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Models\PortalAccount;
@@ -104,8 +101,7 @@ class Form extends Component
             'types' => CustomerType::cases(),
             'idTypes' => IdType::cases(),
             'account' => $customer && $this->actor()->can('viewAny', Payment::class) ? [
-                'outstanding' => Fils::toDecimal(Fils::fromDecimal((string) (Invoice::query()->where('customer_id', $customer->id)
-                    ->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)->sum('balance') ?: '0'))),
+                'outstanding' => Fils::toDecimal($customer->outstandingFils()),
                 'credit' => Fils::toDecimal(CustomerCredit::fils($customer->id)),
                 'canRecord' => $this->actor()->can('create', Payment::class),
             ] : null,

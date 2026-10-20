@@ -6,6 +6,10 @@
     // [route, label]; each page's task adds its line (plan File Structure).
     $nav = [
         ['portal.home', __('Home')],
+        ['portal.agreements', __('Agreements')],
+        ['portal.invoices', __('Invoices')],
+        ['portal.payments', __('Payments')],
+        ['portal.cheques', __('Cheques')],
     ];
 @endphp
 <!DOCTYPE html>
