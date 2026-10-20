@@ -15,6 +15,8 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Route;
+use Illuminate\Session\DatabaseSessionHandler;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -112,4 +114,36 @@ test('a tenant session never opens staff pages, and staff middleware leaves the 
     }
     expect(Auth::guard('tenant')->user()?->is($account))->toBeTrue()
         ->and(Auth::guard('web')->check())->toBeFalse();
+});
+
+test('an account email is stored in lower case whoever writes it', function () {
+    $other = Customer::factory()->create();
+
+    expect(portalAccount($other, ['email' => 'Mixed@Case.TEST'])->email)->toBe('mixed@case.test')
+        ->and(DB::table('portal_accounts')->where('customer_id', $other->id)->value('email'))->toBe('mixed@case.test');
+});
+
+test('a staff session stays owned by the staff user while the tenant guard is in use, so logout everywhere reaches it', function () {
+    $account = portalAccount($this->tenant, ['id' => $this->pm->id + 100]); // ids differ, so the owner is unambiguous
+    $this->actingAs($this->pm)->actingAs($account, 'tenant'); // both guards signed in; "tenant" is now the default guard, as on a portal route
+    app()->forgetInstance('auth.driver'); // as in a real request, which first resolves it when the session is saved
+    $handler = new DatabaseSessionHandler(DB::connection(), config('session.table'), 120, app()); // the production driver
+    $handler->write('both-guards-session', 'payload');
+    $row = fn () => DB::table(config('session.table'))->where('id', 'both-guards-session');
+
+    expect($row()->value('user_id'))->toBe($this->pm->id);
+
+    $this->pm->logoutEverywhere();
+    expect($row()->exists())->toBeFalse();
+});
+
+test('every route in the web group takes the web guard, unless it is a guest, public or Livewire route', function () {
+    $public = ['home', 'agreements.verify', 'livewire.preview-file', 'livewire.upload-file', 'default-livewire.update'];
+    $unguarded = collect(app('router')->getRoutes()->getRoutes())
+        ->filter(fn (Route $r) => in_array('web', $r->gatherMiddleware(), true))
+        ->reject(fn (Route $r) => in_array($r->getName(), $public, true) || in_array('guest:web', $r->gatherMiddleware(), true))
+        ->reject(fn (Route $r) => in_array('auth:web', $r->gatherMiddleware(), true))
+        ->map(fn (Route $r) => $r->uri())->values()->all();
+
+    expect($unguarded)->toBe([]);
 });

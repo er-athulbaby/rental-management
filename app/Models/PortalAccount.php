@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 /**
  * Spec 2026-10-18 tenant portal §3: a tenant's sign-in to the portal, the `tenant` guard's user. Never a staff User.
@@ -37,6 +38,16 @@ class PortalAccount extends Model implements AuthenticatableContract
     protected function casts(): array
     {
         return ['invited_at' => 'immutable_datetime', 'last_login_at' => 'immutable_datetime', 'disabled_at' => 'immutable_datetime'];
+    }
+
+    /**
+     * Stored in lower case for every writer (plan ruling 5).
+     *
+     * @return Attribute<never, string>
+     */
+    protected function email(): Attribute
+    {
+        return Attribute::set(fn (string $value) => Str::lower($value));
     }
 
     /** @return BelongsTo<Customer, $this> with trashed: a deleted tenant's account still names them in the audit log */
