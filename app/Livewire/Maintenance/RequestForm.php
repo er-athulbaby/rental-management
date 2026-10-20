@@ -117,7 +117,7 @@ class RequestForm extends Component
             'choosing' => $this->choosingTenant === true,
             'term' => $term,
             'customerResults' => $this->choosingTenant === true ? Customer::findFor($this->actor(), $term) : collect(),
-            'channels' => MaintenanceChannel::cases(),
+            'channels' => MaintenanceChannel::staffCases(),
             'categories' => Trade::cases(),
             'priorities' => MaintenancePriority::cases(),
         ]);

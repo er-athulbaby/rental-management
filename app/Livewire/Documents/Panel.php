@@ -3,6 +3,7 @@
 namespace App\Livewire\Documents;
 
 use App\Actions\Documents\DeleteDocument;
+use App\Actions\Documents\ShareDocumentWithTenant;
 use App\Actions\Documents\StoreDocument;
 use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
@@ -108,6 +109,28 @@ class Panel extends Component
         }
     }
 
+    /** Spec 2026-10-18 tenant portal §4: flip "Share with tenant". The id is looked up inside this record (never a 500). */
+    public function toggleShare(mixed $documentId, ShareDocumentWithTenant $share): void
+    {
+        $record = $this->documentable();
+        $document = is_int($documentId) || (is_string($documentId) && ctype_digit($documentId))
+            ? Document::query()->where('documentable_type', $record->getMorphClass())->where('documentable_id', $this->recordId)->find((int) $documentId)
+            : null;
+        if ($document === null) {
+            $this->addError('share', __('Choose a document from the list.'));
+
+            return;
+        }
+
+        try {
+            $share->handle($this->actor(), $document, ! $document->shared_with_tenant);
+        } catch (AuthorizationException) {
+            abort(403);
+        } catch (ValidationException $e) {
+            $this->addError('share', (string) collect($e->errors())->flatten()->first());
+        }
+    }
+
     public function render(): View
     {
         $record = $this->documentable();
@@ -119,6 +142,7 @@ class Panel extends Component
                 ->where('documentable_id', $record->getKey())
                 ->latest()
                 ->get(),
+            'shareable' => in_array($this->type, Document::SHAREABLE, true),
             'canUpload' => $this->actor()->can('update', $record),
             // The generated contract is written only by StoreApprovedContract (spec §5.6).
             'categories' => array_filter(DocumentCategory::cases(), fn ($c) => $c !== DocumentCategory::GeneratedPdf),

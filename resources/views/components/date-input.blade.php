@@ -25,11 +25,15 @@
     <flux:input x-model="text" x-on:change="commit()" x-on:keydown.enter="commit()" placeholder="dd/mm/yyyy" inputmode="numeric" autocomplete="off"
         :attributes="$inputAttributes">
         <x-slot name="iconTrailing">
-            <flux:button size="sm" variant="subtle" icon="calendar-days" class="-me-1" :aria-label="__('Choose a date')"
-                x-on:click="try { $refs.picker.showPicker() } catch { $refs.picker.focus() }" />
+            {{-- A real, invisible date input lies over the calendar icon, so a click opens the browser's own picker
+                 directly — no showPicker(), which some browsers ignore inside a modal dialog. --}}
+            <span class="relative -me-1 inline-flex">
+                <flux:button size="sm" variant="subtle" icon="calendar-days" tabindex="-1" aria-hidden="true" />
+                <input type="date" x-ref="picker" class="date-picker-overlay absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    :aria-label="@js(__('Choose a date'))" :value="/^\d{4}-\d{2}-\d{2}$/.test(iso ?? '') ? iso : ''"
+                    x-on:change="iso = $event.target.value" {{ $pass->only(['min', 'max']) }} />
+            </span>
         </x-slot>
     </flux:input>
-    <input type="date" x-ref="picker" class="sr-only" tabindex="-1" aria-hidden="true" :value="/^\d{4}-\d{2}-\d{2}$/.test(iso ?? '') ? iso : ''"
-        x-on:change="iso = $event.target.value" {{ $pass->only(['min', 'max']) }} />
     <flux:error :name="$model" />
 </div>

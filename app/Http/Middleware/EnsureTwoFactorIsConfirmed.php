@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureTwoFactorIsConfirmed
@@ -21,11 +22,12 @@ class EnsureTwoFactorIsConfirmed
         'two-factor.*',
         'logout',
         '*livewire.update',
+        'portal.*', // the tenant portal: no staff 2FA (spec 2026-10-18 tenant portal, plan ruling 1)
     ];
 
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $user = Auth::guard('web')->user(); // staff only (plan ruling 1)
 
         if ($user
             && is_null($user->two_factor_confirmed_at)

@@ -12,10 +12,10 @@ final class ReceiptPdfController
 {
     public function __invoke(Request $request, Payment $payment): RedirectResponse
     {
-        abort_unless($request->user()?->can('view', $payment) === true, 403);
+        abort_unless($request->user('web')?->can('view', $payment) === true, 403);
 
         if (! StoreReceipt::stored($payment)) {
-            StoreReceipt::dispatchSync($payment->id, (int) $request->user()->getKey());
+            StoreReceipt::dispatchSync($payment->id, (int) $request->user('web')->getKey());
         }
 
         return redirect()->route('documents.download', StoreReceipt::stored($payment));

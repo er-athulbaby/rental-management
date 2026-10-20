@@ -1,0 +1,74 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use App\Models\PortalAccount;
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+
+/**
+ * Spec 2026-10-18 tenant portal §3 and §4, on every portal request and (persistent) every portal Livewire update: the page
+ * speaks the account's language, or the guest's choice; a disabled account or a deleted tenant ends the tenant session
+ * (plan rulings 2 and 16). Uses session() rather than $request->session(): Livewire re-runs this on a copied request.
+ */
+final class PortalSession
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $guard = Auth::guard('tenant');
+        $account = $guard->user();
+
+        $locale = $account instanceof PortalAccount ? $account->locale : session('portal_locale');
+        App::setLocale(in_array($locale, PortalAccount::LOCALES, true) ? $locale : 'en');
+
+        // A live session is stamped with the account's remember_token; disabling nulls it, so enabling again never revives the session.
+        if ($account instanceof PortalAccount && $account->isActive() && ! $this->stampHolds($account)) {
+            $guard->logout();
+            session()->regenerateToken();
+
+            return redirect()->route('portal.login');
+        }
+
+        if ($account instanceof PortalAccount && ! $account->isActive()) {
+            $guard->logout(); // the tenant guard only (plan ruling 3)
+            session()->regenerateToken();
+
+            return redirect()->route('portal.login')->with('status', __('Your portal access has ended. Please contact the office.'));
+        }
+
+        return $next($request);
+    }
+
+    private function stampHolds(PortalAccount $account): bool
+    {
+        if ($account->remember_token === null) {
+            if (session()->has('portal_stamp')) {
+                return false;
+            }
+            $account->forceFill(['remember_token' => Str::random(60)])->saveQuietly();
+        }
+        if (! session()->has('portal_stamp')) {
+            session(['portal_stamp' => $account->remember_token]);
+        }
+
+        return hash_equals((string) $account->remember_token, (string) session('portal_stamp'));
+    }
+
+    /**
+     * Whether a page path (as Livewire signs it into a snapshot: raw, undecoded) is a portal page. Decided by the route
+     * the router matches, as it and Livewire's persistent middleware do, so `/%70ortal` is the portal and `/Portal` is not.
+     */
+    public static function isPortalPage(string $path, string $method = 'GET'): bool
+    {
+        try {
+            return app('router')->getRoutes()->match(Request::create('/'.ltrim($path, '/'), $method))->named('portal.*');
+        } catch (HttpExceptionInterface) {
+            return false; // no such route (404) or wrong method (405): not a page anyone could have opened
+        }
+    }
+}

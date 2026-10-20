@@ -3,17 +3,19 @@
 namespace App\Livewire\Customers;
 
 use App\Actions\Customers\SaveCustomer;
+use App\Actions\Portal\InviteToPortal;
+use App\Actions\Portal\SetPortalAccess;
 use App\Billing\CustomerCredit;
 use App\Enums\CustomerType;
 use App\Enums\IdType;
-use App\Enums\InvoiceStatus;
-use App\Enums\InvoiceType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
-use App\Models\Invoice;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
+use App\Models\PortalAccount;
+use App\Reminders\EmailChannel;
 use App\Support\Fils;
+use Closure;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -61,6 +63,35 @@ class Form extends Component
         $this->redirectRoute('customers.edit', $customer, navigate: true);
     }
 
+    /** Spec 2026-10-18 tenant portal §3: Invite / Re-send. No arguments: always this page's tenant. */
+    public function invitePortal(InviteToPortal $invite): void
+    {
+        $this->portal(fn (Customer $c) => $invite->handle($this->actor(), $c), __('Portal invite sent.'));
+    }
+
+    public function disablePortal(SetPortalAccess $access): void
+    {
+        $this->portal(fn (Customer $c) => $access->handle($this->actor(), $c, false), __('Portal access disabled.'));
+    }
+
+    public function enablePortal(SetPortalAccess $access): void
+    {
+        $this->portal(fn (Customer $c) => $access->handle($this->actor(), $c, true), __('Portal access enabled.'));
+    }
+
+    /** @param  Closure(Customer): PortalAccount  $run */
+    private function portal(Closure $run, string $done): void
+    {
+        abort_if($this->customerId === null, 404);
+        try {
+            $run(Customer::findOrFail($this->customerId));
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        Flux::toast(variant: 'success', text: $done);
+    }
+
     public function render(): View
     {
         $customer = $this->customerId ? Customer::findOrFail($this->customerId) : null;
@@ -70,14 +101,17 @@ class Form extends Component
             'types' => CustomerType::cases(),
             'idTypes' => IdType::cases(),
             'account' => $customer && $this->actor()->can('viewAny', Payment::class) ? [
-                'outstanding' => Fils::toDecimal(Fils::fromDecimal((string) (Invoice::query()->where('customer_id', $customer->id)
-                    ->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)->sum('balance') ?: '0'))),
+                'outstanding' => Fils::toDecimal($customer->outstandingFils()),
                 'credit' => Fils::toDecimal(CustomerCredit::fils($customer->id)),
                 'canRecord' => $this->actor()->can('create', Payment::class),
             ] : null,
             'maintenance' => $customer && $this->actor()->can('maintenance.view')
                 ? MaintenanceRequest::query()->visibleTo($this->actor())->where('customer_id', $customer->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
+            'portal' => $customer && $this->actor()->can('update', $customer) ? [
+                'account' => PortalAccount::query()->where('customer_id', $customer->id)->first(),
+                'mailReady' => (new EmailChannel)->ready(),
+            ] : null,
         ])->title($customer ? $customer->name_en : __('New tenant'));
     }
 }

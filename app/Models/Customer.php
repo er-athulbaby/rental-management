@@ -4,7 +4,10 @@ namespace App\Models;
 
 use App\Enums\CustomerType;
 use App\Enums\IdType;
+use App\Enums\InvoiceStatus;
+use App\Enums\InvoiceType;
 use App\Enums\PermissionName;
+use App\Support\Fils;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -70,6 +74,19 @@ class Customer extends Model
     public function agreements(): HasMany
     {
         return $this->hasMany(Agreement::class);
+    }
+
+    /** @return HasOne<PortalAccount, $this> spec 2026-10-18 tenant portal §3 */
+    public function portalAccount(): HasOne
+    {
+        return $this->hasOne(PortalAccount::class);
+    }
+
+    /** Σ balance of issued invoices, credit notes left out: the tenant page's "Outstanding" and the portal's "Balance owed" (plan ruling 12). */
+    public function outstandingFils(): int
+    {
+        return Fils::fromDecimal((string) (Invoice::query()->where('customer_id', $this->id)
+            ->where('status', InvoiceStatus::Issued)->where('type', '!=', InvoiceType::CreditNote)->sum('balance') ?: '0'));
     }
 
     /**

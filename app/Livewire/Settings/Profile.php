@@ -22,8 +22,8 @@ class Profile extends Component
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
+        $this->name = Auth::guard('web')->user()->name;
+        $this->email = Auth::guard('web')->user()->email;
     }
 
     /**
@@ -31,7 +31,7 @@ class Profile extends Component
      */
     public function updateProfileInformation(): void
     {
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
 
         $user->fill($this->validate($this->profileRules($user->id)))->save();
 

@@ -7,6 +7,7 @@ use App\Enums\MaintenanceChannel;
 use App\Enums\MaintenancePriority;
 use App\Enums\MaintenanceStatus;
 use App\Enums\Trade;
+use App\Enums\WorkOrderStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,7 +36,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property MaintenanceStatus $status
  * @property CarbonImmutable|null $resolved_at
  * @property string|null $cancel_reason
- * @property int $created_by
+ * @property int|null $created_by
+ * @property int|null $portal_account_id
  * @property CarbonImmutable $created_at
  * @property-read Building $building
  * @property-read Unit|null $unit
@@ -88,6 +90,18 @@ class MaintenanceRequest extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return BelongsTo<PortalAccount, $this> set when the tenant logged it in the portal (spec 2026-10-18 tenant portal §5) */
+    public function portalAccount(): BelongsTo
+    {
+        return $this->belongsTo(PortalAccount::class);
+    }
+
+    /** Who logged it, for the staff request page. */
+    public function creatorName(): string
+    {
+        return $this->creator->name ?? __('Tenant portal');
+    }
+
     /** @return HasMany<WorkOrder, $this> */
     public function workOrders(): HasMany
     {
@@ -98,6 +112,31 @@ class MaintenanceRequest extends Model
     public function events(): HasMany
     {
         return $this->hasMany(MaintenanceEvent::class)->orderBy('id');
+    }
+
+    /**
+     * Spec 2026-10-18 tenant portal §4: what the tenant sees of the timeline (plan ruling 15). Status rows only; never
+     * notes, reasons, work order numbers, vendors or amounts.
+     *
+     * @return list<array{at: CarbonImmutable, label: string}>
+     */
+    public function tenantTimeline(): array
+    {
+        $steps = [];
+        foreach ($this->events()->where('kind', 'status')->get(['work_order_id', 'to_status', 'created_at']) as $event) {
+            $label = match (true) {
+                $event->work_order_id === null && $event->to_status === MaintenanceStatus::Open->value => __('Request received'),
+                $event->work_order_id !== null && $event->to_status === WorkOrderStatus::Assigned->value => __('Work assigned'),
+                $event->work_order_id === null && $event->to_status === MaintenanceStatus::Resolved->value => __('Completed'),
+                $event->work_order_id === null && $event->to_status === MaintenanceStatus::Cancelled->value => __('Cancelled'),
+                default => '',
+            };
+            if ($label !== '') {
+                $steps[] = ['at' => $event->created_at, 'label' => $label];
+            }
+        }
+
+        return $steps;
     }
 
     /** @return MorphMany<Document, $this> */

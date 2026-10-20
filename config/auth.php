@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PortalAccount;
 use App\Models\User;
 
 return [
@@ -42,6 +43,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        // Spec 2026-10-18 tenant portal §3: tenants sign in here, never as staff Users. 30 days of "remember this device".
+        'tenant' => [
+            'driver' => 'session',
+            'provider' => 'portal_accounts',
+            'remember' => 43200,
+        ],
     ],
 
     /*
@@ -65,6 +72,10 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+        'portal_accounts' => [
+            'driver' => 'eloquent',
+            'model' => PortalAccount::class,
         ],
 
         // 'users' => [

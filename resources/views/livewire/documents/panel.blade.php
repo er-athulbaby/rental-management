@@ -22,6 +22,14 @@
                     <flux:button size="xs" variant="ghost" icon="arrow-down-tray" :href="route('documents.download', $document)" :tooltip="__('Download')" :aria-label="__('Download')" />
                 </div>
                 <div class="flex items-center gap-2">
+                    @if ($shareable && $document->shared_with_tenant)
+                        <flux:badge size="sm" color="green">{{ __('Shared with tenant') }}</flux:badge>
+                    @endif
+                    @if ($shareable && $canUpload)
+                        <flux:button size="sm" variant="ghost" wire:click="toggleShare({{ $document->id }})">
+                            {{ $document->shared_with_tenant ? __('Stop sharing') : __('Share with tenant') }}
+                        </flux:button>
+                    @endif
                     <flux:badge size="sm">{{ $document->category->label() }}</flux:badge>
                     @if ($document->expires_on)
                         <flux:badge size="sm" :color="$document->expires_on->isPast() ? 'red' : 'zinc'">{{ __('Expires :date', ['date' => $document->expires_on->format('d/m/Y')]) }}</flux:badge>
@@ -35,6 +43,7 @@
             <li class="py-2"><flux:text>{{ __('No documents yet.') }}</flux:text></li>
         @endforelse
     </ul>
+    <flux:error name="share" />
 
     @if ($canUpload)
         <form wire:submit="save" class="flex flex-col gap-3 sm:flex-row sm:items-end">

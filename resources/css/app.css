@@ -47,6 +47,15 @@
     }
 }
 
+/* <x-date-input>: the invisible date input over the calendar icon; its picker indicator fills it, so any click opens the picker. */
+.date-picker-overlay::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    cursor: pointer;
+}
+
 [data-flux-field]:not(ui-radio, ui-checkbox) {
     @apply grid gap-2;
 }
