@@ -22,6 +22,10 @@ final class LocaleController
             }
         }
 
-        return redirect()->back(fallback: route('portal.login'));
+        // Back to the page the switch was on, but only within this app: the Referer header is the browser's word.
+        $back = url()->previous();
+        $root = url('/');
+
+        return redirect()->to($back === $root || str_starts_with($back, $root.'/') ? $back : route('portal.login'));
     }
 }

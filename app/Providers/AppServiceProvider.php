@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 use Livewire\Mechanisms\HandleRequests\HandleRequests;
@@ -47,10 +46,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Livewire applies persistent middleware once per route per update request (PersistentMiddleware.php:109), so in a
         // bundle of staff, portal, staff snapshots the third would keep the tenant guard as the default. Each snapshot's
-        // own page decides the default guard; its auth middleware already passed for that route (tenant portal plan ruling 1).
+        // own page, matched to its route (the signed path is raw: `/%70ortal`), decides the default guard; its auth
+        // middleware already passed for that route (tenant portal plan ruling 1).
         on('snapshot-verified', function (array $snapshot): void {
             if (app(HandleRequests::class)->isLivewireRoute()) {
-                Auth::shouldUse(Str::is(['portal', 'portal/*'], $snapshot['memo']['path'] ?? '') ? 'tenant' : 'web');
+                $portal = PortalSession::isPortalPage((string) ($snapshot['memo']['path'] ?? ''), (string) ($snapshot['memo']['method'] ?? 'GET'));
+                Auth::shouldUse($portal ? 'tenant' : 'web');
             }
         });
 

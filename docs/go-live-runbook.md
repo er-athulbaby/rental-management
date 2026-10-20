@@ -36,6 +36,7 @@ What the date means for billing:
    - post-dated cheques dated before cutover but still not deposited are imported as held, and deposited as usual after go-live.
 5. **Security review** (sign each line):
    - `APP_DEBUG=false`, `APP_ENV=production`, HTTPS only, HSTS on.
+   - `TRUSTED_PROXIES` in `.env` lists the load balancer or reverse proxy addresses in front of the app (comma-separated IPs or CIDRs), or stays empty when the app is reached directly; never `*`. Check: sign in to the tenant portal and confirm the `portal.login` audit entry shows your own IP, not the proxy's. Otherwise every tenant shares one per-IP sign-in limit.
    - Every user with Finance, Management, Admin or Vendor Support has two-factor on (enforced at sign-in).
    - The app connects as `rms_app` (no DDL, no DROP); migrations ran as `rms_migrate`; `php artisan rms:integrity-check` reports nothing.
    - `composer audit` reports nothing unresolved; the server packages are current.

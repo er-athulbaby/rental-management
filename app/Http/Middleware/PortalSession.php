@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Spec 2026-10-18 tenant portal §3 and §4, on every portal request and (persistent) every portal Livewire update: the page
@@ -32,5 +33,18 @@ final class PortalSession
         }
 
         return $next($request);
+    }
+
+    /**
+     * Whether a page path (as Livewire signs it into a snapshot: raw, undecoded) is a portal page. Decided by the route
+     * the router matches, as it and Livewire's persistent middleware do, so `/%70ortal` is the portal and `/Portal` is not.
+     */
+    public static function isPortalPage(string $path, string $method = 'GET'): bool
+    {
+        try {
+            return app('router')->getRoutes()->match(Request::create('/'.ltrim($path, '/'), $method))->named('portal.*');
+        } catch (HttpExceptionInterface) {
+            return false; // no such route (404) or wrong method (405): not a page anyone could have opened
+        }
     }
 }

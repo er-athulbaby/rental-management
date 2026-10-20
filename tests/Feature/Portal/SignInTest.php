@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\RoleName;
+use App\Http\Middleware\PortalSession;
 use App\Livewire\Portal\Home;
 use App\Livewire\Portal\Login;
 use App\Models\CompanySetting;
@@ -11,8 +12,11 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
+use Tests\TestCase;
 
 beforeEach(function () {
     CompanySetting::factory()->create();
@@ -205,4 +209,80 @@ test('a portal session can never update a staff component', function () {
             ->assertUnauthorized();
     }
     expect(Auth::guard('tenant')->user()?->is($this->account))->toBeTrue();
+});
+
+// Fix round 1 (task-3-review.md).
+
+/** One Livewire update over HTTP, as the browser sends it; returns the response. */
+function livewireUpdate(TestCase $test, array $components, array $server = []): TestResponse
+{
+    app('livewire')->flushState(); // production gets this for free: one PHP request per update
+
+    return $test->withHeader('X-Livewire', '1')->withServerVariables($server)
+        ->postJson(app('livewire')->getUpdateUri(), ['components' => $components]);
+}
+
+test('the guard for an update follows the route its page path matches, however the path is spelt', function (string $path, string $method, bool $portal) {
+    expect(PortalSession::isPortalPage($path, $method))->toBe($portal);
+})->with([
+    'portal home' => ['portal', 'GET', true],
+    'percent-encoded p' => ['%70ortal', 'GET', true],
+    'percent-encoded sub path' => ['portal/%6Cogin', 'GET', true],
+    'double slash' => ['//portal', 'GET', true],
+    'mixed case (no such route)' => ['Portal', 'GET', false],
+    'trailing dot (no such route)' => ['portal.', 'GET', false],
+    'staff page' => ['dashboard', 'GET', false],
+    'percent-encoded staff page' => ['%64ashboard', 'GET', false],
+    'mixed case staff page' => ['Dashboard', 'GET', false],
+    'double slash staff page' => ['//dashboard', 'GET', false],
+    'portal POST route' => ['portal/logout', 'POST', true],
+    'wrong method' => ['portal/logout', 'GET', false],
+]);
+
+test('a portal page opened at a percent-encoded path still updates under the tenant guard, and staff under web', function () {
+    $staff = User::factory()->create();
+    $this->actingAs($staff)->actingAs($this->account, 'tenant');
+    $dashboard = pageSnapshot($this->get(route('dashboard'))->assertOk()->getContent(), 'dashboard');
+    $home = pageSnapshot($this->get('/%70ortal')->assertOk()->assertSee('Welcome, Sara Tenant')->getContent(), 'portal.home');
+    expect(json_decode($home, true)['memo']['path'])->toBe('%70ortal'); // the raw path is what Livewire signs
+    $refresh = fn (string $snapshot) => ['snapshot' => $snapshot, 'updates' => [], 'calls' => [['method' => '$refresh', 'params' => []]]];
+
+    livewireUpdate($this, [$refresh($dashboard), $refresh($home)])->assertOk();
+    expect(Auth::getDefaultDriver())->toBe('tenant');
+
+    livewireUpdate($this, [$refresh($home), $refresh($dashboard)])->assertOk();
+    expect(Auth::getDefaultDriver())->toBe('web');
+});
+
+test('a disabled account is signed out on its next Livewire update too', function () {
+    $this->actingAs($this->account, 'tenant');
+    $home = pageSnapshot($this->get(route('portal.home'))->assertOk()->getContent(), 'portal.home');
+    $this->account->forceFill(['disabled_at' => now()])->save();
+
+    livewireUpdate($this, [['snapshot' => $home, 'updates' => [], 'calls' => [['method' => '$refresh', 'params' => []]]]])
+        ->assertRedirect(route('portal.login'));
+    expect(Auth::guard('tenant')->check())->toBeFalse();
+});
+
+test('behind a trusted proxy the client IP keys the limits and is audited; otherwise X-Forwarded-For is ignored', function (array $proxies, string $expected) {
+    config(['trustedproxy.proxies' => $proxies]);
+    $server = ['REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_FORWARDED_FOR' => '203.0.113.9'];
+    $page = pageSnapshot($this->get(route('portal.login'))->assertOk()->getContent(), 'portal.login');
+
+    $sent = livewireUpdate($this, [['snapshot' => $page, 'updates' => ['email' => 'sara@tenant.test'], 'calls' => [['method' => 'sendCode', 'params' => []]]]], $server)->assertOk();
+    $signIn = ['snapshot' => $sent->json('components.0.snapshot'), 'updates' => ['code' => portalCodeFor('sara@tenant.test')], 'calls' => [['method' => 'signIn', 'params' => []]]];
+    livewireUpdate($this, [$signIn], $server)->assertOk();
+
+    expect(RateLimiter::attempts('portal-code-ip:'.$expected))->toBe(1)
+        ->and(RateLimiter::attempts('portal-code-ip:'.($expected === '10.0.0.1' ? '203.0.113.9' : '10.0.0.1')))->toBe(0)
+        ->and(RateLimiter::attempts('portal-verify-ip:'.$expected))->toBe(1)
+        ->and(Auth::guard('tenant')->user()?->is($this->account))->toBeTrue()
+        ->and(Activity::query()->where('event', 'portal.login')->sole()->ip)->toBe($expected);
+})->with([
+    'proxy trusted' => [['10.0.0.1'], '203.0.113.9'],
+    'no proxy trusted (the default)' => [[], '10.0.0.1'],
+]);
+
+test('trusted proxies come from TRUSTED_PROXIES and default to none', function () {
+    expect(config('trustedproxy.proxies'))->toBe([]);
 });
