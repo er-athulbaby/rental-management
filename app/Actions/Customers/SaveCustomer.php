@@ -5,10 +5,12 @@ namespace App\Actions\Customers;
 use App\Enums\CustomerType;
 use App\Enums\IdType;
 use App\Models\Customer;
+use App\Models\PortalAccount;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator as ValidatorInstance;
 
@@ -57,6 +59,15 @@ final class SaveCustomer
             if ($existing) {
                 $validator->errors()->add('id_number', __('Already exists: :name, ID :id', ['name' => $existing->name_en, 'id' => $existing->maskedId()]));
             }
+
+            // Spec 2026-10-18 tenant portal §3: the portal account follows the tenant's email (plan ruling 8).
+            $account = $customer?->exists ? PortalAccount::query()->where('customer_id', $customer->getKey())->first() : null;
+            $email = is_string($data['email'] ?? null) ? Str::lower($data['email']) : null;
+            if ($account !== null && $email === null && $account->disabled_at === null) {
+                $validator->errors()->add('email', __('This tenant uses the portal. Disable their portal access before removing the email.'));
+            } elseif ($account !== null && $email !== null && PortalAccount::query()->where('email', $email)->whereKeyNot($account->id)->exists()) {
+                $validator->errors()->add('email', __('Another tenant\'s portal account uses this email.'));
+            }
         })->validate();
 
         $id = $customer?->id;
@@ -65,6 +76,9 @@ final class SaveCustomer
         return DB::transaction(function () use ($id, $validated) {
             $customer = $id !== null ? Customer::query()->lockForUpdate()->findOrFail($id) : new Customer;
             $customer->fill($validated)->save();
+            if (filled($customer->email)) {
+                PortalAccount::query()->where('customer_id', $customer->id)->update(['email' => Str::lower((string) $customer->email)]);
+            }
 
             return $customer;
         }, attempts: 3);

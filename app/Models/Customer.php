@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -70,6 +71,12 @@ class Customer extends Model
     public function agreements(): HasMany
     {
         return $this->hasMany(Agreement::class);
+    }
+
+    /** @return HasOne<PortalAccount, $this> spec 2026-10-18 tenant portal §3 */
+    public function portalAccount(): HasOne
+    {
+        return $this->hasOne(PortalAccount::class);
     }
 
     /**
