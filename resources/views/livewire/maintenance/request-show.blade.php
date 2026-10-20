@@ -24,7 +24,7 @@
         <div><dt class="text-sm text-zinc-500">{{ __('Building / unit') }}</dt><dd>{{ $request->building->code }} / {{ $request->unit?->code ?? __('Common area') }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd>{{ $request->customer ? $request->customer->name_en.' · '.$request->customer->mobile : '—' }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Reported by') }}</dt><dd>{{ $request->reported_by_name }} · {{ $request->channel->label() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Logged') }}</dt><dd>{{ $request->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }} · {{ $request->creator->name }}</dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Logged') }}</dt><dd>{{ $request->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }} · {{ $request->creatorName() }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Entry permitted') }}</dt><dd>{{ $request->entry_permitted ? __('Yes') : __('No') }}</dd></div>
         @if ($request->resolved_at)
             <div><dt class="text-sm text-zinc-500">{{ __('Resolved') }}</dt><dd>{{ $request->resolved_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</dd></div>
@@ -110,7 +110,7 @@
         <ol class="space-y-2">
             @foreach ($request->events as $event)
                 <li wire:key="ev-{{ $event->id }}" class="text-sm">
-                    <span class="text-zinc-500"><time datetime="{{ $event->created_at->toIso8601String() }}">{{ $event->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</time> · {{ $event->user->name }}</span>
+                    <span class="text-zinc-500"><time datetime="{{ $event->created_at->toIso8601String() }}">{{ $event->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</time> · {{ $event->byName() }}</span>
                     <span class="whitespace-pre-line">{{ $event->describe() }}</span>
                 </li>
             @endforeach

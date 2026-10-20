@@ -15,6 +15,7 @@ use App\Models\Invoice;
 use App\Models\MaintenanceRequest;
 use App\Models\Owner;
 use App\Models\OwnerContract;
+use App\Models\PortalAccount;
 use App\Models\ReminderSend;
 use App\Models\ReportPackage;
 use App\Models\Unit;
@@ -294,4 +295,15 @@ function maintenanceRequest(User $by, Unit $unit, array $data = []): Maintenance
 function workOrderFor(User $by, MaintenanceRequest $request, Vendor $vendor, array $data = []): WorkOrder
 {
     return app(AddWorkOrder::class)->handle($by, $request, ['vendor_id' => $vendor->id, ...$data]);
+}
+
+/** A portal account for $tenant (portal tests): enabled, English, with the tenant's email in lower case, unless $attributes say otherwise. */
+function portalAccount(Customer $tenant, array $attributes = []): PortalAccount
+{
+    $account = (new PortalAccount)->forceFill([
+        'customer_id' => $tenant->id, 'email' => Str::lower((string) $tenant->email), 'locale' => 'en', 'invited_at' => now(), ...$attributes,
+    ]);
+    $account->save();
+
+    return $account;
 }

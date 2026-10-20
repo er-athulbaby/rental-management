@@ -21,10 +21,11 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $from_status
  * @property string|null $to_status
  * @property string|null $note
- * @property int $user_id
+ * @property int|null $user_id
+ * @property int|null $portal_account_id
  * @property CarbonImmutable $created_at
  * @property-read WorkOrder|null $workOrder
- * @property-read User $user
+ * @property-read User|null $user
  */
 class MaintenanceEvent extends Model
 {
@@ -32,7 +33,7 @@ class MaintenanceEvent extends Model
 
     public const UPDATED_AT = null; // rows are never edited
 
-    protected $fillable = ['maintenance_request_id', 'work_order_id', 'kind', 'from_status', 'to_status', 'note', 'user_id'];
+    protected $fillable = ['maintenance_request_id', 'work_order_id', 'kind', 'from_status', 'to_status', 'note', 'user_id', 'portal_account_id'];
 
     protected function casts(): array
     {
@@ -56,13 +57,26 @@ class MaintenanceEvent extends Model
         return $this->belongsTo(WorkOrder::class);
     }
 
-    /** A status change when $to is given, otherwise a note. */
-    public static function record(MaintenanceRequest $request, User $user, ?WorkOrder $workOrder = null, ?string $from = null, ?string $to = null, ?string $note = null): self
+    /** @return BelongsTo<PortalAccount, $this> */
+    public function portalAccount(): BelongsTo
+    {
+        return $this->belongsTo(PortalAccount::class);
+    }
+
+    /** A status change when $to is given, otherwise a note. $by is staff, or the tenant's portal account (plan ruling 4). */
+    public static function record(MaintenanceRequest $request, User|PortalAccount $by, ?WorkOrder $workOrder = null, ?string $from = null, ?string $to = null, ?string $note = null): self
     {
         return self::create([
             'maintenance_request_id' => $request->id, 'work_order_id' => $workOrder?->id, 'kind' => $to === null ? 'note' : 'status',
-            'from_status' => $from, 'to_status' => $to, 'note' => $note, 'user_id' => $user->id,
+            'from_status' => $from, 'to_status' => $to, 'note' => $note,
+            'user_id' => $by instanceof User ? $by->id : null, 'portal_account_id' => $by instanceof PortalAccount ? $by->id : null,
         ]);
+    }
+
+    /** Who wrote the row, for the staff timeline. */
+    public function byName(): string
+    {
+        return $this->user->name ?? __('Tenant portal');
     }
 
     /** "WO-2026-000001: Assigned → In progress · reason", or the note. */

@@ -10,6 +10,7 @@ enum MaintenanceChannel: string
     case WalkIn = 'walk_in';
     case Inspection = 'inspection';
     case Email = 'email';
+    case Portal = 'portal'; // spec 2026-10-18 tenant portal §4: only LogMaintenanceRequest::forPortal() writes it
 
     public function label(): string
     {
@@ -19,6 +20,13 @@ enum MaintenanceChannel: string
             self::WalkIn => __('Walk-in'),
             self::Inspection => __('Inspection'),
             self::Email => __('Email'),
+            self::Portal => __('Tenant portal'),
         };
+    }
+
+    /** @return list<self> the channels staff choose from; "portal" is set only by the portal (plan ruling 14) */
+    public static function staffCases(): array
+    {
+        return [...array_filter(self::cases(), fn (self $c) => $c !== self::Portal)]; // the spread renumbers the keys
     }
 }

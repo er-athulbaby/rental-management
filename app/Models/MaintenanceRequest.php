@@ -35,7 +35,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property MaintenanceStatus $status
  * @property CarbonImmutable|null $resolved_at
  * @property string|null $cancel_reason
- * @property int $created_by
+ * @property int|null $created_by
+ * @property int|null $portal_account_id
  * @property CarbonImmutable $created_at
  * @property-read Building $building
  * @property-read Unit|null $unit
@@ -86,6 +87,18 @@ class MaintenanceRequest extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return BelongsTo<PortalAccount, $this> set when the tenant logged it in the portal (spec 2026-10-18 tenant portal §5) */
+    public function portalAccount(): BelongsTo
+    {
+        return $this->belongsTo(PortalAccount::class);
+    }
+
+    /** Who logged it, for the staff request page. */
+    public function creatorName(): string
+    {
+        return $this->creator->name ?? __('Tenant portal');
     }
 
     /** @return HasMany<WorkOrder, $this> */

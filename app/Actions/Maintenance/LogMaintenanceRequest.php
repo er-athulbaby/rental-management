@@ -41,7 +41,7 @@ final class LogMaintenanceRequest
             'unit_id' => ['bail', 'nullable', 'integer', Rule::exists('units', 'id')->where('building_id', $buildingId)->whereNull('deleted_at')],
             'customer_id' => ['bail', 'nullable', 'integer', Rule::exists('customers', 'id')->whereNull('deleted_at')],
             'reported_by_name' => ['required', 'string', 'max:150'],
-            'channel' => ['required', Rule::enum(MaintenanceChannel::class)],
+            'channel' => ['required', Rule::enum(MaintenanceChannel::class)->except([MaintenanceChannel::Portal])],
             'category' => ['required', Rule::enum(Trade::class)],
             'priority' => ['required', Rule::enum(MaintenancePriority::class)],
             'description' => ['required', 'string', 'max:2000'],

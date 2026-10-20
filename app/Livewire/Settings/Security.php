@@ -64,13 +64,13 @@ class Security extends Component
         $this->canManageTwoFactor = Features::canManageTwoFactorAuthentication();
 
         if ($this->canManageTwoFactor) {
-            if (Fortify::confirmsTwoFactorAuthentication() && is_null(auth()->user()->two_factor_confirmed_at)) {
-                $disableTwoFactorAuthentication(auth()->user());
+            if (Fortify::confirmsTwoFactorAuthentication() && is_null(auth('web')->user()->two_factor_confirmed_at)) {
+                $disableTwoFactorAuthentication(auth('web')->user());
             }
 
-            $this->twoFactorEnabled = auth()->user()->hasEnabledTwoFactorAuthentication();
+            $this->twoFactorEnabled = auth('web')->user()->hasEnabledTwoFactorAuthentication();
             $this->requiresConfirmation = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
-            $this->mustUseTwoFactor = auth()->user()->requiresTwoFactor();
+            $this->mustUseTwoFactor = auth('web')->user()->requiresTwoFactor();
         }
     }
 
@@ -90,13 +90,13 @@ class Security extends Component
             throw $e;
         }
 
-        Auth::user()->update([
+        Auth::guard('web')->user()->update([
             'password' => $validated['password'],
         ]);
 
         // Spec §8.6: a password change kills the user's other sessions and rotates remember_token.
-        Auth::user()->logoutEverywhere(exceptSessionId: session()->getId());
-        Audit::log('auth.password.changed', Auth::user(), causer: Auth::user());
+        Auth::guard('web')->user()->logoutEverywhere(exceptSessionId: session()->getId());
+        Audit::log('auth.password.changed', Auth::guard('web')->user(), causer: Auth::guard('web')->user());
 
         $this->reset('current_password', 'password', 'password_confirmation');
 
@@ -108,10 +108,10 @@ class Security extends Component
      */
     public function enable(EnableTwoFactorAuthentication $enableTwoFactorAuthentication): void
     {
-        $enableTwoFactorAuthentication(auth()->user());
+        $enableTwoFactorAuthentication(auth('web')->user());
 
         if (! $this->requiresConfirmation) {
-            $this->twoFactorEnabled = auth()->user()->hasEnabledTwoFactorAuthentication();
+            $this->twoFactorEnabled = auth('web')->user()->hasEnabledTwoFactorAuthentication();
         }
 
         $this->loadSetupData();
@@ -124,7 +124,7 @@ class Security extends Component
      */
     private function loadSetupData(): void
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         try {
             $this->qrCodeSvg = $user?->twoFactorQrCodeSvg();
@@ -159,7 +159,7 @@ class Security extends Component
     {
         $this->validate();
 
-        $confirmTwoFactorAuthentication(auth()->user(), $this->code);
+        $confirmTwoFactorAuthentication(auth('web')->user(), $this->code);
 
         $this->closeModal();
 
@@ -181,7 +181,7 @@ class Security extends Component
      */
     public function disable(DisableTwoFactorAuthentication $disableTwoFactorAuthentication): void
     {
-        $disableTwoFactorAuthentication(auth()->user());
+        $disableTwoFactorAuthentication(auth('web')->user());
 
         $this->twoFactorEnabled = false;
     }
@@ -202,7 +202,7 @@ class Security extends Component
         $this->resetErrorBag();
 
         if (! $this->requiresConfirmation) {
-            $this->twoFactorEnabled = auth()->user()->hasEnabledTwoFactorAuthentication();
+            $this->twoFactorEnabled = auth('web')->user()->hasEnabledTwoFactorAuthentication();
         }
     }
 

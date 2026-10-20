@@ -12,7 +12,7 @@ final class WorkOrderSheetController
 {
     public function __invoke(Request $request, WorkOrder $workOrder): View
     {
-        abort_unless($request->user()?->can('view', $workOrder) === true, 403);
+        abort_unless($request->user('web')?->can('view', $workOrder) === true, 403);
         $workOrder->load(['vendor', 'maintenanceRequest.building', 'maintenanceRequest.unit', 'maintenanceRequest.customer']);
 
         return view('maintenance.work-order-sheet', ['workOrder' => $workOrder, 'lines' => $workOrder->sheetLines(), 'company' => CompanySetting::current()]);
