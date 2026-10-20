@@ -6,6 +6,7 @@ use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
 use App\Enums\RoleName;
+use App\Mail\PortalSignInCode;
 use App\Models\Agreement;
 use App\Models\Bank;
 use App\Models\Building;
@@ -30,6 +31,7 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Spatie\SimpleExcel\SimpleExcelWriter;
@@ -306,4 +308,15 @@ function portalAccount(Customer $tenant, array $attributes = []): PortalAccount
     $account->save();
 
     return $account;
+}
+
+/** The code in the last sign-in email queued to $email (portal tests; needs Mail::fake()). */
+function portalCodeFor(string $email): string
+{
+    $mail = Mail::queued(PortalSignInCode::class, fn (PortalSignInCode $m) => $m->hasTo($email))->last();
+    if ($mail === null) {
+        throw new RuntimeException("No sign-in code was queued to {$email}");
+    }
+
+    return $mail->code;
 }
