@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
  * @property int|null $invited_by
  * @property CarbonImmutable|null $last_login_at
  * @property CarbonImmutable|null $disabled_at
+ * @property string|null $remember_token nulled on disable and on an email change; PortalSession also stamps live sessions with it
  * @property-read Customer $customer
  * @property-read string $name
  */

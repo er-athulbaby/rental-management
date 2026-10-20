@@ -25,7 +25,7 @@ class MaintenanceShow extends Component
 
     public function render(): View
     {
-        $request = MaintenanceRequest::query()->where('customer_id', $this->customerId())->with(['building', 'unit'])->findOrFail($this->requestId);
+        $request = MaintenanceRequest::query()->where('customer_id', $this->customerId())->with(['building' => fn ($q) => $q->withTrashed(), 'unit' => fn ($q) => $q->withTrashed()])->findOrFail($this->requestId);
 
         return view('livewire.portal.maintenance-show', [
             'request' => $request,

@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -25,6 +26,14 @@ final class PortalSession
         $locale = $account instanceof PortalAccount ? $account->locale : session('portal_locale');
         App::setLocale(in_array($locale, PortalAccount::LOCALES, true) ? $locale : 'en');
 
+        // A live session is stamped with the account's remember_token; disabling nulls it, so enabling again never revives the session.
+        if ($account instanceof PortalAccount && $account->isActive() && ! $this->stampHolds($account)) {
+            $guard->logout();
+            session()->regenerateToken();
+
+            return redirect()->route('portal.login');
+        }
+
         if ($account instanceof PortalAccount && ! $account->isActive()) {
             $guard->logout(); // the tenant guard only (plan ruling 3)
             session()->regenerateToken();
@@ -33,6 +42,21 @@ final class PortalSession
         }
 
         return $next($request);
+    }
+
+    private function stampHolds(PortalAccount $account): bool
+    {
+        if ($account->remember_token === null) {
+            if (session()->has('portal_stamp')) {
+                return false;
+            }
+            $account->forceFill(['remember_token' => Str::random(60)])->saveQuietly();
+        }
+        if (! session()->has('portal_stamp')) {
+            session(['portal_stamp' => $account->remember_token]);
+        }
+
+        return hash_equals((string) $account->remember_token, (string) session('portal_stamp'));
     }
 
     /**

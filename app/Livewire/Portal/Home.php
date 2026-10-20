@@ -29,6 +29,8 @@ class Home extends Component
     {
         $customer = $this->account()->customer;
         $today = now('Asia/Bahrain');
+        // The date a place is vacated is COALESCE(move_out_date, end_date), as portalPlaces and currentTenantId read it.
+        $window = fn ($q) => $q->whereRaw('COALESCE(move_out_date, end_date) between ? and ?', [$today->toDateString(), $today->copy()->addDays(90)->toDateString()]);
 
         return view('livewire.portal.home', [
             'name' => $customer->displayName(app()->getLocale()),
@@ -41,7 +43,9 @@ class Home extends Component
             'requests' => MaintenanceRequest::query()->where('customer_id', $customer->id)
                 ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])->latest('id')->limit(5)->get(),
             'ending' => Agreement::query()->where('customer_id', $customer->id)->where('status', AgreementStatus::Active)
-                ->whereBetween('end_date', [$today->toDateString(), $today->addDays(90)->toDateString()])->orderBy('end_date')->get(),
+                ->whereHas('agreementUnits', $window)->with(['agreementUnits' => $window])->get()
+                ->each(fn (Agreement $a) => $a->setAttribute('ends_on', $a->agreementUnits->map(fn ($au) => $au->move_out_date ?? $au->end_date)->min()))
+                ->sortBy([['ends_on', 'asc'], ['id', 'asc']])->values(),
         ])->title(__('Home'));
     }
 }

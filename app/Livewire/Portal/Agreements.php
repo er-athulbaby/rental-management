@@ -20,7 +20,7 @@ class Agreements extends Component
         return view('livewire.portal.agreements', [
             'agreements' => Agreement::query()->where('customer_id', $this->customerId())
                 ->whereNotIn('status', [AgreementStatus::Draft, AgreementStatus::PendingApproval])
-                ->with(['agreementUnits.unit.building', 'agreementUnits.charges'])
+                ->with(['agreementUnits.unit' => fn ($q) => $q->withTrashed(), 'agreementUnits.unit.building' => fn ($q) => $q->withTrashed(), 'agreementUnits.charges'])
                 ->orderByDesc('start_date')->orderByDesc('id')->get(),
         ])->title(__('Agreements'));
     }

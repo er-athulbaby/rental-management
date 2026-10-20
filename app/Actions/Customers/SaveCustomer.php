@@ -80,7 +80,8 @@ final class SaveCustomer
                 $customer = $id !== null ? Customer::query()->lockForUpdate()->findOrFail($id) : new Customer;
                 $customer->fill($validated)->save();
                 if (filled($customer->email)) {
-                    PortalAccount::query()->where('customer_id', $customer->id)->update(['email' => Str::lower((string) $customer->email)]);
+                    $new = Str::lower((string) $customer->email);
+                    PortalAccount::query()->where('customer_id', $customer->id)->where('email', '!=', $new)->update(['email' => $new, 'remember_token' => null]); // a new address ends remembered devices
                 }
 
                 return $customer;

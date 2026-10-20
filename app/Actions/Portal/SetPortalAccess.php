@@ -43,7 +43,7 @@ final class SetPortalAccess
                 }
                 $account->forceFill(['email' => $email, 'disabled_at' => null])->save();
             } else {
-                $account->forceFill(['disabled_at' => now()])->save();
+                $account->forceFill(['disabled_at' => now(), 'remember_token' => null])->save();
                 PortalLoginCode::query()->where('portal_account_id', $account->id)->whereNull('used_at')->delete();
             }
             Audit::log($enabled ? 'portal.enabled' : 'portal.disabled', $account, properties: ['customer_id' => $customer->id], causer: $actor);

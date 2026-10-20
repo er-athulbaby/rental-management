@@ -56,7 +56,7 @@
         @forelse ($ending as $a)
             <div wire:key="ag-{{ $a->id }}" class="flex flex-wrap justify-between gap-2 text-sm">
                 <span>{{ $a->number }}</span>
-                <span>{{ __('Ends :date', ['date' => $a->end_date->format('d/m/Y')]) }}</span>
+                <span>{{ __('Ends :date', ['date' => $a->ends_on->format('d/m/Y')]) }}</span>
             </div>
         @empty
             <flux:text>{{ __('No agreement ends in the next 90 days.') }}</flux:text>

@@ -17,7 +17,7 @@ class Maintenance extends Component
     public function render(): View
     {
         return view('livewire.portal.maintenance', [
-            'requests' => MaintenanceRequest::query()->where('customer_id', $this->customerId())->with(['building', 'unit'])->latest('id')->get(),
+            'requests' => MaintenanceRequest::query()->where('customer_id', $this->customerId())->with(['building' => fn ($q) => $q->withTrashed(), 'unit' => fn ($q) => $q->withTrashed()])->latest('id')->get(),
         ])->title(__('Maintenance'));
     }
 }

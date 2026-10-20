@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\AgreementStatus;
 use App\Enums\DocumentCategory;
+use App\Enums\InvoiceStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,9 +39,10 @@ class Document extends Model
         $query->where('shared_with_tenant', true)->where(fn (Builder $q) => $q
             ->where(fn (Builder $c) => $c->where('documentable_type', (new Customer)->getMorphClass())->where('documentable_id', $customerId))
             ->orWhere(fn (Builder $a) => $a->where('documentable_type', (new Agreement)->getMorphClass())
-                ->whereIn('documentable_id', Agreement::query()->select('id')->where('customer_id', $customerId)))
+                ->whereIn('documentable_id', Agreement::query()->select('id')->where('customer_id', $customerId)
+                    ->whereNotIn('status', [AgreementStatus::Draft, AgreementStatus::PendingApproval])))
             ->orWhere(fn (Builder $i) => $i->where('documentable_type', (new Invoice)->getMorphClass())
-                ->whereIn('documentable_id', Invoice::query()->select('id')->where('customer_id', $customerId))));
+                ->whereIn('documentable_id', Invoice::query()->select('id')->where('customer_id', $customerId)->where('status', InvoiceStatus::Issued))));
     }
 
     protected $fillable = ['category', 'disk', 'path', 'original_name', 'mime', 'size', 'expires_on', 'uploaded_by', 'portal_account_id'];
