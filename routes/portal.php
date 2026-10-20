@@ -28,6 +28,9 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
         Route::get('statement/pdf', [DownloadController::class, 'statement'])->name('statement.pdf');
         Route::livewire('documents', Portal\Documents::class)->name('documents');
         Route::get('documents/{document}', [DownloadController::class, 'document'])->whereNumber('document')->name('documents.download');
+        Route::livewire('maintenance', Portal\Maintenance::class)->name('maintenance');
+        Route::livewire('maintenance/new', Portal\NewMaintenanceRequest::class)->name('maintenance.create');
+        Route::livewire('maintenance/{maintenance}', Portal\MaintenanceShow::class)->whereNumber('maintenance')->name('maintenance.show');
         Route::post('logout', LogoutController::class)->name('logout');
     });
 });

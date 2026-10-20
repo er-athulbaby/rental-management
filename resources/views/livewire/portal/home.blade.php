@@ -43,7 +43,7 @@
         <flux:heading size="lg" level="2">{{ __('Open maintenance requests') }}</flux:heading>
         @forelse ($requests as $r)
             <div wire:key="mr-{{ $r->id }}" class="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span>{{ $r->number }} · {{ $r->category->label() }}</span>
+                <span><flux:link :href="route('portal.maintenance.show', $r)">{{ $r->number }}</flux:link> · {{ $r->category->label() }}</span>
                 <x-status-badge :status="$r->status" />
             </div>
         @empty

@@ -12,6 +12,7 @@
         ['portal.cheques', __('Cheques')],
         ['portal.statement', __('Statement')],
         ['portal.documents', __('Documents')],
+        ['portal.maintenance', __('Maintenance')],
     ];
 @endphp
 <!DOCTYPE html>

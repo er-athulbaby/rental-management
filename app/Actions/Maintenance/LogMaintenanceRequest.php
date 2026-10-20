@@ -134,7 +134,7 @@ final class LogMaintenanceRequest
     public static function portalPlaces(int $customerId): array
     {
         $today = now('Asia/Bahrain')->toDateString();
-        $units = Unit::query()->with('building:id,name')
+        $units = Unit::query()->with('building:id,name')->whereHas('building')
             ->whereHas('agreementUnits', fn (Builder $au) => $au->where('start_date', '<=', $today)
                 ->whereRaw('COALESCE(move_out_date, end_date) >= ?', [$today])
                 ->whereHas('agreement', fn (Builder $a) => $a->where('customer_id', $customerId)->where('status', AgreementStatus::Active)))
