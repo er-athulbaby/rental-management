@@ -11,12 +11,15 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Support\Timebox;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     CompanySetting::factory()->create();
     config(['mail.default' => 'smtp', 'mail.from.address' => 'no-reply@rms.test']);
     Mail::fake();
+    $this->app->bind(Timebox::class, fn () => (new Timebox)->returnEarly()); // no real 200 ms sleeps; the time-box test below swaps in its own
     $this->travelTo(CarbonImmutable::parse('2026-10-18 10:00', 'Asia/Bahrain'));
     $this->tenant = Customer::factory()->create(['name_en' => 'Sara Tenant', 'name_ar' => 'سارة', 'email' => 'sara@tenant.test']);
     $this->account = portalAccount($this->tenant);
@@ -169,4 +172,47 @@ test('no codes while portal email is not set up', function () {
     expect(fn () => ($this->send)())->toThrow(ValidationException::class);
     Mail::assertNothingQueued();
     expect(PortalLoginCode::count())->toBe(0);
+});
+
+test('asking for and checking a code run in the 200 ms time box, for known and unknown emails alike', function () {
+    $box = new class extends Timebox
+    {
+        public array $boxed = [];
+
+        public function call(callable $callback, int $microseconds)
+        {
+            $this->boxed[] = $microseconds;
+
+            return parent::call($callback, $microseconds);
+        }
+    };
+    $this->app->instance(Timebox::class, $box);
+
+    foreach (['sara@tenant.test', 'nobody@tenant.test'] as $email) {
+        ($this->send)($email);
+        ($this->verify)('123456', $email);
+    }
+
+    expect($box->boxed)->toBe([200_000, 200_000, 200_000, 200_000]);
+});
+
+test('10 code checks per email per 10 minutes, from any IP, known or unknown', function (string $email) {
+    ($this->send)();
+    $code = portalCodeFor('sara@tenant.test');
+    foreach (range(1, 10) as $i) {
+        ($this->verify)('123456', $i % 2 ? Str::upper($email) : " {$email} ", '10.0.3.'.$i); // case and spaces count as the same email
+    }
+
+    expect(fn () => ($this->verify)($code, $email, '10.0.3.99'))->toThrow(ValidationException::class);
+    $this->travel(10)->minutes();
+    expect(($this->verify)('123456', $email, '10.0.3.99'))->toBeNull(); // the window has passed: an answer, not a refusal
+})->with(['known' => ['sara@tenant.test'], 'unknown' => ['nobody@tenant.test']]);
+
+test('requests for an unknown email count toward its limit, whatever the case and spaces', function () {
+    foreach (range(1, 5) as $i) {
+        ($this->send)($i % 2 ? '  NOBODY@tenant.test' : 'nobody@Tenant.test ', '10.0.4.'.$i);
+    }
+
+    expect(fn () => ($this->send)('nobody@tenant.test', '10.0.4.99'))->toThrow(ValidationException::class);
+    Mail::assertNothingQueued();
 });
