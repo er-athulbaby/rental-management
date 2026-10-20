@@ -5,6 +5,7 @@ use App\Actions\Portal\SetPortalAccess;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName as R;
 use App\Livewire\Customers\Form;
+use App\Livewire\Portal\Login;
 use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\CompanySetting;
@@ -135,4 +136,18 @@ test('home lists an agreement by the move-out date when it falls inside 90 days'
 
     $this->actingAs($this->account, 'tenant')->get(route('portal.home'))->assertOk()
         ->assertSeeInOrder(['Agreements ending soon', $this->agreement->number, 'Ends 20/11/2026'])->assertDontSee('31/12/2026');
+});
+
+test('signing out and in again in the same browser keeps the new session: the old stamp is not held against it', function () {
+    config(['mail.default' => 'smtp', 'mail.from.address' => 'no-reply@rms.test']);
+    $this->account->forceFill(['remember_token' => 'token-before-logout'])->save();
+    ($this->sessionLogin)()->get(route('portal.home'))->assertOk(); // stamped with token-before-logout
+    $this->post(route('portal.logout'))->assertRedirect(route('portal.login')); // logout rotates the token
+    expect(session()->has('portal_stamp'))->toBeFalse();
+
+    session(['portal_stamp' => 'token-before-logout']); // a stale stamp left behind must not count against a fresh sign-in
+    Livewire::test(Login::class)->set('email', 'sara@tenant.test')->call('sendCode')
+        ->set('code', portalCodeFor('sara@tenant.test'))->call('signIn')->assertRedirect(route('portal.home'));
+
+    $this->get(route('portal.home'))->assertOk();
 });

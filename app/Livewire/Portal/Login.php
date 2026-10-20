@@ -49,6 +49,7 @@ class Login extends Component
             throw ValidationException::withMessages(['code' => __('That code is wrong or has expired. Ask for a new one.')]);
         }
 
+        session()->forget('portal_stamp'); // a fresh sign-in is stamped anew by PortalSession
         Auth::guard('tenant')->login($account, $this->remember === true); // regenerates the session id itself
         session()->put('portal_locale', $account->locale);
 
