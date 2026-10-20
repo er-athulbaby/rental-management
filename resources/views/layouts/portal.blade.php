@@ -10,6 +10,8 @@
         ['portal.invoices', __('Invoices')],
         ['portal.payments', __('Payments')],
         ['portal.cheques', __('Cheques')],
+        ['portal.statement', __('Statement')],
+        ['portal.documents', __('Documents')],
     ];
 @endphp
 <!DOCTYPE html>

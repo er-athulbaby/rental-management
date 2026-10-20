@@ -24,6 +24,10 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
         Route::livewire('payments', Portal\Payments::class)->name('payments');
         Route::get('payments/{payment}/receipt', [DownloadController::class, 'receipt'])->whereNumber('payment')->name('payments.receipt');
         Route::livewire('cheques', Portal\Cheques::class)->name('cheques');
+        Route::livewire('statement', Portal\Statement::class)->name('statement');
+        Route::get('statement/pdf', [DownloadController::class, 'statement'])->name('statement.pdf');
+        Route::livewire('documents', Portal\Documents::class)->name('documents');
+        Route::get('documents/{document}', [DownloadController::class, 'document'])->whereNumber('document')->name('documents.download');
         Route::post('logout', LogoutController::class)->name('logout');
     });
 });

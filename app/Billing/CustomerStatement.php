@@ -6,11 +6,13 @@ use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\InvoiceType;
+use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\DepositMovement;
 use App\Models\Disbursement;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Pdf\PdfRenderer;
 use App\Support\Fils;
 use Illuminate\Support\Collection;
 
@@ -78,5 +80,18 @@ final class CustomerStatement
 
                 return ['unit' => $au->agreement->number.' · '.$au->unit->building->code.' / '.$au->unit->code, 'opening' => $opening, 'rows' => $rows, 'closing' => $held];
             })->values()->all();
+    }
+
+    /** The statement PDF, as staff and the tenant portal download it (spec 2026-10-18 tenant portal §4). */
+    public static function pdf(Customer $customer, string $from, string $to): string
+    {
+        return app(PdfRenderer::class)->render('pdf.statement', [
+            'company' => CompanySetting::current(),
+            'customer' => $customer,
+            'from' => $from,
+            'to' => $to,
+            'receivables' => self::receivables($customer, $from, $to),
+            'deposits' => self::deposits($customer, $from, $to),
+        ], ['footer' => '<div style="text-align:center; font-size:8pt; color:#555">{PAGENO} / {nbpg}</div>']);
     }
 }

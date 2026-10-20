@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Audit\Audit;
+use App\Billing\CustomerStatement;
 use App\Enums\AgreementStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentStatus;
@@ -14,8 +15,10 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PortalAccount;
 use App\Pdf\InvoicePdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -59,6 +62,36 @@ final class DownloadController
         }
 
         return $this->serve(StoreReceipt::stored($model), $account);
+    }
+
+    /** Spec §4: the tenant statement PDF; no customer parameter exists, so it is always the signed-in tenant's. */
+    public function statement(Request $request): Response
+    {
+        $account = $this->account();
+        $query = $request->query();
+        abort_unless(is_string($query['from'] ?? null) && is_string($query['to'] ?? null), 404); // an array value would trip the date rules
+        $v = Validator::make($query, [
+            'from' => ['required', 'string', 'date_format:Y-m-d'],
+            'to' => ['required', 'string', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
+        abort_if($v->fails(), 404); // a plain link, not a form (plan ruling 10)
+        $range = $v->validated();
+        $customer = $account->customer;
+        Audit::log('customer.statement_exported', $customer, properties: $range, causer: $account);
+
+        return response(CustomerStatement::pdf($customer, $range['from'], $range['to']), 200, [
+            'Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="statement.pdf"',
+        ]);
+    }
+
+    /** Spec §4: a shared document on the tenant, their agreements or their invoices; anything else is a 404. */
+    public function document(string $document): Response
+    {
+        $account = $this->account();
+        $model = Document::query()->sharedWithTenant($account->customer_id)->findOrFail($document);
+        Audit::log('document.downloaded', $model, causer: $account);
+
+        return Storage::disk($model->disk)->download($model->path, $model->original_name);
     }
 
     private function account(): PortalAccount

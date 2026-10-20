@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\DocumentCategory;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -20,6 +22,25 @@ use Spatie\Activitylog\Support\LogOptions;
 class Document extends Model
 {
     use LogsActivity, SoftDeletes;
+
+    /** Spec 2026-10-18 tenant portal §4: records whose documents staff may share with the tenant (plan ruling 13). */
+    public const array SHAREABLE = [Customer::class, Agreement::class, Invoice::class];
+
+    /**
+     * Shared documents on the tenant, their agreements or their invoices; deleted ones are left out by SoftDeletes.
+     *
+     * @param  Builder<Document>  $query
+     */
+    #[Scope]
+    protected function sharedWithTenant(Builder $query, int $customerId): void
+    {
+        $query->where('shared_with_tenant', true)->where(fn (Builder $q) => $q
+            ->where(fn (Builder $c) => $c->where('documentable_type', (new Customer)->getMorphClass())->where('documentable_id', $customerId))
+            ->orWhere(fn (Builder $a) => $a->where('documentable_type', (new Agreement)->getMorphClass())
+                ->whereIn('documentable_id', Agreement::query()->select('id')->where('customer_id', $customerId)))
+            ->orWhere(fn (Builder $i) => $i->where('documentable_type', (new Invoice)->getMorphClass())
+                ->whereIn('documentable_id', Invoice::query()->select('id')->where('customer_id', $customerId))));
+    }
 
     protected $fillable = ['category', 'disk', 'path', 'original_name', 'mime', 'size', 'expires_on', 'uploaded_by', 'portal_account_id'];
 

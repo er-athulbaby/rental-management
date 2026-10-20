@@ -4,17 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Audit\Audit;
 use App\Billing\CustomerStatement;
-use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\User;
-use App\Pdf\PdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 
 final class CustomerStatementPdfController
 {
-    public function __invoke(Request $request, Customer $customer, PdfRenderer $pdf): Response
+    public function __invoke(Request $request, Customer $customer): Response
     {
         $user = Auth::guard('web')->user();
         abort_unless($user instanceof User && Customer::visibleTo($user)->whereKey($customer->id)->exists(), 403);
@@ -25,15 +23,6 @@ final class CustomerStatementPdfController
 
         Audit::log('customer.statement_exported', $customer, properties: $range, causer: $user);
 
-        $bytes = $pdf->render('pdf.statement', [
-            'company' => CompanySetting::current(),
-            'customer' => $customer,
-            'from' => $range['from'],
-            'to' => $range['to'],
-            'receivables' => CustomerStatement::receivables($customer, $range['from'], $range['to']),
-            'deposits' => CustomerStatement::deposits($customer, $range['from'], $range['to']),
-        ], ['footer' => '<div style="text-align:center; font-size:8pt; color:#555">{PAGENO} / {nbpg}</div>']);
-
-        return response($bytes, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="statement-'.$customer->id.'.pdf"']);
+        return response(CustomerStatement::pdf($customer, $range['from'], $range['to']), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="statement-'.$customer->id.'.pdf"']);
     }
 }
