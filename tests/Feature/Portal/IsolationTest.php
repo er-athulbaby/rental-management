@@ -12,6 +12,7 @@ use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\MaintenanceRequest;
+use App\Models\OwnerContract;
 use App\Models\Unit;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -44,6 +45,33 @@ function isolationTenant(string $name, string $code, User $finance, User $pm, Bu
     ];
 }
 
+/** An owner with one of everything the owner portal shows, plus a document shared with them (isolation tests). */
+function isolationOwner(string $name, string $code, User $admin): array
+{
+    $owner = portalOwnerFixture($name, $code, $admin);
+    $document = app(StoreDocument::class)->handle($admin, $owner['owner'], UploadedFile::fake()->create("deed-{$code}.pdf", 10, 'application/pdf'), DocumentCategory::Other);
+    app(ShareDocument::class)->handle($admin, $document, 'owner', true);
+
+    return [...$owner, 'document' => $document, 'markers' => [...$owner['markers'], "deed-{$code}.pdf"]];
+}
+
+/** Every owner-portal page and download, with $o's own ids. */
+function isolationOwnerUrls(array $o): array
+{
+    return [
+        route('portal.owner.home'), route('portal.owner.buildings'), route('portal.owner.statements'), route('portal.owner.statements.pdf', $o['statement']),
+        route('portal.owner.payments'), route('portal.owner.expenses'), route('portal.owner.maintenance'), route('portal.owner.maintenance.show', $o['request']),
+        route('portal.owner.contracts'), route('portal.owner.documents'), route('portal.owner.documents.download', $o['document']),
+    ];
+}
+
+/** @return list<class-string> the owner-portal page components that take no mount argument */
+function isolationOwnerComponents(): array
+{
+    return [Portal\Owner\Home::class, Portal\Owner\Buildings::class, Portal\Owner\Statements::class, Portal\Owner\Payments::class,
+        Portal\Owner\Expenses::class, Portal\Owner\Maintenance::class, Portal\Owner\Contracts::class, Portal\Owner\Documents::class];
+}
+
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     CompanySetting::factory()->create();
@@ -56,6 +84,8 @@ beforeEach(function () {
     $pm = matrixUser(R::PropertyManager, $building);
     $this->a = isolationTenant('Sara Tenant', '101', $finance, $pm, $building);
     $this->b = isolationTenant('Omar Other', '202', $finance, $pm, $building);
+    $this->oa = isolationOwner('Ali Owner', '303', $this->admin);
+    $this->ob = isolationOwner('Badr Owner', '404', $this->admin);
 });
 
 test('tenant A sees none of tenant B\'s records on any portal page', function () {
@@ -136,19 +166,107 @@ test('a staff session opens no portal page, and portal components refuse a staff
     }
 });
 
-test('portal components expose no public method that takes a customer id', function () {
+test('portal components expose no public method that takes a customer or owner id', function () {
     $allowed = ['render', 'mount', 'sendCode', 'signIn', 'startAgain', 'save'];
 
-    foreach (glob(app_path('Livewire/Portal/*.php')) as $file) {
-        $class = 'App\\Livewire\\Portal\\'.basename($file, '.php');
-        foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-            if ($method->isStatic() || realpath((string) $method->getFileName()) !== realpath($file)) {
-                continue; // inherited, or from a trait such as WithFileUploads
-            }
-            expect($method->getName())->toBeIn($allowed);
-            foreach ($method->getParameters() as $parameter) {
-                expect(strtolower($parameter->getName()))->not->toContain('customer');
+    foreach (['App\\Livewire\\Portal\\' => glob(app_path('Livewire/Portal/*.php')), 'App\\Livewire\\Portal\\Owner\\' => glob(app_path('Livewire/Portal/Owner/*.php'))] as $namespace => $files) {
+        expect($files)->not->toBeEmpty();
+        foreach ($files as $file) {
+            $class = $namespace.basename($file, '.php');
+            foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+                if ($method->isStatic() || realpath((string) $method->getFileName()) !== realpath($file)) {
+                    continue; // inherited, or from a trait such as WithFileUploads
+                }
+                expect($method->getName())->toBeIn($allowed);
+                foreach ($method->getParameters() as $parameter) {
+                    expect(strtolower($parameter->getName()))->not->toContain('customer')->not->toContain('owner');
+                }
             }
         }
     }
+});
+
+test('owner A sees none of owner B\'s records on any owner page', function () {
+    $this->actingAs($this->oa['account'], 'tenant');
+
+    foreach ([...array_filter(isolationOwnerUrls($this->oa), fn (string $url) => ! str_ends_with($url, '/pdf') && ! str_contains($url, '/documents/'))] as $url) {
+        $html = $this->get($url)->assertOk()->getContent();
+        foreach ($this->ob['markers'] as $marker) {
+            expect($html)->not->toContain($marker);
+        }
+    }
+    // A sees their own, so the pages above were not simply empty.
+    $this->get(route('portal.owner.statements'))->assertSee('OS-303');
+    $this->get(route('portal.owner.buildings'))->assertSee('Renter 303');
+    $this->get(route('portal.owner.documents'))->assertSee('deed-303.pdf');
+});
+
+test('every one of owner B\'s ids is a 404 for owner A, and so are made-up ids', function () {
+    $this->actingAs($this->oa['account'], 'tenant');
+
+    foreach ([
+        route('portal.owner.statements.pdf', $this->ob['statement']), route('portal.owner.documents.download', $this->ob['document']),
+        route('portal.owner.maintenance.show', $this->ob['request']),
+        '/portal/owner/statements/999999999/pdf', '/portal/owner/statements/abc/pdf', '/portal/owner/documents/99999999999999999999999',
+        '/portal/owner/maintenance/-1', '/portal/owner/maintenance/1e3',
+    ] as $url) {
+        $this->get($url)->assertNotFound();
+    }
+
+    Livewire::actingAs($this->oa['account'], 'tenant')->test(Portal\Owner\MaintenanceShow::class, ['maintenance' => (string) $this->ob['request']->id])->assertNotFound();
+});
+
+test('owner pages refuse a tenant-only account', function () {
+    $this->actingAs($this->a['account'], 'tenant');
+
+    foreach (isolationOwnerUrls($this->oa) as $url) {
+        $this->get($url)->assertNotFound();
+    }
+    foreach (isolationOwnerComponents() as $component) {
+        Livewire::actingAs($this->a['account'], 'tenant')->test($component)->assertNotFound();
+    }
+});
+
+test('tenant pages refuse an owner-only account; /portal sends it to the owner home', function () {
+    $a = $this->a;
+    $this->actingAs($this->oa['account'], 'tenant');
+
+    $this->get(route('portal.home'))->assertRedirect(route('portal.owner.home'));
+    foreach ([
+        route('portal.agreements'), route('portal.agreements.pdf', $a['agreement']), route('portal.invoices'), route('portal.invoices.pdf', $a['invoice']),
+        route('portal.payments'), route('portal.payments.receipt', $a['payment']), route('portal.cheques'), route('portal.statement'),
+        route('portal.statement.pdf', ['from' => '2026-01-01', 'to' => '2026-10-18']), route('portal.documents'), route('portal.documents.download', $a['document']),
+        route('portal.maintenance'), route('portal.maintenance.create'), route('portal.maintenance.show', $a['request']),
+    ] as $url) {
+        $this->get($url)->assertNotFound();
+    }
+    foreach ([Portal\Home::class, Portal\Agreements::class, Portal\Invoices::class, Portal\Payments::class, Portal\Cheques::class,
+        Portal\Statement::class, Portal\Documents::class, Portal\Maintenance::class, Portal\NewMaintenanceRequest::class] as $component) {
+        Livewire::actingAs($this->oa['account'], 'tenant')->test($component)->assertNotFound();
+    }
+});
+
+test('a staff session opens no owner page, and owner components refuse a staff user', function () {
+    $this->actingAs($this->admin);
+
+    foreach (isolationOwnerUrls($this->oa) as $url) {
+        $this->get($url)->assertRedirect(route('portal.login'));
+    }
+    foreach (isolationOwnerComponents() as $component) {
+        Livewire::actingAs($this->admin)->test($component)->assertForbidden();
+    }
+});
+
+test('an owner session opens no staff page', function () {
+    $o = $this->oa;
+    $this->actingAs($o['account'], 'tenant');
+
+    foreach ([
+        route('dashboard'), route('owners.index'), route('owners.edit', $o['owner']), route('owner-contracts.show', $o['managed']),
+        route('owner-statements.show', $o['statement']), route('owner-statements.pdf', $o['statement']), route('disbursements.show', $o['payout']),
+        route('documents.download', $o['document']), route('admin.audit'),
+    ] as $url) {
+        $this->get($url)->assertRedirect(route('login'));
+    }
+    expect(OwnerContract::query()->portalFor($o['owner']->id)->count())->toBe(2); // the fixture's two contracts, so the routes above had real ids
 });
