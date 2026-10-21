@@ -153,6 +153,8 @@
     "Payment reversal": "عكس دفعة",
     "Credit refund": "استرداد رصيد",
     "Credit refund reversal": "عكس استرداد رصيد",
+    "This owner uses the portal. Disable their portal access before removing the email.": "يستخدم هذا المالك البوابة. عطّل وصوله إلى البوابة قبل حذف البريد الإلكتروني.",
+    "This email is also the portal sign-in for :name; change both together.": "هذا البريد الإلكتروني هو أيضاً بريد الدخول إلى البوابة لـ :name؛ غيّرهما معاً.",
     "Your owner portal": "بوابة المالك",
     "You can now see your buildings, statements, payments, expenses, maintenance and documents in our owner portal.": "يمكنكم الآن الاطلاع على عقاراتكم وكشوف حساباتكم ومدفوعاتكم ومصروفاتكم وطلبات الصيانة والمستندات عبر بوابة المالك.",
     "Add the owner's email before inviting them.": "أضف البريد الإلكتروني للمالك قبل دعوته.",

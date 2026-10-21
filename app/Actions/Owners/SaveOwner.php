@@ -2,6 +2,8 @@
 
 namespace App\Actions\Owners;
 
+use App\Actions\Portal\InviteToPortal;
+use App\Actions\Portal\SyncPortalEmail;
 use App\Audit\Audit;
 use App\Enums\IdType;
 use App\Enums\PartyType;
@@ -10,10 +12,13 @@ use App\Models\Bank;
 use App\Models\Owner;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator as ValidatorInstance;
 
 final class SaveOwner
 {
@@ -45,7 +50,16 @@ final class SaveOwner
             'iban' => ['nullable', 'regex:/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/'],
             'account_name' => ['nullable', 'string', 'max:150'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ])->validate();
+        ])->after(function (ValidatorInstance $validator) use ($data, $owner) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+            // Spec 2026-10-21 owner portal §3: the portal account follows the owner's email (plan ruling 7).
+            $problem = SyncPortalEmail::problem($owner, is_string($data['email'] ?? null) ? trim($data['email']) : null);
+            if ($problem !== null) {
+                $validator->errors()->add('email', $problem);
+            }
+        })->validate();
 
         $bankNew = Arr::only($validated, Owner::BANK_FIELDS) + array_fill_keys(Owner::BANK_FIELDS, null);
         $bankOld = $owner ? $owner->only(Owner::BANK_FIELDS) : array_fill_keys(Owner::BANK_FIELDS, null);
@@ -59,26 +73,31 @@ final class SaveOwner
             throw new AuthorizationException(__('Only holders of owners.bank.manage can change bank details.'));
         }
 
-        return DB::transaction(function () use ($actor, $owner, $validated, $bankChanged, $bankOld, $bankNew, $importing) {
-            $owner ??= new Owner;
-            $owner->fill($validated);
+        try {
+            return DB::transaction(function () use ($actor, $owner, $validated, $bankChanged, $bankOld, $bankNew, $importing) {
+                $owner ??= new Owner;
+                $owner->fill($validated);
 
-            if ($bankChanged && ! $importing) {
-                $owner->forceFill(['bank_changed_at' => now(), 'bank_changed_by' => $actor->id]);
-            }
+                if ($bankChanged && ! $importing) {
+                    $owner->forceFill(['bank_changed_at' => now(), 'bank_changed_by' => $actor->id]);
+                }
 
-            $owner->save();
+                $owner->save();
+                SyncPortalEmail::apply($owner);
 
-            if ($bankChanged) {
-                $mask = fn (?string $iban) => $iban ? '••••'.substr($iban, -4) : null;
-                Audit::log('owner.bank.changed', $owner,
-                    ['iban' => $mask($bankOld['iban']), 'bank_name' => $bankOld['bank_name'], 'account_name' => $bankOld['account_name']],
-                    ['iban' => $mask($bankNew['iban']), 'bank_name' => $bankNew['bank_name'], 'account_name' => $bankNew['account_name']],
-                    causer: $actor,
-                );
-            }
+                if ($bankChanged) {
+                    $mask = fn (?string $iban) => $iban ? '••••'.substr($iban, -4) : null;
+                    Audit::log('owner.bank.changed', $owner,
+                        ['iban' => $mask($bankOld['iban']), 'bank_name' => $bankOld['bank_name'], 'account_name' => $bankOld['account_name']],
+                        ['iban' => $mask($bankNew['iban']), 'bank_name' => $bankNew['bank_name'], 'account_name' => $bankNew['account_name']],
+                        causer: $actor,
+                    );
+                }
 
-            return $owner;
-        });
+                return $owner;
+            });
+        } catch (UniqueConstraintViolationException) { // a racing invite or save took this email
+            throw ValidationException::withMessages(['email' => InviteToPortal::takenMessage($owner ?? new Owner)]);
+        }
     }
 }
