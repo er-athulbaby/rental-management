@@ -63,7 +63,8 @@ class CustomField extends Model
      */
     public static function keyFor(CustomFieldEntity $entity, string $labelEn): string
     {
-        $slug = Str::slug($labelEn, '_');
+        // Same digit/letter split as the import reader's header snake-casing, so a key is already the column name it is imported under.
+        $slug = (string) preg_replace('/(?<=\d)(?=[A-Za-z])|(?<=[A-Za-z])(?=\d)/', '_', Str::slug($labelEn, '_'));
         $prefix = $slug !== '' && ! ctype_alpha($slug[0]) ? 'f_' : '';
         $cut = fn (int $room) => trim(substr($slug, 0, max(0, $room)), '_');
         $taken = self::query()->where('entity', $entity)->pluck('key')->all();

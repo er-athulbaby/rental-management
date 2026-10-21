@@ -148,3 +148,18 @@ test('a bad date cell names the dd/mm/yyyy format', function () {
 
     expect($result->errors['customers'])->toBe([2 => ['Visa expiry: enter a date as dd/mm/yyyy.']]);
 });
+
+test('"Plot 2B" and "Plot 2 B" get distinct keys and import into their own fields', function () {
+    $a = customField('unit', 'text', 'Plot 2B');
+    $b = customField('unit', 'text', 'Plot 2 B');
+    expect([$a->key, $b->key])->toBe(['plot_2_b', 'plot_2_b_2']);
+
+    $result = app(RunImport::class)->handle($this->vendor, [
+        'buildings' => ($this->building)(),
+        'units' => cfImportFile(ImportKind::Units, [($this->unit)('101', ['cf_plot_2_b' => 'first', 'cf_plot_2_b_2' => 'second'])]),
+    ], commit: true);
+
+    expect($result->errors)->toBe([])
+        ->and(array_column(CustomFields::display(Unit::query()->where('code', '101')->sole()), 'text', 'label'))
+        ->toMatchArray(['Plot 2B' => 'first', 'Plot 2 B' => 'second']);
+});

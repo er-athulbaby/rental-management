@@ -40,7 +40,7 @@ test('the key is made from the English label once: snake case, unique per kind, 
     expect(CustomField::query()->where('entity', 'unit')->orderBy('id')->pluck('key')->all())->toBe(['meter_number', 'meter_number_2'])
         ->and(CustomField::keyFor(CustomFieldEntity::Unit, 'Meter Number!'))->toBe('meter_number_3')
         ->and(CustomField::keyFor(CustomFieldEntity::Building, 'Meter number'))->toBe('meter_number')
-        ->and(CustomField::keyFor(CustomFieldEntity::Unit, '2nd phone'))->toBe('f_2nd_phone')
+        ->and(CustomField::keyFor(CustomFieldEntity::Unit, '2nd phone'))->toBe('f_2_nd_phone')
         ->and(CustomField::keyFor(CustomFieldEntity::Unit, '???'))->toBe('field')
         ->and(strlen(CustomField::keyFor(CustomFieldEntity::Unit, str_repeat('Very long label ', 10))))->toBeLessThanOrEqual(40);
 });
