@@ -8,7 +8,6 @@ use App\Reports\Packages\PackageReport;
 use App\Reports\Queries;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 /**
@@ -61,35 +60,8 @@ class RentRollReport extends Component implements PackageReport
     {
         $on = $this->to;
         $user = $this->actor();
-        $rent = DB::table('agreement_unit_charges')->where('type', 'rent')->groupBy('agreement_unit_id')
-            ->select('agreement_unit_id', DB::raw('SUM(monthly_amount) as rent'));
-        // Deposit held per unit = every agreement unit of the unit with a positive balance, as the Deposits held report does,
-        // so building totals reconcile to it (a released unit can still hold money).
-        $perAu = DB::table('deposit_movements as dm')
-            ->join('agreement_units as au2', 'au2.id', '=', 'dm.agreement_unit_id')
-            ->join('agreements as a2', 'a2.id', '=', 'au2.agreement_id')
-            ->whereNull('a2.deleted_at')->where('dm.posted_at', '<=', $on.' 23:59:59')
-            ->groupBy('dm.agreement_unit_id', 'au2.unit_id')->havingRaw('SUM(dm.amount) > 0')
-            ->select('au2.unit_id', DB::raw('SUM(dm.amount) as held'));
-        $held = DB::query()->fromSub($perAu, 'x')->groupBy('unit_id')->select('unit_id', DB::raw('SUM(held) as held'));
-        $owed = DB::table('invoices')->where('status', 'issued')->where('type', '<>', 'credit_note')->whereNotNull('agreement_id')
-            ->groupBy('agreement_id')->select('agreement_id', DB::raw('SUM(balance) as owed'));
-
-        $units = DB::table('units as u')
-            ->join('buildings as b', 'b.id', '=', 'u.building_id')
-            ->leftJoin('unit_types as ut', 'ut.code', '=', 'u.type')
-            ->leftJoinSub(Queries::currentAgreementUnits($user, $on), 'cur', 'cur.unit_id', '=', 'u.id')
-            ->leftJoin('agreement_units as au', 'au.id', '=', 'cur.au_id')
-            ->leftJoin('agreements as a', 'a.id', '=', 'au.agreement_id')
-            ->leftJoin('customers as c', 'c.id', '=', 'a.customer_id')
-            ->leftJoinSub($rent, 'r', 'r.agreement_unit_id', '=', 'au.id')
-            ->leftJoinSub($held, 'd', 'd.unit_id', '=', 'u.id')
-            ->leftJoinSub($owed, 'o', 'o.agreement_id', '=', 'a.id')
-            ->whereIn('u.id', Unit::query()->visibleTo($user)->select('id'))
-            ->when($this->building, fn ($q, int $b) => $q->where('u.building_id', $b))
-            ->orderBy('b.code')->orderBy('u.code')
-            ->get(['u.building_id', 'b.code as building', 'u.code as unit', 'u.blocked', 'u.list_rent', 'u.type', 'ut.name as type_name',
-                'au.id as au_id', 'au.start_date', 'au.end_date', 'a.id as agreement_id', 'a.number', 'c.name_en as tenant', 'r.rent', 'd.held', 'o.owed']);
+        $units = Queries::rentRollUnits(
+            Unit::query()->visibleTo($user)->when($this->building, fn ($q, int $b) => $q->where('units.building_id', $b))->select('id'), $on);
 
         $money = $this->showMoney();
         $fils = fn (mixed $v) => Fils::fromDecimal((string) ($v ?? '0'));

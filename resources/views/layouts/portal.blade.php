@@ -9,6 +9,8 @@
     // [route, label]; each page's task adds its line (plan File Structure).
     $nav = $ownerSide ? [
         ['portal.owner.home', __('Home')],
+        ['portal.owner.buildings', __('Buildings')],
+        ['portal.owner.contracts', __('Contracts')],
     ] : [
         ['portal.home', __('Home')],
         ['portal.agreements', __('Agreements')],

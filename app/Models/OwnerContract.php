@@ -145,6 +145,19 @@ class OwnerContract extends Model
     }
 
     /**
+     * Spec 2026-10-21 owner portal §4: "their contracts" — the owner's contracts with status active, ended or
+     * terminated, never draft or pending approval. Every owner-portal query starts here (owner portal plan ruling 8).
+     *
+     * @param  Builder<OwnerContract>  $query
+     */
+    #[Scope]
+    protected function portalFor(Builder $query, int $ownerId): void
+    {
+        $query->where($query->qualifyColumn('owner_id'), $ownerId)
+            ->whereIn($query->qualifyColumn('status'), array_map(fn (OwnerContractStatus $s) => $s->value, self::ATTRIBUTED));
+    }
+
+    /**
      * Attributed contracts whose dates cover $date. Always compares DATE to a Y-m-d string:
      * a DATE compared to a datetime string drops the last day after midnight.
      *

@@ -38,6 +38,8 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
 
         Route::prefix('owner')->name('owner.')->middleware(PortalAccess::class.':owner')->group(function () {
             Route::livewire('/', Portal\Owner\Home::class)->name('home');
+            Route::livewire('buildings', Portal\Owner\Buildings::class)->name('buildings');
+            Route::livewire('contracts', Portal\Owner\Contracts::class)->name('contracts');
         });
 
         Route::post('logout', LogoutController::class)->name('logout');

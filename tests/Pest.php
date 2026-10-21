@@ -5,6 +5,7 @@ use App\Actions\EnsureNumberSequences;
 use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
+use App\Billing\OwnerStatementCalculator;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
 use App\Mail\PortalSignInCode;
@@ -13,11 +14,16 @@ use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\Customer;
+use App\Models\Disbursement;
 use App\Models\Document;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\MaintenanceRequest;
 use App\Models\Owner;
+use App\Models\OwnerCharge;
 use App\Models\OwnerContract;
+use App\Models\OwnerPayable;
+use App\Models\OwnerStatement;
 use App\Models\PortalAccount;
 use App\Models\ReminderSend;
 use App\Models\ReportPackage;
@@ -33,6 +39,7 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -337,4 +344,88 @@ function portalStoredContract(Agreement $agreement): Document
     $document->save();
 
     return $document;
+}
+
+/**
+ * An owner with one of everything the owner portal shows (owner portal tests). Needs the roles seeded, a company setting,
+ * this year's number sequences and today in October 2026 or later. $by is staff who may work in any building (Admin);
+ * the owner's two buildings are added to their buildings.
+ *  - ":name Tower", managed (fixed fee 0), active 01/01–31/12/2026: unit :code let to "Renter :code" at 400.000 a month
+ *    with 400.000 owed, and unit "V:code" vacant.
+ *  - ":name Lease", leased at 300.000 a month: unit "L:code" let to "Lessee :code"; October's payable paid, November's due.
+ *  - a finalised September statement "OS-:code": opening 0.000, income 500.000, charges 50.000, closing 450.000.
+ *  - payouts "DSB-:code-1" (remittance, 450.000, 05/10/2026, reference "TRF-:code") and "DSB-:code-2" (head lease, 300.000, 02/10/2026).
+ *  - expenses "Leak repair :code" (50.000 on unit :code, linked to the request's work order) and "Paint touch-up :code" (20.000, reversed).
+ *  - a maintenance request on unit :code with one work order.
+ *
+ * @return array{owner: Owner, account: PortalAccount, tower: Building, lease: Building, managed: OwnerContract, leased: OwnerContract, statement: OwnerStatement, payout: Disbursement, expense: Expense, request: MaintenanceRequest, markers: list<string>}
+ */
+function portalOwnerFixture(string $name, string $code, User $by): array
+{
+    $owner = Owner::factory()->create([
+        'name_en' => $name, 'name_ar' => 'مالك '.$code, 'email' => Str::lower((string) strtok($name, ' ')).'@owner.test',
+        'bank_name' => 'NBB', 'iban' => 'BH29NBOB0000000000'.str_pad($code, 4, '0', STR_PAD_LEFT),
+    ]);
+    $tower = Building::factory()->create(['name' => "{$name} Tower"]);
+    $lease = Building::factory()->create(['name' => "{$name} Lease"]);
+    $by->buildings()->syncWithoutDetaching([$tower->id, $lease->id]);
+
+    $let = Unit::factory()->for($tower)->create(['code' => $code]);
+    $vacant = Unit::factory()->for($tower)->create(['code' => 'V'.$code]);
+    $managed = activeOwnerContract(['owner_id' => $owner->id, 'building_id' => $tower->id, 'type' => 'managed', 'start_date' => '2026-01-01',
+        'end_date' => '2026-12-31', 'fee_type' => 'fixed', 'fee_value' => '0.000', 'deposits_held_by' => 'company', 'created_by' => $by->id], [$let, $vacant]);
+    $renter = Customer::factory()->create(['name_en' => "Renter {$code}", 'email' => "renter{$code}@tenant.test"]);
+    $agreement = activeAgreement(['customer_id' => $renter->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$let]);
+    issuedInvoice($renter, [['net' => '400.000', 'au' => $agreement->agreementUnits->first()]], '2026-10-01', $agreement);
+
+    $leasedUnit = Unit::factory()->for($lease)->create(['code' => 'L'.$code]);
+    $leased = activeOwnerContract(['owner_id' => $owner->id, 'building_id' => $lease->id, 'type' => 'leased', 'rent_amount' => '300.000',
+        'payment_frequency' => 'monthly', 'fee_type' => null, 'fee_value' => null, 'expense_approval_limit' => null, 'deposits_held_by' => null,
+        'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'created_by' => $by->id], [$leasedUnit]);
+    activeAgreement(['customer_id' => Customer::factory()->create(['name_en' => "Lessee {$code}"])->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$leasedUnit]);
+
+    $october = (new OwnerPayable)->forceFill(['owner_contract_id' => $leased->id, 'period_start' => '2026-10-01', 'period_end' => '2026-10-31',
+        'due_date' => '2026-10-01', 'amount' => '300.000', 'status' => 'scheduled']);
+    $october->save();
+    (new OwnerPayable)->forceFill(['owner_contract_id' => $leased->id, 'period_start' => '2026-11-01', 'period_end' => '2026-11-30',
+        'due_date' => '2026-11-01', 'amount' => '300.000', 'status' => 'scheduled'])->save();
+    $paid = fn (array $row) => DB::table('disbursements')->insertGetId([
+        'payee_type' => 'owner', 'payee_id' => $owner->id, 'method' => 'bank_transfer', 'status' => 'paid', 'created_by' => $by->id,
+        'recorded_by' => $by->id, 'created_at' => now(), 'updated_at' => now(), ...$row,
+    ]);
+    $headLease = $paid(['number' => "DSB-{$code}-2", 'purpose' => 'head_lease', 'amount' => '300.000', 'reference' => "TRF-{$code}-L",
+        'paid_on' => '2026-10-02', 'posted_at' => '2026-10-02 10:00:00', 'source_type' => 'owner_payable', 'source_id' => $october->id]);
+    DB::table('owner_payables')->where('id', $october->id)->update(['status' => 'paid', 'disbursement_id' => $headLease]);
+
+    OwnerCharge::create(['owner_contract_id' => $managed->id, 'type' => 'opening_balance', 'net' => '500.000', 'tax_amount' => '0.000',
+        'amount' => '500.000', 'posted_at' => '2026-09-05 10:00:00', 'created_by' => $by->id]);
+    $expense = Expense::factory()->create(['building_id' => $tower->id, 'unit_id' => $let->id, 'category' => 'maintenance',
+        'description' => "Leak repair {$code}", 'expense_date' => '2026-09-10', 'net' => '50.000', 'tax_amount' => '0.000', 'total' => '50.000',
+        'charge_to' => 'owner', 'owner_contract_id' => $managed->id, 'owner_approval_note' => "Approved by phone {$code}",
+        'posted_at' => '2026-09-10 10:00:00', 'recorded_by' => $by->id]);
+    Expense::factory()->create(['building_id' => $tower->id, 'category' => 'cleaning', 'description' => "Paint touch-up {$code}",
+        'expense_date' => '2026-09-12', 'net' => '20.000', 'tax_amount' => '0.000', 'total' => '20.000', 'charge_to' => 'owner',
+        'owner_contract_id' => $managed->id, 'posted_at' => '2026-09-12 10:00:00', 'status' => 'reversed', 'reversed_at' => '2026-09-13 10:00:00',
+        'reversed_by' => $by->id, 'reversal_reason' => "Wrong building {$code}", 'recorded_by' => $by->id]);
+
+    $statement = (new OwnerStatement)->forceFill(['owner_contract_id' => $managed->id, 'period_start' => '2026-09-01', 'period_end' => '2026-09-30',
+        'cutoff_at' => '2026-09-30 23:59:59', 'status' => 'draft', 'created_by' => $by->id]);
+    $statement->setRelation('contract', $managed);
+    OwnerStatementCalculator::apply($statement);
+    $statement->save();
+    DB::table('owner_statements')->where('id', $statement->id)->update(['status' => 'pending_approval']);
+    DB::table('owner_statements')->where('id', $statement->id)->update(['status' => 'finalised', 'number' => "OS-{$code}", 'finalised_at' => now(), 'finalised_by' => $by->id]);
+    $payout = $paid(['number' => "DSB-{$code}-1", 'purpose' => 'owner_remittance', 'amount' => '450.000', 'reference' => "TRF-{$code}",
+        'paid_on' => '2026-10-05', 'posted_at' => '2026-10-05 10:00:00', 'source_type' => 'owner_statement', 'source_id' => $statement->id]);
+
+    $request = maintenanceRequest($by, $let);
+    $workOrder = workOrderFor($by, $request, maintenanceVendor(['name' => "Fix-It {$code}"]));
+    DB::table('work_orders')->where('id', $workOrder->id)->update(['status' => 'completed', 'completed_on' => '2026-09-10', 'expense_id' => $expense->id]);
+
+    return [
+        'owner' => $owner, 'account' => portalAccount($owner), 'tower' => $tower, 'lease' => $lease, 'managed' => $managed, 'leased' => $leased,
+        'statement' => $statement->fresh(), 'payout' => Disbursement::query()->findOrFail($payout), 'expense' => $expense, 'request' => $request,
+        'markers' => [$name, "OS-{$code}", "DSB-{$code}-1", "TRF-{$code}", "Leak repair {$code}", "Paint touch-up {$code}", $request->number,
+            "Renter {$code}", (string) $managed->number, (string) $leased->number],
+    ];
 }
