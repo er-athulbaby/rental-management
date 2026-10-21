@@ -30,6 +30,14 @@
                             {{ $document->shared_with_tenant ? __('Stop sharing') : __('Share with tenant') }}
                         </flux:button>
                     @endif
+                    @if ($ownerShareable && $document->shared_with_owner)
+                        <flux:badge size="sm" color="green">{{ __('Shared with owner') }}</flux:badge>
+                    @endif
+                    @if ($ownerShareable && $canUpload)
+                        <flux:button size="sm" variant="ghost" wire:click="toggleOwnerShare({{ $document->id }})">
+                            {{ $document->shared_with_owner ? __('Stop sharing') : __('Share with owner') }}
+                        </flux:button>
+                    @endif
                     <flux:badge size="sm">{{ $document->category->label() }}</flux:badge>
                     @if ($document->expires_on)
                         <flux:badge size="sm" :color="$document->expires_on->isPast() ? 'red' : 'zinc'">{{ __('Expires :date', ['date' => $document->expires_on->format('d/m/Y')]) }}</flux:badge>

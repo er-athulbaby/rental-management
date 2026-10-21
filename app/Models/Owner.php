@@ -8,6 +8,7 @@ use Database\Factories\OwnerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -16,6 +17,9 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * @property PartyType $type
  * @property string $name_en
+ * @property string|null $name_ar
+ * @property string|null $email
+ * @property string|null $bank_name
  * @property IdType $id_type
  * @property string $id_number
  * @property string|null $iban
@@ -61,5 +65,17 @@ class Owner extends Model
     public function maskedIban(): ?string
     {
         return $this->iban ? '••••'.substr($this->iban, -4) : null;
+    }
+
+    /** @return HasOne<PortalAccount, $this> spec 2026-10-21 owner portal §3 */
+    public function portalAccount(): HasOne
+    {
+        return $this->hasOne(PortalAccount::class);
+    }
+
+    /** The name in $lang ('ar' falls back to English), as Customer::displayName. */
+    public function displayName(string $lang): string
+    {
+        return $lang === 'ar' && filled($this->name_ar) ? (string) $this->name_ar : $this->name_en;
     }
 }

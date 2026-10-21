@@ -3,10 +3,15 @@
 namespace App\Livewire\Owners;
 
 use App\Actions\Owners\SaveOwner;
+use App\Actions\Portal\InviteToPortal;
+use App\Actions\Portal\SetPortalAccess;
 use App\Enums\IdType;
 use App\Enums\PartyType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Owner;
+use App\Models\PortalAccount;
+use App\Reminders\EmailChannel;
+use Closure;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -66,9 +71,39 @@ class Form extends Component
         $this->redirectRoute('owners.edit', $owner, navigate: true);
     }
 
+    /** Spec 2026-10-21 owner portal §3: Invite / Re-send. No arguments: always this page's owner. */
+    public function invitePortal(InviteToPortal $invite): void
+    {
+        $this->portal(fn (Owner $o) => $invite->handle($this->actor(), $o), __('Portal invite sent.'));
+    }
+
+    public function disablePortal(SetPortalAccess $access): void
+    {
+        $this->portal(fn (Owner $o) => $access->handle($this->actor(), $o, false), __('Portal access disabled.'));
+    }
+
+    public function enablePortal(SetPortalAccess $access): void
+    {
+        $this->portal(fn (Owner $o) => $access->handle($this->actor(), $o, true), __('Portal access enabled.'));
+    }
+
+    /** @param  Closure(Owner): PortalAccount  $run */
+    private function portal(Closure $run, string $done): void
+    {
+        abort_if($this->ownerId === null, 404);
+        try {
+            $run(Owner::findOrFail($this->ownerId));
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        Flux::toast(variant: 'success', text: $done);
+    }
+
     public function render(): View
     {
         $owner = $this->ownerId ? Owner::with('bankChanger:id,name')->findOrFail($this->ownerId) : null;
+        $account = $owner ? PortalAccount::of($owner) : null;
 
         return view('livewire.owners.form', [
             'owner' => $owner,
@@ -77,6 +112,9 @@ class Form extends Component
             'canEdit' => $owner ? $this->actor()->can('update', $owner) : true,
             'canViewBank' => $owner ? $this->actor()->can('viewBank', $owner) : $this->actor()->can('owners.bank.manage'),
             'canEditBank' => $owner ? $this->actor()->can('updateBank', $owner) : $this->actor()->can('owners.bank.manage'),
+            'portal' => $owner && $this->actor()->can('update', $owner) ? [
+                'account' => $account, 'other' => $account?->otherThan($owner), 'otherSeen' => ($other = $account?->otherThan($owner)) !== null && $this->actor()->can('view', $other), 'mailReady' => (new EmailChannel)->ready(),
+            ] : null,
         ])->title($owner ? $owner->name_en : __('New owner'));
     }
 }

@@ -41,6 +41,43 @@
         @endif
     </form>
 
+    @if ($portal)
+        <flux:card class="space-y-3">
+            <flux:heading size="lg">{{ __('Owner portal') }}</flux:heading>
+            @if ($portal['account'] === null)
+                <flux:text>{{ __('Not invited yet.') }}</flux:text>
+            @elseif ($portal['account']->disabled_at)
+                <flux:text>{{ __('Portal access is disabled.') }}</flux:text>
+            @else
+                <flux:text>
+                    {{ __('Invited :date, signs in with :email.', ['date' => $portal['account']->invited_at?->format('d/m/Y') ?? '—', 'email' => $portal['account']->email]) }}
+                    @if ($portal['account']->last_login_at)
+                        {{ __('Last signed in :date.', ['date' => $portal['account']->last_login_at->format('d/m/Y')]) }}
+                    @endif
+                </flux:text>
+            @endif
+            @if ($portal['other'])
+                <flux:text>{{ $portal['otherSeen'] ? __('Also used by tenant :name', ['name' => $portal['other']->name_en]) : __('Also used by another tenant') }}</flux:text>
+            @endif
+            @if (! $portal['mailReady'])
+                <flux:text>{{ __('Portal email is not set up.') }}</flux:text>
+            @endif
+            <div class="flex flex-wrap gap-2">
+                @if ($portal['mailReady'] && filled($owner?->email))
+                    <flux:button variant="primary" wire:click="invitePortal">
+                        {{ $portal['account'] && ! $portal['account']->disabled_at ? __('Re-send invite') : __('Invite to portal') }}
+                    </flux:button>
+                @endif
+                @if ($portal['account'] && ! $portal['account']->disabled_at)
+                    <flux:button variant="ghost" wire:click="disablePortal" wire:confirm="{{ __('Disable this owner\'s portal access?').($portal['other'] ? ' '.__('This also ends their access as tenant.') : '') }}">{{ __('Disable') }}</flux:button>
+                @elseif ($portal['account'])
+                    <flux:button variant="ghost" wire:click="enablePortal">{{ __('Enable') }}</flux:button>
+                @endif
+            </div>
+            <flux:error name="portal" />
+        </flux:card>
+    @endif
+
     @if ($owner)
         <livewire:documents.panel :documentable="$owner" :key="'docs-owner-'.$owner->id" />
     @endif

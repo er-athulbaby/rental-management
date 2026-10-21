@@ -27,7 +27,7 @@ class Home extends Component
 
     public function render(): View
     {
-        $customer = $this->account()->customer;
+        $customer = $this->customer();
         $today = now('Asia/Bahrain');
         // The date a place is vacated is COALESCE(move_out_date, end_date), as portalPlaces and currentTenantId read it.
         $window = fn ($q) => $q->whereRaw('COALESCE(move_out_date, end_date) between ? and ?', [$today->toDateString(), $today->copy()->addDays(90)->toDateString()]);

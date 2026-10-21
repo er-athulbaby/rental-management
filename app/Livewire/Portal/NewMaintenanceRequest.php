@@ -29,6 +29,8 @@ class NewMaintenanceRequest extends Component
 
     public function save(LogMaintenanceRequest $log): void
     {
+        $this->customerId(); // an owner-only account has no places: a 404, never a 500 (owner portal plan ruling 1)
+
         try {
             $request = $log->forPortal($this->account(), is_array($this->form) ? $this->form : [], $this->photos);
         } catch (AuthorizationException) {

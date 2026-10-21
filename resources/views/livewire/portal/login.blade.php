@@ -1,5 +1,5 @@
 <section class="mx-auto w-full max-w-sm space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Sign in to the tenant portal') }}</flux:heading>
+    <flux:heading size="xl" level="1">{{ __('Sign in to the portal') }}</flux:heading>
 
     @if (session('status'))
         <flux:text>{{ session('status') }}</flux:text>

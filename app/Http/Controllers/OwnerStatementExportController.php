@@ -6,6 +6,7 @@ use App\Audit\Audit;
 use App\Billing\OwnerLedger;
 use App\Billing\OwnerStatementCalculator;
 use App\Models\OwnerStatement;
+use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -17,7 +18,8 @@ final class OwnerStatementExportController
 {
     public function __invoke(Request $request, OwnerStatement $statement): BinaryFileResponse
     {
-        abort_unless($request->user()?->can('view', $statement) === true, 403);
+        $user = $request->user();
+        abort_unless($user instanceof User && $user->can('view', $statement), 403);
         Audit::log('owner_statement.exported', $statement, properties: ['format' => 'xlsx'], causer: $request->user());
 
         $f = OwnerStatementCalculator::stored($statement);

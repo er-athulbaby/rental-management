@@ -72,12 +72,57 @@ final class Queries
     /** The agreement unit occupying each unit on $on (the latest when two overlap), for "current tenant / rent". */
     public static function currentAgreementUnits(User $user, string $on): QueryBuilder
     {
+        return self::currentAgreementUnitsIn(Unit::query()->visibleTo($user)->select('id'), $on);
+    }
+
+    /**
+     * The rent roll's unit rows as at $on for the units in $unitIds, building then unit order: RentRollReport and the
+     * owner portal's building cards read the same query (owner portal plan ruling 9).
+     *
+     * @param  Builder<Unit>  $unitIds  a select('id') query
+     * @return Collection<int, \stdClass>
+     */
+    public static function rentRollUnits(Builder $unitIds, string $on): Collection
+    {
+        $rent = DB::table('agreement_unit_charges')->where('type', 'rent')->groupBy('agreement_unit_id')
+            ->select('agreement_unit_id', DB::raw('SUM(monthly_amount) as rent'));
+        // Deposit held per unit = every agreement unit of the unit with a positive balance, as the Deposits held report does,
+        // so building totals reconcile to it (a released unit can still hold money).
+        $perAu = DB::table('deposit_movements as dm')
+            ->join('agreement_units as au2', 'au2.id', '=', 'dm.agreement_unit_id')
+            ->join('agreements as a2', 'a2.id', '=', 'au2.agreement_id')
+            ->whereNull('a2.deleted_at')->where('dm.posted_at', '<=', $on.' 23:59:59')
+            ->groupBy('dm.agreement_unit_id', 'au2.unit_id')->havingRaw('SUM(dm.amount) > 0')
+            ->select('au2.unit_id', DB::raw('SUM(dm.amount) as held'));
+        $held = DB::query()->fromSub($perAu, 'x')->groupBy('unit_id')->select('unit_id', DB::raw('SUM(held) as held'));
+        $owed = DB::table('invoices')->where('status', 'issued')->where('type', '<>', 'credit_note')->whereNotNull('agreement_id')
+            ->groupBy('agreement_id')->select('agreement_id', DB::raw('SUM(balance) as owed'));
+
+        return DB::table('units as u')
+            ->join('buildings as b', 'b.id', '=', 'u.building_id')
+            ->leftJoin('unit_types as ut', 'ut.code', '=', 'u.type')
+            ->leftJoinSub(self::currentAgreementUnitsIn($unitIds, $on), 'cur', 'cur.unit_id', '=', 'u.id')
+            ->leftJoin('agreement_units as au', 'au.id', '=', 'cur.au_id')
+            ->leftJoin('agreements as a', 'a.id', '=', 'au.agreement_id')
+            ->leftJoin('customers as c', 'c.id', '=', 'a.customer_id')
+            ->leftJoinSub($rent, 'r', 'r.agreement_unit_id', '=', 'au.id')
+            ->leftJoinSub($held, 'd', 'd.unit_id', '=', 'u.id')
+            ->leftJoinSub($owed, 'o', 'o.agreement_id', '=', 'a.id')
+            ->whereIn('u.id', $unitIds)
+            ->orderBy('b.code')->orderBy('u.code')
+            ->get(['u.building_id', 'b.code as building', 'u.code as unit', 'u.blocked', 'u.list_rent', 'u.type', 'ut.name as type_name',
+                'au.id as au_id', 'au.start_date', 'au.end_date', 'a.id as agreement_id', 'a.number', 'c.name_en as tenant', 'r.rent', 'd.held', 'o.owed']);
+    }
+
+    /** @param  Builder<Unit>  $unitIds  a select('id') query */
+    private static function currentAgreementUnitsIn(Builder $unitIds, string $on): QueryBuilder
+    {
         return DB::table('agreement_units as au')->join('agreements as a', 'a.id', '=', 'au.agreement_id')
             ->whereNull('a.deleted_at')
             ->whereNotIn('a.status', [AgreementStatus::Draft->value, AgreementStatus::PendingApproval->value])
             ->where('au.start_date', '<=', $on)
             ->whereRaw('('.AgreementUnit::effectiveEndSql('au').') >= ?', [$on, $on])
-            ->whereIn('au.unit_id', Unit::query()->visibleTo($user)->select('id'))
+            ->whereIn('au.unit_id', $unitIds)
             ->groupBy('au.unit_id')
             ->select('au.unit_id', DB::raw('MAX(au.id) as au_id'));
     }

@@ -3,10 +3,14 @@
 use App\Enums\AgreementStatus;
 use App\Enums\ChequeStatus;
 use App\Enums\DepositMovementType;
+use App\Enums\DisbursementMethod;
 use App\Enums\DocumentCategory;
+use App\Enums\ExpenseCategory;
 use App\Enums\MaintenanceStatus;
+use App\Enums\OwnerContractStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\Trade;
+use App\Models\OwnerContract;
 
 /** @return array<string, string> */
 function portalArabic(): array
@@ -17,6 +21,8 @@ function portalArabic(): array
 test('every __() string in the portal files has an Arabic translation', function () {
     $files = [
         ...glob(resource_path('views/livewire/portal/*.blade.php')),
+        ...glob(resource_path('views/livewire/portal/owner/*.blade.php')),
+        ...glob(app_path('Livewire/Portal/Owner/*.php')),
         resource_path('views/layouts/portal.blade.php'),
         ...glob(app_path('Livewire/Portal/*.php')),
         app_path('Http/Middleware/PortalSession.php'),
@@ -50,6 +56,9 @@ test('the labels the portal shows from shared code have Arabic translations', fu
         'Paid', 'Unpaid', 'Partially paid', 'Overdue', // Invoice::displayLabel()
         'Invoice', 'Credit note', 'Payment', 'Payment reversal', 'Credit refund', 'Credit refund reversal', // CustomerStatement kinds
         'Building common area — :building', // LogMaintenanceRequest::portalPlaces()
+        ...array_map(fn (OwnerContractStatus $s) => $s->label(), OwnerContract::ATTRIBUTED), // owner Contracts page
+        ...array_map(fn (DisbursementMethod $m) => $m->label(), DisbursementMethod::cases()), // owner Payments page
+        ...array_map(fn (ExpenseCategory $c) => str($c->value)->headline()->toString(), ExpenseCategory::cases()), // owner Expenses page
         'You have sent :count requests today. Please call the office for anything else.', // LogMaintenanceRequest::forPortal()
         'Choose one of your units or a building common area.', 'Choose a category.', 'Describe the problem in up to 2000 characters.',
         'Say whether the vendor may enter.', 'Send up to 5 photos.', 'Each photo must be a JPG, PNG or WEBP picture of up to 10 MB.',

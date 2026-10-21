@@ -12,14 +12,15 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-/** Spec 2026-10-18 tenant portal §3: the invite, English then Arabic, linking to /portal/login (plan ruling 6). */
+/** Spec 2026-10-18 tenant portal §3 and 2026-10-21 owner portal §3: the invite, English then Arabic, for a tenant or an owner. */
 class PortalInvitation extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public int $tries = 1;
 
-    public function __construct(public PortalAccount $account)
+    /** @param  'tenant'|'owner'  $kind  the side the invite was sent from */
+    public function __construct(public PortalAccount $account, public string $kind = 'tenant')
     {
         $this->locale('en'); // the layout carries both languages; the English half stays English
     }
@@ -37,17 +38,20 @@ class PortalInvitation extends Mailable implements ShouldQueue
 
     public function subjectLine(): string
     {
-        return str_replace(["\r", "\n"], ' ', implode(' · ', [__('Your tenant portal'), 'بوابة المستأجر', CompanySetting::current()->name_en]));
+        $parts = $this->kind === 'owner' ? [__('Your owner portal'), 'بوابة المالك'] : [__('Your tenant portal'), 'بوابة المستأجر'];
+
+        return str_replace(["\r", "\n"], ' ', implode(' · ', [...$parts, CompanySetting::current()->name_en]));
     }
 
     public function content(): Content
     {
-        $tenant = $this->account->customer;
+        $person = $this->kind === 'owner' ? $this->account->owner : $this->account->customer;
 
         return new Content(view: 'mail.portal-invitation', with: [
             'subjectLine' => $this->subjectLine(),
-            'nameEn' => $tenant->name_en,
-            'nameAr' => $tenant->displayName('ar'),
+            'kind' => $this->kind,
+            'nameEn' => (string) $person?->name_en,
+            'nameAr' => (string) $person?->displayName('ar'),
             'url' => route('portal.login'),
         ]);
     }

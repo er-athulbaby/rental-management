@@ -35,7 +35,7 @@ class Statement extends Component
 
     public function render(): View
     {
-        $customer = $this->account()->customer;
+        $customer = $this->customer();
         $valid = self::isDate($this->from) && self::isDate($this->to) && $this->from <= $this->to;
 
         return view('livewire.portal.statement', [

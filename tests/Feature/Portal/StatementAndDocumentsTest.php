@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\Documents\ShareDocumentWithTenant;
+use App\Actions\Documents\ShareDocument;
 use App\Actions\Documents\StoreDocument;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
@@ -87,7 +87,7 @@ test('staff share a document from the tenant page; the toggle is an audit entry'
 });
 
 test('the tenant sees and downloads only shared documents on themselves, their agreements or their invoices', function () {
-    $share = fn ($document) => app(ShareDocumentWithTenant::class)->handle($this->pm, $document, true);
+    $share = fn ($document) => app(ShareDocument::class)->handle($this->pm, $document, 'tenant', true);
     $rules = $share(($this->store)($this->tenant, 'house-rules.pdf'));
     $annex = $share(($this->store)($this->agreement, 'agreement-annex.pdf'));
     $private = ($this->store)($this->tenant, 'id-copy.pdf', DocumentCategory::IdCopy);
@@ -104,20 +104,20 @@ test('the tenant sees and downloads only shared documents on themselves, their a
     $this->get(route('portal.documents.download', $private))->assertNotFound();
     $this->get(route('portal.documents.download', $otherShared))->assertNotFound();
 
-    app(ShareDocumentWithTenant::class)->handle($this->pm, $rules->fresh(), false);
+    app(ShareDocument::class)->handle($this->pm, $rules->fresh(), 'tenant', false);
     $this->get(route('portal.documents.download', $rules))->assertNotFound();
 });
 
 test('sharing is offered only on tenant, agreement and invoice documents, to staff who can change the record', function () {
     $photo = ($this->store)($this->building, 'lobby.pdf', DocumentCategory::Photo);
     Livewire::actingAs($this->pm)->test(Panel::class, ['documentable' => $this->building])->assertDontSee('Share with tenant');
-    expect(fn () => app(ShareDocumentWithTenant::class)->handle($this->pm, $photo, true))->toThrow(ValidationException::class);
+    expect(fn () => app(ShareDocument::class)->handle($this->pm, $photo, 'tenant', true))->toThrow(ValidationException::class);
 
     $rules = ($this->store)($this->tenant, 'house-rules.pdf');
     $this->travelTo(CarbonImmutable::parse('2026-10-18 10:00', 'Asia/Bahrain'));
     $finance = User::factory()->withTwoFactor()->create()->assignRole(R::Finance); // views tenants, cannot change them
     Livewire::actingAs($finance)->test(Panel::class, ['documentable' => $this->tenant])->assertSee('house-rules.pdf')->assertDontSee('Share with tenant');
-    expect(fn () => app(ShareDocumentWithTenant::class)->handle($finance, $rules, true))->toThrow(AuthorizationException::class)
+    expect(fn () => app(ShareDocument::class)->handle($finance, $rules, 'tenant', true))->toThrow(AuthorizationException::class)
         ->and($rules->fresh()->shared_with_tenant)->toBeFalse();
 });
 
