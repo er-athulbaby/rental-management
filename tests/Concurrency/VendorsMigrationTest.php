@@ -16,6 +16,7 @@ beforeEach(function () {
     $this->migration = require database_path('migrations/2026_12_20_000100_create_vendors_table.php');
     $this->maintenance = require database_path('migrations/2026_12_20_000200_create_maintenance_tables.php');
     $this->portal = require database_path('migrations/2026_12_22_000100_create_portal_tables.php');
+    $this->ownerPortal = require database_path('migrations/2026_12_24_000100_add_owner_portal.php');
 });
 
 // Whatever happened in the test, leave the schema migrated: the vendors table back (roles are emptied first, so
@@ -32,6 +33,9 @@ afterEach(function () {
     if (! Schema::hasTable('portal_accounts')) { // the portal migration last, in up order
         $this->portal->up();
     }
+    if (! Schema::hasColumn('portal_accounts', 'owner_id')) { // the owner portal migration after that, in up order
+        $this->ownerPortal->up();
+    }
 });
 
 test('on an installed system the migration grants the maintenance permissions additively, once, and down() removes them', function () {
@@ -44,6 +48,9 @@ test('on an installed system the migration grants the maintenance permissions ad
     Permission::whereIn('name', $names)->delete();
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     Role::findByName('admin')->givePermissionTo('users.manage'); // an Admin role edit that must survive
+    if (Schema::hasColumn('portal_accounts', 'owner_id')) {
+        $this->ownerPortal->down(); // real rollback order: the owner portal migration alters portal_accounts, so it goes back first
+    }
     if (Schema::hasTable('portal_accounts')) {
         $this->portal->down(); // real rollback order: the portal migration alters maintenance_requests, so it goes back first
     }
@@ -64,6 +71,9 @@ test('on an installed system the migration grants the maintenance permissions ad
     expect(matrixUser(R::Leasing, $this->building)->can('maintenance.view'))->toBeTrue() // the cache was cleared
         ->and(Role::findByName('admin')->hasPermissionTo('users.manage'))->toBeTrue();
 
+    if (Schema::hasColumn('portal_accounts', 'owner_id')) {
+        $this->ownerPortal->down(); // real rollback order: the owner portal migration alters portal_accounts, so it goes back first
+    }
     if (Schema::hasTable('portal_accounts')) {
         $this->portal->down(); // real rollback order: the portal migration alters maintenance_requests, so it goes back first
     }
@@ -87,4 +97,6 @@ test('on an installed system the migration grants the maintenance permissions ad
     expect(Schema::hasTable('work_orders'))->toBeTrue();
     $this->portal->up();
     expect(Schema::hasTable('portal_accounts'))->toBeTrue();
+    $this->ownerPortal->up();
+    expect(Schema::hasColumn('portal_accounts', 'owner_id'))->toBeTrue();
 });

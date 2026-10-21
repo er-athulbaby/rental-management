@@ -302,11 +302,11 @@ function workOrderFor(User $by, MaintenanceRequest $request, Vendor $vendor, arr
     return app(AddWorkOrder::class)->handle($by, $request, ['vendor_id' => $vendor->id, ...$data]);
 }
 
-/** A portal account for $tenant (portal tests): enabled, English, with the tenant's email in lower case, unless $attributes say otherwise. */
-function portalAccount(Customer $tenant, array $attributes = []): PortalAccount
+/** A portal account for $holder, a tenant or an owner (portal tests): enabled, English, with the holder's email in lower case, unless $attributes say otherwise. */
+function portalAccount(Customer|Owner $holder, array $attributes = []): PortalAccount
 {
     $account = (new PortalAccount)->forceFill([
-        'customer_id' => $tenant->id, 'email' => Str::lower((string) $tenant->email), 'locale' => 'en', 'invited_at' => now(), ...$attributes,
+        PortalAccount::column($holder) => $holder->id, 'email' => Str::lower((string) $holder->email), 'locale' => 'en', 'invited_at' => now(), ...$attributes,
     ]);
     $account->save();
 
