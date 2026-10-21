@@ -10,6 +10,7 @@
     $nav = $ownerSide ? [
         ['portal.owner.home', __('Home')],
         ['portal.owner.buildings', __('Buildings')],
+        ['portal.owner.maintenance', __('Maintenance')],
         ['portal.owner.contracts', __('Contracts')],
         ['portal.owner.statements', __('Statements')],
         ['portal.owner.payments', __('Payments')],

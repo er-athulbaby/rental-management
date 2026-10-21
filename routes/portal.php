@@ -39,6 +39,8 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
 
         Route::prefix('owner')->name('owner.')->middleware(PortalAccess::class.':owner')->group(function () {
             Route::livewire('/', Portal\Owner\Home::class)->name('home');
+            Route::livewire('maintenance', Portal\Owner\Maintenance::class)->name('maintenance');
+            Route::livewire('maintenance/{maintenance}', Portal\Owner\MaintenanceShow::class)->whereNumber('maintenance')->name('maintenance.show');
             Route::livewire('buildings', Portal\Owner\Buildings::class)->name('buildings');
             Route::livewire('contracts', Portal\Owner\Contracts::class)->name('contracts');
             Route::livewire('statements', Portal\Owner\Statements::class)->name('statements');
