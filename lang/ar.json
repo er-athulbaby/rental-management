@@ -153,6 +153,7 @@
     "Payment reversal": "عكس دفعة",
     "Credit refund": "استرداد رصيد",
     "Credit refund reversal": "عكس استرداد رصيد",
+    "This field is used by a saved report: archive it instead.": "هذا الحقل مستخدم في تقرير محفوظ: أرشفه بدلاً من ذلك.",
     ":label (archived)": ":label (مؤرشف)",
     "Building": "العقار",
     "More filters": "عوامل تصفية إضافية",

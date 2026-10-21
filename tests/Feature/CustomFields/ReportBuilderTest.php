@@ -1,18 +1,24 @@
 <?php
 
+use App\Actions\CustomFields\DeleteCustomField;
 use App\Enums\RoleName;
 use App\Livewire\Reports\Builder;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\CustomField;
+use App\Models\SavedReport;
 use App\Models\Unit;
 use App\Models\User;
+use App\Reports\Builder\ExcelWriter;
 use App\Reports\Builder\FieldType;
 use App\Reports\Builder\Registry;
 use App\Reports\Builder\ReportDefinition;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use Spatie\SimpleExcel\SimpleExcelReader;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -105,4 +111,45 @@ test('the builder offers active fields and keeps an archived one only where a re
 
     Livewire::actingAs($this->admin)->test(Builder::class)->call('setSubject', 'tenants')
         ->assertSee('Employer')->assertDontSee('Old code (archived)');
+});
+
+test('Excel keeps every value in its own column when two columns share a label, in rows, subtotals and the grand total', function () {
+    $unitZone = customField('unit', 'text', 'Zone');
+    $buildingZone = customField('building', 'text', 'Zone');
+    customValue($buildingZone, $this->a, ['value_text' => 'North']);
+    $unit = Unit::factory()->for($this->a)->create(['code' => 'A1']);
+    customValue($unitZone, $unit, ['value_text' => 'Corner']);
+
+    $read = function (array $def) {
+        $path = tempnam(sys_get_temp_dir(), 'rep').'.xlsx';
+        ExcelWriter::write(runReport($this->leasing, $def), $path);
+        $rows = SimpleExcelReader::create($path)->noHeaderRow()->getRows()->map(fn ($r) => array_values($r))->all();
+        @unlink($path);
+
+        return $rows;
+    };
+    $columns = ['code', 'cf_zone', 'cfb_zone', 'building'];
+
+    $flat = $read(['subject' => 'units', 'columns' => $columns, 'sort' => ['field' => 'code', 'dir' => 'asc']]);
+    expect($flat[0])->toHaveCount(4)->and($flat[1])->toBe(['A1', 'Corner', 'North', 'AAA'])
+        ->and($flat[2])->toHaveCount(4)->and($flat[2][0])->toStartWith('Total');
+
+    $grouped = $read(['subject' => 'units', 'columns' => $columns, 'groups' => [['field' => 'building']], 'sort' => ['field' => 'code', 'dir' => 'asc']]);
+    expect(collect($grouped)->every(fn (array $r) => count($r) === 4))->toBeTrue()
+        ->and(collect($grouped)->contains(fn (array $r) => $r === ['A1', 'Corner', 'North', 'AAA']))->toBeTrue();
+});
+
+test('a custom field a saved report uses cannot be deleted, so no new field can reuse its key; an unused one can', function () {
+    $used = customField('customer', 'text', 'Employer');
+    $tenantOnAgreements = customField('customer', 'text', 'Badge');
+    $free = customField('customer', 'text', 'Spare');
+    SavedReport::create(['name' => 'R', 'subject' => 'tenants', 'visibility' => 'private', 'created_by' => $this->admin->id, 'updated_by' => $this->admin->id,
+        'definition' => ['version' => 1, 'columns' => ['name'], 'sort' => ['field' => 'cf_employer', 'dir' => 'asc']]]);
+    SavedReport::create(['name' => 'A', 'subject' => 'agreements', 'visibility' => 'private', 'created_by' => $this->admin->id, 'updated_by' => $this->admin->id,
+        'definition' => ['version' => 1, 'columns' => ['number', 'cft_badge']]]);
+
+    expect(fn () => app(DeleteCustomField::class)->handle($this->admin, $used))->toThrow(ValidationException::class, 'This field is used by a saved report: archive it instead.')
+        ->and(fn () => app(DeleteCustomField::class)->handle($this->admin, $tenantOnAgreements))->toThrow(ValidationException::class, 'used by a saved report');
+    app(DeleteCustomField::class)->handle($this->admin, $free);
+    expect(CustomField::query()->find($free->id))->toBeNull()->and(CustomField::query()->find($used->id))->not->toBeNull();
 });
