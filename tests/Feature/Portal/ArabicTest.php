@@ -17,6 +17,8 @@ function portalArabic(): array
 test('every __() string in the portal files has an Arabic translation', function () {
     $files = [
         ...glob(resource_path('views/livewire/portal/*.blade.php')),
+        ...glob(resource_path('views/livewire/portal/owner/*.blade.php')),
+        ...glob(app_path('Livewire/Portal/Owner/*.php')),
         resource_path('views/layouts/portal.blade.php'),
         ...glob(app_path('Livewire/Portal/*.php')),
         app_path('Http/Middleware/PortalSession.php'),

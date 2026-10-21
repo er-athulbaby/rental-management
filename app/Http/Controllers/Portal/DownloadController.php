@@ -10,6 +10,7 @@ use App\Enums\PaymentStatus;
 use App\Jobs\StoreApprovedContract;
 use App\Jobs\StoreReceipt;
 use App\Models\Agreement;
+use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -76,7 +77,7 @@ final class DownloadController
         ]);
         abort_if($v->fails(), 404); // a plain link, not a form (plan ruling 10)
         $range = $v->validated();
-        $customer = $account->customer;
+        $customer = Customer::query()->findOrFail((int) $account->customer_id);
         Audit::log('customer.statement_exported', $customer, properties: $range, causer: $account);
 
         return response(CustomerStatement::pdf($customer, $range['from'], $range['to']), 200, [
@@ -88,7 +89,7 @@ final class DownloadController
     public function document(string $document): Response
     {
         $account = $this->account();
-        $model = Document::query()->sharedWithTenant($account->customer_id)->findOrFail($document);
+        $model = Document::query()->sharedWithTenant((int) $account->customer_id)->findOrFail($document);
         Audit::log('document.downloaded', $model, causer: $account);
 
         return Storage::disk($model->disk)->download($model->path, $model->original_name);
@@ -98,6 +99,7 @@ final class DownloadController
     {
         $account = Auth::guard('tenant')->user();
         abort_unless($account instanceof PortalAccount && $account->isActive(), 403);
+        abort_unless($account->hasTenant(), 404); // owner portal plan ruling 1: never `customer_id IS NULL`
 
         return $account;
     }

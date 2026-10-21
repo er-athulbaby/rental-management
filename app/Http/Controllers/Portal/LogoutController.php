@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Portal;
 
+use App\Http\Middleware\PortalAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ final class LogoutController
     public function __invoke(Request $request): RedirectResponse
     {
         Auth::guard('tenant')->logout(); // audited portal.logout by AuthEventSubscriber
-        $request->session()->forget('portal_stamp');
+        $request->session()->forget(['portal_stamp', PortalAccess::VIEW]);
         $request->session()->regenerate();
         $request->session()->regenerateToken();
 

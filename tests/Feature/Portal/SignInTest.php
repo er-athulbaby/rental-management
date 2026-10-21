@@ -81,7 +81,7 @@ test('while portal email is not set up the screen says so and offers no form', f
 
 test('portal pages send guests to the portal sign-in, and signed-in tenants skip it', function () {
     $this->get(route('portal.home'))->assertRedirect(route('portal.login'));
-    $this->get(route('portal.login'))->assertOk()->assertSee('Sign in to the tenant portal');
+    $this->get(route('portal.login'))->assertOk()->assertSee('Sign in to the portal');
 
     $this->actingAs($this->account, 'tenant');
     $this->get(route('portal.login'))->assertRedirect(route('portal.home'));
@@ -143,7 +143,7 @@ test('the tenant switches to Arabic: the page turns right to left and the choice
 test('a guest can read the sign-in screen in Arabic', function () {
     $this->post(route('portal.locale'), ['locale' => 'ar'])->assertRedirect();
 
-    $this->get(route('portal.login'))->assertOk()->assertSee('dir="rtl"', false)->assertSee('تسجيل الدخول إلى بوابة المستأجر');
+    $this->get(route('portal.login'))->assertOk()->assertSee('dir="rtl"', false)->assertSee('تسجيل الدخول إلى البوابة');
 });
 
 // Carried in from the Task 1 review (plan ruling 1, M2, M5).
@@ -166,7 +166,7 @@ test('tenant sign-in and sign-out are portal events, never staff auth events, an
 });
 
 test('portal views never use @can: the policies take staff Users and would fail on a portal account', function () {
-    $views = [resource_path('views/layouts/portal.blade.php'), ...glob(resource_path('views/livewire/portal/*.blade.php'))];
+    $views = [resource_path('views/layouts/portal.blade.php'), ...glob(resource_path('views/livewire/portal/*.blade.php')), ...glob(resource_path('views/livewire/portal/owner/*.blade.php'))];
 
     expect(array_filter($views, fn (string $v) => preg_match('/@can|@cannot|->can\(/', (string) file_get_contents($v)) === 1))->toBe([]);
 });

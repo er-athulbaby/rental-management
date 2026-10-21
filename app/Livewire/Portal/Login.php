@@ -4,6 +4,7 @@ namespace App\Livewire\Portal;
 
 use App\Actions\Portal\SendLoginCode;
 use App\Actions\Portal\VerifyLoginCode;
+use App\Http\Middleware\PortalAccess;
 use App\Reminders\EmailChannel;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -49,11 +50,11 @@ class Login extends Component
             throw ValidationException::withMessages(['code' => __('That code is wrong or has expired. Ask for a new one.')]);
         }
 
-        session()->forget('portal_stamp'); // a fresh sign-in is stamped anew by PortalSession
+        session()->forget(['portal_stamp', PortalAccess::VIEW]); // stamped anew by PortalSession; a shared account starts on its tenant side
         Auth::guard('tenant')->login($account, $this->remember === true); // regenerates the session id itself
         session()->put('portal_locale', $account->locale);
 
-        $this->redirectRoute('portal.home');
+        $this->redirectRoute(PortalAccess::homeRoute($account));
     }
 
     /** guest:tenant is not persistent middleware, so a signed-in tenant's Livewire calls land here: send them home. */
@@ -62,7 +63,7 @@ class Login extends Component
         if (! Auth::guard('tenant')->check()) {
             return false;
         }
-        $this->redirectRoute('portal.home');
+        $this->redirectRoute(PortalAccess::homeRoute(Auth::guard('tenant')->user()));
 
         return true;
     }

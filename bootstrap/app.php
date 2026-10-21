@@ -2,10 +2,12 @@
 
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\PortalAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Sentry\Laravel\Integration;
@@ -30,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Spec 2026-10-18 tenant portal: each guard has its own sign-in page (plan ruling 1).
         $portal = fn (Request $request): bool => $request->is('portal', 'portal/*');
         $middleware->redirectGuestsTo(fn (Request $request) => $portal($request) ? route('portal.login') : route('login'));
-        $middleware->redirectUsersTo(fn (Request $request) => $portal($request) ? route('portal.home') : route('dashboard'));
+        $middleware->redirectUsersTo(fn (Request $request) => $portal($request) ? route(PortalAccess::homeRoute(Auth::guard('tenant')->user())) : route('dashboard'));
 
         // Every web request, including Livewire's update endpoint and Fortify's routes.
         $middleware->web(append: [

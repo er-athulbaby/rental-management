@@ -42,12 +42,10 @@ class PortalInvitation extends Mailable implements ShouldQueue
 
     public function content(): Content
     {
-        $tenant = $this->account->customer;
-
         return new Content(view: 'mail.portal-invitation', with: [
             'subjectLine' => $this->subjectLine(),
-            'nameEn' => $tenant->name_en,
-            'nameAr' => $tenant->displayName('ar'),
+            'nameEn' => $this->account->personName('en'), // Task 3 adds the owner wording
+            'nameAr' => $this->account->personName('ar'),
             'url' => route('portal.login'),
         ]);
     }

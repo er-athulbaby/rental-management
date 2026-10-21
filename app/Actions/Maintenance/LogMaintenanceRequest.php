@@ -81,7 +81,7 @@ final class LogMaintenanceRequest
      */
     public function forPortal(PortalAccount $account, array $data, mixed $photos = []): MaintenanceRequest
     {
-        if (! $account->isActive()) {
+        if (! $account->isActive() || ! $account->hasTenant()) {
             throw new AuthorizationException;
         }
         $sentToday = MaintenanceRequest::query()->where('portal_account_id', $account->id)->where('created_at', '>=', now('Asia/Bahrain')->startOfDay())->count();
@@ -90,7 +90,7 @@ final class LogMaintenanceRequest
         }
 
         $data = array_map(fn (mixed $v) => is_string($v) ? (trim($v) === '' ? null : trim($v)) : $v, $data);
-        $places = self::portalPlaces($account->customer_id);
+        $places = self::portalPlaces((int) $account->customer_id);
         $v = Validator::make([...$data, 'photos' => $photos], [
             'place' => ['bail', 'required', 'string', Rule::in(array_keys($places))],
             'category' => ['required', Rule::enum(Trade::class)],
@@ -110,7 +110,7 @@ final class LogMaintenanceRequest
 
         [$kind, $id] = explode(':', (string) $v['place']);
         $unit = $kind === 'unit' ? Unit::query()->findOrFail((int) $id) : null;
-        $tenant = $account->customer;
+        $tenant = Customer::query()->findOrFail((int) $account->customer_id);
 
         return $this->create([
             'building_id' => $unit !== null ? $unit->building_id : (int) $id,

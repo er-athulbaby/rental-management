@@ -58,8 +58,8 @@ final class SendLoginCode
                     ]);
                 });
 
-                $tenant = $account->customer;
-                Mail::to(new Address($account->email, $tenant->name_en))->queue(new PortalSignInCode($code, $tenant->name_en, $tenant->displayName('ar')));
+                $name = $account->personName('en'); // the tenant, else the owner (owner portal plan ruling 16)
+                Mail::to(new Address($account->email, $name))->queue(new PortalSignInCode($code, $name, $account->personName('ar')));
             } catch (Throwable $e) {
                 report($e);
             }
