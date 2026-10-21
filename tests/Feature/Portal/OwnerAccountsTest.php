@@ -24,9 +24,9 @@ test('an account holds a tenant, an owner or both, never neither, and one accoun
     $shared = portalAccount($this->tenant, ['owner_id' => Owner::factory()->create()->id]);
     expect($shared->customer_id)->toBe($this->tenant->id)->and($shared->owner_id)->not->toBeNull();
 
-    expect(fn () => (new PortalAccount)->forceFill(['email' => 'nobody@portal.test'])->save())->toThrow(QueryException::class)
-        ->and(fn () => portalAccount(Owner::factory()->create(['email' => 'x@owner.test']), ['owner_id' => $this->owner->id]))->toThrow(QueryException::class)
-        ->and(fn () => portalAccount(Owner::factory()->create(['email' => 'y@owner.test']), ['owner_id' => 999999]))->toThrow(QueryException::class)
+    expect(fn () => (new PortalAccount)->forceFill(['email' => 'nobody@portal.test'])->save())->toThrow(QueryException::class, 'portal_accounts_holder_chk')
+        ->and(fn () => portalAccount(Owner::factory()->create(['email' => 'x@owner.test']), ['owner_id' => $this->owner->id]))->toThrow(QueryException::class, 'Duplicate entry')
+        ->and(fn () => portalAccount(Owner::factory()->create(['email' => 'y@owner.test']), ['owner_id' => 999999]))->toThrow(QueryException::class, 'foreign key')
         ->and(Schema::hasColumn('documents', 'shared_with_owner'))->toBeTrue();
 });
 
@@ -74,4 +74,14 @@ test('an account finds its record and the other record it shares, while that one
 
     $this->tenant->delete();
     expect($account->otherThan($this->owner))->toBeNull();
+});
+
+test('rolling the migration back refuses, before any change, while an owner-only account exists', function () {
+    portalAccount($this->owner);
+    $migration = require database_path('migrations/2026_12_24_000100_add_owner_portal.php');
+
+    expect(fn () => $migration->down())->toThrow(RuntimeException::class, 'owner-only')
+        ->and(Schema::hasColumn('portal_accounts', 'owner_id'))->toBeTrue()
+        ->and(Schema::hasColumn('documents', 'shared_with_owner'))->toBeTrue()
+        ->and(fn () => (new PortalAccount)->forceFill(['email' => 'none@portal.test'])->save())->toThrow(QueryException::class, 'portal_accounts_holder_chk');
 });

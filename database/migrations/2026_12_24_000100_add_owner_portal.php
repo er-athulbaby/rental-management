@@ -27,6 +27,10 @@ return new class extends Migration
     /** ponytail: reversible only while every account still has a tenant; an owner-only row makes the NOT NULL change fail, which is the safe outcome. */
     public function down(): void
     {
+        // MySQL commits each DDL statement on its own, so refuse before the first one rather than fail halfway.
+        if (DB::table('portal_accounts')->whereNull('customer_id')->exists()) {
+            throw new RuntimeException('Cannot roll back: owner-only portal accounts exist and must be removed first.');
+        }
         Schema::table('documents', fn (Blueprint $table) => $table->dropColumn('shared_with_owner'));
         DB::statement('ALTER TABLE portal_accounts DROP CHECK portal_accounts_holder_chk');
         Schema::table('portal_accounts', function (Blueprint $table) {
