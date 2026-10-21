@@ -86,10 +86,13 @@ final readonly class ReportDefinition
         }
         $asAt = self::isDate($data['as_at'] ?? null) ? $data['as_at'] : 'today';
         $hidden = $subject->hiddenFrom($user, CarbonImmutable::parse($asAt, 'Asia/Bahrain'));
+        $known = $subject->fields($user, CarbonImmutable::parse($asAt, 'Asia/Bahrain'));
         $dropped = [];
-        $gone = function (mixed $key) use ($hidden, &$dropped): bool {
-            if (is_string($key) && isset($hidden[$key])) {
-                $dropped[$key] = $hidden[$key];
+        $gone = function (mixed $key) use ($hidden, $known, &$dropped): bool {
+            // Custom fields plan ruling 5: a deleted custom field's key is left out the same way, named by its key.
+            $deleted = is_string($key) && preg_match('/^cf[bt]?_/', $key) === 1 && ! isset($known[$key]) && ! isset($hidden[$key]);
+            if (is_string($key) && (isset($hidden[$key]) || $deleted)) {
+                $dropped[$key] = $hidden[$key] ?? $key;
 
                 return true;
             }

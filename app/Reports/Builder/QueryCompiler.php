@@ -34,6 +34,9 @@ final class QueryCompiler
         }
 
         foreach ($def->filters as $filter) {
+            if ($fields[$filter['field']]->archived) {
+                continue; // custom fields plan ruling 5: the column is empty, so its filter is set aside rather than emptying the report
+            }
             self::applyFilter($query, $fields[$filter['field']], $filter['op'], $filter['value']);
         }
 

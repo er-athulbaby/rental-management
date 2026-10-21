@@ -2,12 +2,14 @@
 
 namespace App\Reports\Builder\Subjects;
 
+use App\Enums\CustomFieldEntity;
 use App\Enums\IdType;
 use App\Enums\PartyType;
 use App\Enums\PermissionName;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\User;
+use App\Reports\Builder\CustomColumns;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
@@ -53,6 +55,7 @@ final class Owners extends Subject
             Field::text('buildings', __('Buildings'), __('Property'),
                 "(SELECT GROUP_CONCAT(DISTINCT ob.code ORDER BY ob.code SEPARATOR ', ') FROM owner_contracts oc2 JOIN buildings ob ON ob.id = oc2.building_id
                     WHERE oc2.owner_id = owners.id)", filterable: false),
+            ...CustomColumns::fields(CustomFieldEntity::Owner, 'cf_', __('More details'), 'owners.id'),
         ];
     }
 

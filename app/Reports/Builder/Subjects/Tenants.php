@@ -3,10 +3,12 @@
 namespace App\Reports\Builder\Subjects;
 
 use App\Enums\CustomerType;
+use App\Enums\CustomFieldEntity;
 use App\Enums\IdType;
 use App\Enums\PermissionName;
 use App\Models\Customer;
 use App\Models\User;
+use App\Reports\Builder\CustomColumns;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\Subject;
 use Carbon\CarbonImmutable;
@@ -86,6 +88,7 @@ final class Tenants extends Subject
             Field::money('balance', __('Invoice balances'), __('Amounts'), $balance, PermissionName::ReportsFinancial),
             Field::money('credit', __('Credit'), __('Amounts'), $credit, PermissionName::ReportsFinancial),
             Field::money('outstanding', __('Outstanding'), __('Amounts'), "({$balance} - {$credit})", PermissionName::ReportsFinancial),
+            ...CustomColumns::fields(CustomFieldEntity::Customer, 'cf_', __('More details'), 'customers.id'),
         ];
     }
 
