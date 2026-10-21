@@ -62,7 +62,7 @@ approval). "Their buildings" = the buildings of those contracts.
 - **Payments:** paid disbursements to the owner — date, amount, method, reference, bank with IBAN masked (last 4).
   For leased contracts, the rent schedule (owner payables): due date, amount, paid or not.
 - **Expenses:** expenses charged to the owner (`charge_to` owner, on their contracts) — date, building, unit,
-  category, vendor, amount; reversed ones marked reversed. No internal notes.
+  category, description, amount; reversed ones marked reversed. No internal notes.
 - **Maintenance:** requests in their buildings — number, unit, category, status, dates, the tenant-portal timeline, and
   any cost charged to the owner. No staff notes.
 - **Contracts:** number, building, type (managed / leased), dates, status.
