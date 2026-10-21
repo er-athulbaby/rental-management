@@ -3,11 +3,14 @@
 namespace App\Actions\Buildings;
 
 use App\Audit\Audit;
+use App\CustomFields\CustomFields;
 use App\Enums\BuildingType;
+use App\Enums\CustomFieldEntity;
 use App\Enums\ParkingType;
 use App\Models\Building;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -23,6 +26,9 @@ final class SaveBuilding
 
         $data = array_map(fn (mixed $v) => $v === '' ? null : $v, $data); // Livewire sends '' for cleared inputs
 
+        // Spec 2026-10-21 custom fields §4: "More details" is validated with the building (plan ruling 2).
+        [$customRules, $customMessages, $customNames] = CustomFields::validation(CustomFieldEntity::Building, $building, $data);
+
         $validated = Validator::make($data, [
             'name' => ['required', 'string', 'max:150'],
             'code' => [$building ? 'required' : 'nullable', 'string', 'max:30', Rule::unique('buildings', 'code')->ignore($building?->id)],
@@ -37,15 +43,20 @@ final class SaveBuilding
                 ->orWhereIn('id', $building ? $building->facilities()->pluck('facilities.id') : []))],
             'property_manager_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ])->validate();
+            ...$customRules,
+        ], $customMessages, $customNames)->validate();
+        $custom = Arr::pull($validated, 'custom');
 
-        return DB::transaction(function () use ($building, $validated) {
+        return DB::transaction(function () use ($actor, $building, $validated, $custom) {
             $validated['code'] ??= self::nextCode();
             $facilityIds = array_key_exists('facility_ids', $validated) ? array_map('intval', $validated['facility_ids'] ?? []) : null;
             unset($validated['facility_ids']);
 
             $building ??= new Building;
             $building->fill($validated)->save(); // LogsActivity records old/new
+            if (is_array($custom)) {
+                CustomFields::save($actor, $building, $custom);
+            }
 
             // Only when the caller sent the list: leaving the field out keeps the building's facilities.
             // The pivot isn't an attribute, so its changes are audited here.

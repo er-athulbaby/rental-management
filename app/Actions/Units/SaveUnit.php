@@ -2,6 +2,8 @@
 
 namespace App\Actions\Units;
 
+use App\CustomFields\CustomFields;
+use App\Enums\CustomFieldEntity;
 use App\Enums\Furnishing;
 use App\Enums\TaxCategory;
 use App\Enums\UnitUse;
@@ -11,6 +13,7 @@ use App\Models\UnitType;
 use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -23,6 +26,9 @@ final class SaveUnit
         $data = array_map(fn (mixed $v) => $v === '' ? null : $v, $data); // Livewire sends '' for cleared inputs
 
         $buildingId = $unit ? $unit->building_id : (int) ($data['building_id'] ?? 0);
+
+        // Spec 2026-10-21 custom fields §4: "More details" is validated with the unit (plan ruling 2).
+        [$customRules, $customMessages, $customNames] = CustomFields::validation(CustomFieldEntity::Unit, $unit, $data);
 
         $validated = Validator::make([...$data, 'building_id' => $buildingId], [
             'building_id' => ['required', 'integer', 'exists:buildings,id'],
@@ -45,7 +51,8 @@ final class SaveUnit
             'blocked' => ['boolean'],
             'blocked_reason' => ['nullable', 'required_if:blocked,true', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ])->validate();
+            ...$customRules,
+        ], $customMessages, $customNames)->validate();
 
         // Unit writes need the building in scope (spec §8.2) and buildings.manage.
         if (! $actor->can('update', Building::findOrFail($buildingId))) {
@@ -56,10 +63,15 @@ final class SaveUnit
             $validated[$money] = Fils::toDecimal(Fils::fromDecimal((string) ($validated[$money] ?? '0')));
         }
 
-        return DB::transaction(function () use ($unit, $validated) {
+        $custom = Arr::pull($validated, 'custom');
+
+        return DB::transaction(function () use ($actor, $unit, $validated, $custom) {
             $validated['code'] ??= self::nextCode((int) $validated['building_id'], (string) $validated['floor']);
             $unit ??= new Unit;
             $unit->fill($validated)->save();
+            if (is_array($custom)) {
+                CustomFields::save($actor, $unit, $custom);
+            }
 
             return $unit;
         });
