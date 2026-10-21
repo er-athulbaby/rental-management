@@ -88,7 +88,7 @@ test('each type is validated and tampered values give messages, never a 500', fu
     'four decimals' => ['monthly_income', '1.2345', 'Enter Monthly income as a number with up to 3 decimals.'],
     'thirteen digits' => ['monthly_income', '1234567890123', 'Enter Monthly income as a number with up to 3 decimals.'],
     'exponent' => ['monthly_income', '1e5', 'Enter Monthly income as a number with up to 3 decimals.'],
-    'not a date' => ['visa_expiry', '31/02/2027', 'The Visa expiry field must match the format Y-m-d.'],
+    'not a date' => ['visa_expiry', '31/02/2027', 'Visa expiry: enter a date as dd/mm/yyyy.'],
     'not yes or no' => ['has_pets', 'maybe', 'The Has pets field must be true or false.'],
     'unknown choice' => ['source', '999999', 'Choose Source from the list.'],
     'choice by word' => ['source', 'Agent', 'The Source field must be an integer.'],

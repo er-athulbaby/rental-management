@@ -23,13 +23,13 @@ final class CustomFieldImport
      */
     public static function headerProblems(CustomFieldEntity $entity, array $headers): array
     {
-        $fields = CustomFields::active($entity)->keyBy('key');
+        $fields = CustomFields::active($entity)->keyBy(fn (CustomField $f) => self::column($f));
         $problems = [];
         foreach ($headers as $header) {
             if (! str_starts_with($header, 'cf_')) {
                 continue;
             }
-            $field = $fields->get(substr($header, 3));
+            $field = $fields->get($header);
             if ($field === null) {
                 $problems[] = (string) __('Unknown custom field column :column.', ['column' => $header]);
             } elseif ($field->type === CustomFieldType::File) {
@@ -51,13 +51,13 @@ final class CustomFieldImport
         $entity = CustomFieldEntity::of($record);
         $custom = [];
         foreach (CustomFields::active($entity) as $field) {
-            $cell = $row['cf_'.$field->key] ?? null;
+            $cell = $row[self::column($field)] ?? null;
             if ($cell === null || $cell === '' || $field->type === CustomFieldType::File) {
                 continue;
             }
             $custom[$field->key] = match ($field->type) {
                 CustomFieldType::Choice => self::choice($field, (string) $cell),
-                CustomFieldType::Bool => self::yesNo($field, (string) $cell),
+                CustomFieldType::Bool => self::yesNo($field, $cell),
                 CustomFieldType::Date => preg_match('#^(\d{2})/(\d{2})/(\d{4})$#', (string) $cell, $m) === 1 ? "{$m[3]}-{$m[2]}-{$m[1]}" : $cell,
                 default => $cell,
             };
@@ -72,6 +72,12 @@ final class CustomFieldImport
         CustomFields::save($actor, $record, (array) $validated['custom']);
     }
 
+    /** The sheet column of a field: the reader snake-cases headers (a digit splits from its neighbour letters), so the key is put through the same rule. */
+    private static function column(CustomField $field): string
+    {
+        return 'cf_'.strtolower((string) preg_replace('/(?<=\d)(?=[A-Za-z])|(?<=[A-Za-z])(?=\d)|(?<=[a-z])(?=[A-Z])/', '_', $field->key));
+    }
+
     /** A visible choice by its English label (any case) or its Arabic label; its id as the form would send it. */
     private static function choice(CustomField $field, string $cell): string
     {
@@ -83,9 +89,9 @@ final class CustomFieldImport
         ])]);
     }
 
-    private static function yesNo(CustomField $field, string $cell): string
+    private static function yesNo(CustomField $field, mixed $cell): string
     {
-        return match (mb_strtolower(trim($cell))) {
+        return match (is_bool($cell) ? ($cell ? '1' : '0') : mb_strtolower(trim((string) $cell))) {
             'yes', 'y', 'true', '1', 'نعم' => '1',
             'no', 'n', 'false', '0', 'لا' => '0',
             default => throw ValidationException::withMessages(['cf_'.$field->key => __(':field: enter yes or no.', ['field' => $field->label_en])]),

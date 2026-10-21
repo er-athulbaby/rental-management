@@ -81,6 +81,7 @@ final class CustomFields
         return [$rules, [
             'custom.*.regex' => (string) __('Enter :attribute as a number with up to 3 decimals.'),
             'custom.*.in' => (string) __('Choose :attribute from the list.'),
+            'custom.*.date_format' => (string) __(':attribute: enter a date as dd/mm/yyyy.'),
             'custom.*.mimes' => (string) __('Upload :attribute as a JPG, PNG, WebP or PDF file.'),
         ], $names];
     }

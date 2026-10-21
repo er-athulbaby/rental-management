@@ -118,3 +118,33 @@ test('a stray "custom" column in the sheet is ignored, not validated as custom f
     expect($result->errors)->toBe([])
         ->and(array_column(CustomFields::display(Unit::query()->where('code', '101')->sole()), 'text', 'label'))->toBe(['Balcony area' => '2']);
 });
+
+test('keys with a digit beside a letter import: the reader splits them in the header, so both sides are snake-cased alike', function () {
+    customField('unit', 'text', 'Plot 2B');
+    customField('unit', 'number', 'Area m2');
+    $result = app(RunImport::class)->handle($this->vendor, [
+        'buildings' => ($this->building)(),
+        'units' => cfImportFile(ImportKind::Units, [($this->unit)('101', ['cf_plot_2b' => 'P-7', 'cf_area_m2' => '8.5'])]),
+    ], commit: true);
+
+    expect($result->errors)->toBe([])
+        ->and(array_column(CustomFields::display(Unit::query()->where('code', '101')->sole()), 'text', 'label'))
+        ->toBe(['Balcony area' => '—', 'Plot 2B' => 'P-7', 'Area m2' => '8.5']);
+});
+
+test('an Excel FALSE cell is "no" for a yes/no field', function () {
+    $result = app(RunImport::class)->handle($this->vendor, [
+        'owners' => cfImportFile(ImportKind::Owners, [['type' => 'person', 'name_en' => 'Ali Hassan', 'id_type' => 'cpr', 'id_number' => '080101234', 'cf_vat_registered' => false]]),
+    ], commit: true);
+
+    expect($result->errors)->toBe([])
+        ->and(array_column(CustomFields::display(Owner::query()->sole()), 'text', 'label'))->toBe(['VAT registered' => 'No']);
+});
+
+test('a bad date cell names the dd/mm/yyyy format', function () {
+    $result = app(RunImport::class)->handle($this->vendor, [
+        'customers' => cfImportFile(ImportKind::Customers, [($this->tenant)('Sara Ahmed', '090202345', ['cf_visa_expiry' => 'soon'])]),
+    ], commit: false);
+
+    expect($result->errors['customers'])->toBe([2 => ['Visa expiry: enter a date as dd/mm/yyyy.']]);
+});
