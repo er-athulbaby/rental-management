@@ -5,11 +5,13 @@ namespace App\Pdf;
 use App\Billing\OwnerStatementCalculator;
 use App\Enums\DepositsHeldBy;
 use App\Enums\OwnerStatementStatus;
+use App\Jobs\StoreOwnerStatement;
 use App\Models\CompanySetting;
 use App\Models\OwnerStatement;
 use App\Support\Fils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 
 /** Spec §9.3: the owner statement, English. A statement not yet finalised carries a DRAFT watermark. */
 final class OwnerStatementPdf
@@ -44,5 +46,19 @@ final class OwnerStatementPdf
             'footer' => '<div style="text-align:center; font-size:8pt; color:#555">'.e($s->label()).' · {PAGENO} / {nbpg}</div>',
             'watermark' => $s->status === OwnerStatementStatus::Finalised ? null : 'DRAFT',
         ]);
+    }
+
+    /**
+     * Spec §7.9: a finalised statement from its stored copy; otherwise rendered now (DRAFT unless finalised). Staff and
+     * the owner portal both serve it this way (owner portal plan ruling 11).
+     */
+    public function response(OwnerStatement $s): Response
+    {
+        $stored = StoreOwnerStatement::stored($s);
+        if ($stored !== null) {
+            return Storage::disk($stored->disk)->response($stored->path, $stored->original_name, ['Content-Type' => 'application/pdf']);
+        }
+
+        return response($this->render($s), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.($s->number ?? 'statement-draft').'.pdf"']);
     }
 }

@@ -11,6 +11,9 @@
         ['portal.owner.home', __('Home')],
         ['portal.owner.buildings', __('Buildings')],
         ['portal.owner.contracts', __('Contracts')],
+        ['portal.owner.statements', __('Statements')],
+        ['portal.owner.payments', __('Payments')],
+        ['portal.owner.expenses', __('Expenses')],
     ] : [
         ['portal.home', __('Home')],
         ['portal.agreements', __('Agreements')],

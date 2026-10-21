@@ -3,6 +3,7 @@
 use App\Http\Controllers\Portal\DownloadController;
 use App\Http\Controllers\Portal\LocaleController;
 use App\Http\Controllers\Portal\LogoutController;
+use App\Http\Controllers\Portal\OwnerDownloadController;
 use App\Http\Middleware\PortalAccess;
 use App\Http\Middleware\PortalSession;
 use App\Livewire\Portal;
@@ -40,6 +41,10 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
             Route::livewire('/', Portal\Owner\Home::class)->name('home');
             Route::livewire('buildings', Portal\Owner\Buildings::class)->name('buildings');
             Route::livewire('contracts', Portal\Owner\Contracts::class)->name('contracts');
+            Route::livewire('statements', Portal\Owner\Statements::class)->name('statements');
+            Route::get('statements/{statement}/pdf', [OwnerDownloadController::class, 'statement'])->whereNumber('statement')->name('statements.pdf');
+            Route::livewire('payments', Portal\Owner\Payments::class)->name('payments');
+            Route::livewire('expenses', Portal\Owner\Expenses::class)->name('expenses');
         });
 
         Route::post('logout', LogoutController::class)->name('logout');
