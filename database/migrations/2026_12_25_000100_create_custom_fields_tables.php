@@ -66,15 +66,13 @@ return new class extends Migration
             (value_text IS NOT NULL) + (value_number IS NOT NULL) + (value_date IS NOT NULL) + (value_bool IS NOT NULL)
             + (choice_id IS NOT NULL) + (document_id IS NOT NULL) <= 1)');
 
-        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk');
-        DB::statement('ALTER TABLE documents ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::CATEGORIES.", 'custom_field'))");
+        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk, ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::CATEGORIES.", 'custom_field'))"); // one statement: atomic
     }
 
     /** ponytail: the category CHECK goes back first, so a custom-field document makes down() fail before any table is dropped. */
     public function down(): void
     {
-        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk');
-        DB::statement('ALTER TABLE documents ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::CATEGORIES.'))');
+        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk, ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::CATEGORIES.'))');
         Schema::dropIfExists('custom_field_values');
         Schema::dropIfExists('custom_field_choices');
         Schema::dropIfExists('custom_fields');

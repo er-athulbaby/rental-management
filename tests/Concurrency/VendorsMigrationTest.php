@@ -1,8 +1,12 @@
 <?php
 
+use App\Enums\DocumentCategory;
 use App\Enums\RoleName as R;
 use App\Models\Building;
+use App\Models\Document;
+use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
@@ -111,4 +115,21 @@ test('on an installed system the migration grants the maintenance permissions ad
     expect(Schema::hasColumn('portal_accounts', 'owner_id'))->toBeTrue();
     $this->customFields->up();
     expect(Schema::hasTable('custom_fields'))->toBeTrue();
+});
+
+test('a custom-field document makes the custom fields down() fail, keeping the category check and every table', function () {
+    DB::setDefaultConnection('migrator');
+    $document = new Document(['category' => DocumentCategory::CustomField, 'disk' => 'local', 'path' => 'documents/x.pdf',
+        'original_name' => 'x.pdf', 'mime' => 'application/pdf', 'size' => 1, 'uploaded_by' => User::factory()->create()->id]);
+    $document->documentable()->associate($this->building);
+    $document->save();
+
+    $check = fn () => DB::table('information_schema.TABLE_CONSTRAINTS')->where('TABLE_SCHEMA', DB::raw('DATABASE()'))
+        ->where('TABLE_NAME', 'documents')->where('CONSTRAINT_NAME', 'documents_category_chk')->count();
+    expect($check())->toBe(1)
+        ->and(fn () => $this->customFields->down())->toThrow(QueryException::class)
+        ->and($check())->toBe(1) // the swap is one statement, so a failed ADD leaves the old check in place
+        ->and(Schema::hasTable('custom_fields') && Schema::hasTable('custom_field_choices') && Schema::hasTable('custom_field_values'))->toBeTrue();
+
+    $document->forceDelete();
 });

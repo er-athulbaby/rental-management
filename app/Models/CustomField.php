@@ -63,12 +63,14 @@ class CustomField extends Model
      */
     public static function keyFor(CustomFieldEntity $entity, string $labelEn): string
     {
-        $slug = trim(substr(Str::slug($labelEn, '_'), 0, 40), '_');
-        $base = $slug === '' ? 'field' : (ctype_alpha($slug[0]) ? $slug : 'f_'.$slug);
+        $slug = Str::slug($labelEn, '_');
+        $prefix = $slug !== '' && ! ctype_alpha($slug[0]) ? 'f_' : '';
+        $cut = fn (int $room) => trim(substr($slug, 0, max(0, $room)), '_');
         $taken = self::query()->where('entity', $entity)->pluck('key')->all();
-        $key = $base;
+        $key = $slug === '' ? 'field' : $prefix.$cut(40 - strlen($prefix));
+        // the base is cut again so that base + suffix stays within 40 characters
         for ($n = 2; in_array($key, $taken, true); $n++) {
-            $key = "{$base}_{$n}";
+            $key = ($slug === '' ? 'field' : $prefix.$cut(40 - strlen($prefix) - strlen("_{$n}"))).'_'.$n;
         }
 
         return $key;

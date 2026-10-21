@@ -45,6 +45,19 @@ test('the key is made from the English label once: snake case, unique per kind, 
         ->and(strlen(CustomField::keyFor(CustomFieldEntity::Unit, str_repeat('Very long label ', 10))))->toBeLessThanOrEqual(40);
 });
 
+test('a key never exceeds 40 characters, with a collision suffix or the f_ prefix', function () {
+    $long = str_repeat('a', 50);
+    customField('unit', 'text', $long);
+    $second = CustomField::keyFor(CustomFieldEntity::Unit, $long);
+    expect(strlen($second))->toBeLessThanOrEqual(40)->and($second)->toEndWith('_2');
+
+    $digits = '1'.str_repeat('b', 49);
+    customField('unit', 'text', $digits);
+    $key = CustomField::keyFor(CustomFieldEntity::Unit, $digits);
+    expect(strlen(CustomField::query()->where('entity', 'unit')->orderByDesc('id')->value('key')))->toBeLessThanOrEqual(40)
+        ->and($key)->toStartWith('f_1')->and(strlen($key))->toBeLessThanOrEqual(40)->and($key)->toEndWith('_2');
+});
+
 test('labels fall back to English, and documents take the "Custom field" category', function () {
     $plot = customField('owner', 'text', 'Plot number', ['label_ar' => 'رقم القسيمة']);
     $broker = customField('owner', 'choice', 'Broker', choices: [['Direct', 'مباشر'], 'Agency']);

@@ -84,14 +84,12 @@ return new class extends Migration
             SQL);
         DB::statement("ALTER TABLE maintenance_events ADD CONSTRAINT maintenance_events_kind_chk CHECK (kind IN ('status', 'note'))");
 
-        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk');
-        DB::statement('ALTER TABLE documents ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::OLD_CATEGORIES.", 'maintenance'))");
+        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk, ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::OLD_CATEGORIES.", 'maintenance'))"); // one statement: atomic
     }
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk');
-        DB::statement('ALTER TABLE documents ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::OLD_CATEGORIES.'))');
+        DB::statement('ALTER TABLE documents DROP CHECK documents_category_chk, ADD CONSTRAINT documents_category_chk CHECK (category IN ('.self::OLD_CATEGORIES.'))');
         Schema::dropIfExists('maintenance_events');
         Schema::dropIfExists('work_orders');
         Schema::dropIfExists('maintenance_requests');
