@@ -3,12 +3,15 @@
 namespace App\Actions\Customers;
 
 use App\Actions\Portal\SyncPortalEmail;
+use App\CustomFields\CustomFields;
 use App\Enums\CustomerType;
+use App\Enums\CustomFieldEntity;
 use App\Enums\IdType;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -27,6 +30,9 @@ final class SaveCustomer
 
         $data = array_map(fn (mixed $v) => is_string($v) && trim($v) === '' ? null : (is_string($v) ? trim($v) : $v), $data);
 
+        // Spec 2026-10-21 custom fields §4: "More details" is validated with the record (plan ruling 2).
+        [$customRules, $customMessages, $customNames] = CustomFields::validation(CustomFieldEntity::Customer, $customer, $data);
+
         $validated = Validator::make($data, [
             'type' => ['required', Rule::enum(CustomerType::class)],
             'name_en' => ['required', 'string', 'max:150'],
@@ -42,7 +48,8 @@ final class SaveCustomer
             'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'no_reminders' => ['sometimes', 'boolean'], // spec 2026-10-17 §6: "Don't send reminders"
-        ])->after(function (ValidatorInstance $validator) use ($actor, $data, $customer) {
+            ...$customRules,
+        ], $customMessages, $customNames)->after(function (ValidatorInstance $validator) use ($actor, $data, $customer) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
@@ -68,14 +75,18 @@ final class SaveCustomer
             }
         })->validate();
 
+        $custom = Arr::pull($validated, 'custom');
         $id = $customer?->id;
 
         // Retry-safe: each attempt re-reads the row; the caller's model loses its dirty state on the first save.
         try {
-            return DB::transaction(function () use ($id, $validated) {
+            return DB::transaction(function () use ($actor, $id, $validated, $custom) {
                 $customer = $id !== null ? Customer::query()->lockForUpdate()->findOrFail($id) : new Customer;
                 $customer->fill($validated)->save();
                 SyncPortalEmail::apply($customer);
+                if (is_array($custom)) {
+                    CustomFields::save($actor, $customer, $custom);
+                }
 
                 return $customer;
             }, attempts: 3);
