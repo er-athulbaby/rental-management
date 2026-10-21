@@ -54,6 +54,8 @@ class Show extends Component
     /** Spec 2026-10-21 custom fields §4: "More details" stay editable at any status, for whoever can manage the agreement (plan ruling 3). */
     public function saveDetails(SaveAgreementDetails $save): void
     {
+        $this->resetErrorBag();
+
         try {
             $save->handle($this->actor(), $this->agreement(), $this->custom);
         } catch (AuthorizationException) {

@@ -77,3 +77,11 @@ test('the details action re-checks the agreement permission and building scope; 
 
     expect(CustomFieldValue::query()->count())->toBe(0);
 });
+
+test('the details panel clears old errors after a successful save', function () {
+    $agreement = activeAgreement(['customer_id' => $this->customer->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$this->flat]);
+
+    Livewire::actingAs($this->leasing)->test(Show::class, ['agreement' => $agreement])
+        ->call('saveDetails')->assertHasErrors('custom.broker')
+        ->set('custom.broker', 'Gulf Realty')->call('saveDetails')->assertHasNoErrors();
+});
