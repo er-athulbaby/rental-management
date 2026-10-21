@@ -26,6 +26,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Spec 2026-10-21 owner portal §4 and §6: every owner-portal query, each starting from the signed-in account's owner_id
@@ -123,15 +124,20 @@ final class OwnerPortal
             ->orderBy('id')->get()
             ->groupBy('building_id')
             ->map(function (Collection $group) use ($today, $date) {
-                $live = $group->first(fn (OwnerContract $c) => $c->type === OwnerContractType::Managed && $c->status === OwnerContractStatus::Active
+                $live = $group->filter(fn (OwnerContract $c) => $c->type === OwnerContractType::Managed && $c->status === OwnerContractStatus::Active
                     && $c->start_date->toDateString() <= $today && $c->end_date->toDateString() >= $today);
                 $roll = null;
-                if ($live !== null) {
+                if ($live->isNotEmpty()) {
                     $seen = [];
-                    $roll = Queries::rentRollUnits(Unit::query()->whereIn('id', $live->units->modelKeys())->select('id'), $today)
-                        ->map(function (\stdClass $u) use (&$seen, $date) {
+                    $unitIds = $live->flatMap(fn (OwnerContract $c) => $c->units->modelKeys())->unique()->values()->all();
+                    $rows = Queries::rentRollUnits(Unit::query()->whereIn('id', $unitIds)->select('id'), $today);
+                    // An agreement that also covers a unit outside their live contracts has a balance that is not theirs alone: left blank.
+                    $shared = DB::table('agreement_units')->whereIn('agreement_id', $rows->pluck('agreement_id')->filter()->unique()->all())
+                        ->whereNotIn('unit_id', $unitIds)->distinct()->pluck('agreement_id')->flip();
+                    $roll = $rows
+                        ->map(function (\stdClass $u) use (&$seen, $date, $shared) {
                             $occupied = $u->au_id !== null;
-                            $first = $occupied && ! isset($seen[$u->agreement_id]); // balance owed once per agreement, as the report
+                            $first = $occupied && ! isset($seen[$u->agreement_id]) && ! $shared->has($u->agreement_id); // balance owed once per agreement, as the report
                             if ($occupied) {
                                 $seen[$u->agreement_id] = true;
                             }
@@ -152,7 +158,7 @@ final class OwnerPortal
 
                 return [
                     'building' => $sample->building ?? abort(404),
-                    'managed' => $live !== null,
+                    'managed' => $live->isNotEmpty(),
                     'units' => array_values($group->flatMap(fn (OwnerContract $c) => $c->units->map(fn (Unit $u) => (string) $u->code))->unique()->sort()->all()),
                     'roll' => $roll,
                     'occupied' => $roll === null ? 0 : count(array_filter($roll, fn (array $r) => $r['tenant'] !== null)),

@@ -93,3 +93,22 @@ test('contracts list number, status, building, type and dates', function () {
             (string) $this->a['managed']->number, 'Active', 'Ali Owner Tower · Managed', '01/01/2026 – 31/12/2026'])
         ->assertDontSee((string) $this->b['managed']->number)->assertDontSee('Badr Owner');
 });
+
+test('balance owed is blank when the agreement also covers a unit outside the owner\'s live contracts', function () {
+    $other = Unit::factory()->for($this->b['tower'])->create(['code' => 'X1']);
+    $customer = Customer::factory()->create(['name_en' => 'Mixed Renter']);
+    $agreement = activeAgreement(['customer_id' => $customer->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [Unit::query()->where('code', 'V101')->sole(), $other]);
+    issuedInvoice($customer, [['net' => '777.000', 'au' => $agreement->agreementUnits->last()]], '2026-10-01', $agreement);
+
+    $this->actingAs($this->a['account'], 'tenant')->get(route('portal.owner.buildings'))->assertOk()
+        ->assertSee('Mixed Renter')->assertDontSee('777.000')->assertSee('Balance owed: 400.000 BHD');
+});
+
+test('several live managed contracts on one building list the units of all of them', function () {
+    $second = Unit::factory()->for($this->a['tower'])->create(['code' => 'S1']);
+    activeOwnerContract(['owner_id' => $this->a['owner']->id, 'building_id' => $this->a['tower']->id, 'type' => 'managed', 'start_date' => '2026-01-01',
+        'end_date' => '2026-12-31', 'fee_type' => 'fixed', 'fee_value' => '0.000', 'deposits_held_by' => 'company', 'created_by' => $this->admin->id], [$second]);
+
+    $this->actingAs($this->a['account'], 'tenant')->get(route('portal.owner.buildings'))->assertOk()
+        ->assertSeeInOrder(['Ali Owner Tower', '1 of 3 units let', 'Unit 101'])->assertSee('Unit S1')->assertSee('Unit V101');
+});

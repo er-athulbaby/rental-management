@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Audit\Audit;
 use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
+use App\Models\User;
 use App\Pdf\InvoicePdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -14,7 +15,8 @@ final class InvoicePdfController
 {
     public function __invoke(Request $request, Invoice $invoice, InvoicePdf $pdf): Response
     {
-        abort_unless($request->user()?->can('view', $invoice) === true && $invoice->status === InvoiceStatus::Issued, 403);
+        $user = $request->user();
+        abort_unless($user instanceof User && $user->can('view', $invoice) && $invoice->status === InvoiceStatus::Issued, 403);
 
         Audit::log('invoice.pdf_viewed', $invoice, causer: $request->user());
 
