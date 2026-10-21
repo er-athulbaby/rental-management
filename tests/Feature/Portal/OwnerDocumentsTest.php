@@ -113,3 +113,26 @@ test('a tampered or foreign document id is a message, never a 500', function (Cl
     'another record\'s document' => [fn () => ($this->store)($this->a['managed'], 'annex.pdf')->id],
     'no such document' => [fn () => 999999],
 ]);
+
+test('a building document reaches an owner only from a contract of theirs that covered the day it was added', function () {
+    $plan = ($this->share)(($this->store)($this->a['tower'], 'floor-plan.pdf')); // 21/10/2026, inside A's contract
+    expect($this->a['managed']->start_date->toDateString())->toBe('2026-01-01');
+
+    // A's contract ends; C takes the tower over; a later document is shared for C.
+    $this->a['managed']->forceFill(['end_date' => '2026-10-31'])->save();
+    $c = portalOwnerFixture('Chand Owner', '303', $this->admin);
+    $new = activeOwnerContract(['owner_id' => $c['owner']->id, 'building_id' => $this->a['tower']->id, 'type' => 'managed', 'start_date' => '2026-11-01',
+        'end_date' => '2027-12-31', 'fee_type' => 'fixed', 'fee_value' => '0.000', 'deposits_held_by' => 'company', 'created_by' => $this->admin->id], [$this->a['tower']->units()->first()->id]);
+    $this->travelTo(CarbonImmutable::parse('2026-11-15 10:00', 'Asia/Bahrain'));
+    $later = ($this->share)(($this->store)($this->a['tower'], 'new-floor-plan.pdf'));
+
+    $this->actingAs($this->a['account'], 'tenant')->get(route('portal.owner.documents'))->assertOk()
+        ->assertSee('floor-plan.pdf')->assertDontSee('new-floor-plan.pdf');
+    $this->get(route('portal.owner.documents.download', $plan))->assertOk();
+    $this->get(route('portal.owner.documents.download', $later))->assertNotFound();
+
+    $this->flushSession();
+    $this->actingAs($c['account'], 'tenant')->get(route('portal.owner.documents'))->assertOk()->assertSee('new-floor-plan.pdf');
+    $this->get(route('portal.owner.documents.download', $later))->assertOk();
+    expect($new->exists)->toBeTrue();
+});

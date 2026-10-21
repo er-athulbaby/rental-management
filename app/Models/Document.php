@@ -66,8 +66,12 @@ class Document extends Model
             ->where(fn (Builder $o) => $o->where('documentable_type', (new Owner)->getMorphClass())->where('documentable_id', $ownerId))
             ->orWhere(fn (Builder $c) => $c->where('documentable_type', (new OwnerContract)->getMorphClass())
                 ->whereIn('documentable_id', OwnerContract::query()->portalFor($ownerId)->select('id')))
+            // A building document counts only from a contract of theirs on that building that covered the day it was added.
             ->orWhere(fn (Builder $b) => $b->where('documentable_type', (new Building)->getMorphClass())
-                ->whereIn('documentable_id', OwnerContract::query()->portalFor($ownerId)->select('building_id'))));
+                ->whereExists(OwnerContract::query()->portalFor($ownerId)->toBase()->selectRaw('1')
+                    ->whereColumn('owner_contracts.building_id', 'documents.documentable_id')
+                    ->whereRaw('owner_contracts.start_date <= DATE(documents.created_at)')
+                    ->whereRaw('COALESCE(owner_contracts.terminated_on, owner_contracts.end_date) >= DATE(documents.created_at)'))));
     }
 
     protected $fillable = ['category', 'disk', 'path', 'original_name', 'mime', 'size', 'expires_on', 'uploaded_by', 'portal_account_id'];
