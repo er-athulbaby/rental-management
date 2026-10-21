@@ -12,6 +12,7 @@ use App\Actions\OwnerContracts\SaveOwnerContract;
 use App\Actions\Owners\SaveOwner;
 use App\Actions\Units\SaveUnit;
 use App\Audit\Audit;
+use App\CustomFields\CustomFieldImport;
 use App\Enums\AgreementStatus;
 use App\Enums\ApprovalAction;
 use App\Enums\ApprovalStatus;
@@ -119,6 +120,15 @@ final class RunImport
                     continue;
                 }
 
+                // Spec 2026-10-21 custom fields §5: every cf_ column must be an importable active field of the kind (plan ruling 7).
+                $entity = $kind->customFieldEntity();
+                $unknown = $entity === null ? [] : CustomFieldImport::headerProblems($entity, array_values($headers));
+                if ($unknown !== []) {
+                    $errors[$kind->value][1] = $unknown;
+
+                    continue;
+                }
+
                 $items = [];
                 foreach ($reader->getRows() as $index => $row) {
                     $items[(int) $index + 2] = $row; // spreadsheet line: header is line 1
@@ -128,7 +138,8 @@ final class RunImport
                 foreach (self::units($kind, $items) as $line => $group) {
                     try {
                         // A savepoint per unit of work: a failed one leaves nothing behind for later ones to trip on.
-                        $clean = array_map(fn (array $r) => $this->normalise($kind, $r), $group);
+                        // A stray "Custom" column must not reach the actions as their `custom` input.
+                        $clean = array_map(fn (array $r) => Arr::except($this->normalise($kind, $r), 'custom'), $group);
                         DB::transaction(fn () => $this->importRow($actor, $kind, $clean, $cutover));
                         $passed += count($group);
                         if (($column = $kind->moneyColumn()) !== null) {
@@ -210,22 +221,32 @@ final class RunImport
     {
         $row = $rows[0];
 
+        // Spec 2026-10-21 custom fields §5: the record kinds take cf_ columns, saved after the record in this row's savepoint.
+        if ($kind->customFieldEntity() !== null) {
+            $record = match ($kind) {
+                ImportKind::Buildings => $this->buildings->handle($actor, null, self::buildingRow($row)),
+                ImportKind::Units => $this->units->handle($actor, null, [
+                    ...$row,
+                    'type' => UnitType::canonical((string) ($row['type'] ?? '')) ?? $row['type'] ?? null,
+                    'building_id' => $this->buildingId($row['building_code'] ?? null),
+                    'blocked' => in_array(strtolower((string) ($row['blocked'] ?? '')), ['yes', 'y', 'true', '1'], true),
+                ]),
+                ImportKind::Owners => $this->owners->handle($actor, null, self::listRow($row), viaImport: true),
+                ImportKind::Customers => $this->customers->handle($actor, null, self::listRow($row)),
+                default => $this->agreement($actor, $rows, $cutover),
+            };
+            CustomFieldImport::save($actor, $record, $row);
+
+            return;
+        }
+
         match ($kind) {
-            ImportKind::Buildings => $this->buildings->handle($actor, null, self::buildingRow($row)),
-            ImportKind::Units => $this->units->handle($actor, null, [
-                ...$row,
-                'type' => UnitType::canonical((string) ($row['type'] ?? '')) ?? $row['type'] ?? null,
-                'building_id' => $this->buildingId($row['building_code'] ?? null),
-                'blocked' => in_array(strtolower((string) ($row['blocked'] ?? '')), ['yes', 'y', 'true', '1'], true),
-            ]),
-            ImportKind::Owners => $this->owners->handle($actor, null, self::listRow($row), viaImport: true),
             ImportKind::OwnerContracts => $this->ownerContract($actor, $row, $cutover),
-            ImportKind::Customers => $this->customers->handle($actor, null, self::listRow($row)),
-            ImportKind::Agreements => $this->agreement($actor, $rows, $cutover),
             ImportKind::CustomerBalances => $this->customerBalance($actor, $row, $cutover),
             ImportKind::DepositsHeld => $this->depositHeld($actor, $rows[0], $cutover),
             ImportKind::Cheques => $this->cheque($actor, self::listRow($rows[0])),
             ImportKind::OwnerBalances => $this->ownerBalance($actor, $row, $cutover),
+            default => throw new LogicException("Unhandled import kind [{$kind->value}]."),
         };
     }
 
@@ -235,7 +256,7 @@ final class RunImport
      *
      * @param  list<array<string, mixed>>  $rows
      */
-    private function agreement(User $actor, array $rows, CarbonImmutable $cutover): void
+    private function agreement(User $actor, array $rows, CarbonImmutable $cutover): Agreement
     {
         $first = $rows[0];
         $ref = (string) ($first['import_ref'] ?? '');
@@ -244,7 +265,10 @@ final class RunImport
         }
         Validator::make(['import_ref' => $ref], ['import_ref' => ['string', 'max:40']])->validate();
         // Only the first row supplies the agreement's own columns, so the other rows must agree with it.
-        foreach (['customer_id_type', 'customer_id_number', 'start_date', 'end_date', 'frequency', 'billing_day', 'grace_days', 'notice_period_days'] as $column) {
+        // Custom fields plan ruling 7: the first row's cf_ cells are the agreement's, so every row must agree on them too.
+        $agreed = ['customer_id_type', 'customer_id_number', 'start_date', 'end_date', 'frequency', 'billing_day', 'grace_days', 'notice_period_days',
+            ...array_values(array_filter(array_map('strval', array_keys($first)), fn (string $c) => str_starts_with($c, 'cf_')))];
+        foreach ($agreed as $column) {
             foreach ($rows as $row) {
                 if ((string) ($row[$column] ?? '') !== (string) ($first[$column] ?? '')) {
                     throw ValidationException::withMessages([$column => __('Rows of agreement :ref disagree on :column.', ['ref' => $ref, 'column' => $column])]);
@@ -304,6 +328,8 @@ final class RunImport
         ]);
 
         $this->activateAgreement->handle($agreement, $actor, $cutover);
+
+        return $agreement;
     }
 
     /** Imported contracts are created active, with an approval recorded as "Imported by {user}" (spec §11). */
