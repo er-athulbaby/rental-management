@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Audit\AuthEventSubscriber;
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
 use App\Http\Middleware\PortalSession;
+use App\Models\MailSetting;
 use App\Reminders\Channel;
 use App\Reminders\EmailChannel;
 use Carbon\CarbonImmutable;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
@@ -56,6 +58,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::subscribe(AuthEventSubscriber::class);
+
+        // Email settings saved on screen: this request, and each queued job (a worker never restarts for them).
+        MailSetting::apply();
+        Queue::before(fn () => MailSetting::apply());
     }
 
     /**
