@@ -53,6 +53,9 @@ final class SaveMailSettings
             $changePassword = filled($validated['password'] ?? null);
             $row->fill(Arr::except($validated, 'password') + ['updated_by' => $actor->id]);
             if ($changePassword) {
+                if ($row->exists && $row->savedPassword() === null) {
+                    $row->setRawAttributes(['password' => null] + $row->getAttributes(), true); // unreadable (APP_KEY changed): replaced, never decrypted
+                }
                 $row->password = $validated['password'];
             }
             $row->save();

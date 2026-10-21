@@ -83,7 +83,7 @@ class EmailSettings extends Component
         RateLimiter::hit($key, 60);
 
         // A blank password uses the saved one, as a save would.
-        $password = filled($v['password'] ?? null) ? $v['password'] : MailSetting::current()?->password;
+        $password = filled($v['password'] ?? null) ? $v['password'] : MailSetting::current()?->savedPassword();
 
         try {
             $mailer = Mail::build(MailSetting::smtpConfig($v, $password) + ['timeout' => 10]);
@@ -128,7 +128,7 @@ class EmailSettings extends Component
     public function render(): View
     {
         return view('livewire.admin.email-settings', [
-            'hasPassword' => filled(MailSetting::current()?->password),
+            'hasPassword' => filled(MailSetting::current()?->savedPassword()),
             'encryptions' => ['none' => __('None'), 'tls' => __('TLS (STARTTLS, usually port 587)'), 'ssl' => __('SSL (usually port 465)')],
         ])->title(__('Email settings'));
     }

@@ -240,3 +240,15 @@ test('send test: five a minute per user, the sixth is refused', function () {
 
     expect($smtp->sent)->toHaveCount(5);
 });
+
+test('a password that can no longer be decrypted (APP_KEY changed) never breaks the app: the page opens and Admin can re-enter it', function () {
+    saveMailAs($this->admin)->assertHasNoErrors();
+    DB::table('mail_settings')->update(['password' => 'not-an-encrypted-value']);
+
+    MailSetting::apply();
+    expect(config('mail.default'))->toBe('smtp')->and(config('mail.mailers.smtp.password'))->toBeNull();
+
+    $this->actingAs($this->admin)->get(route('admin.email'))->assertOk();
+    saveMailAs($this->admin)->assertHasNoErrors();
+    expect(MailSetting::current()->password)->toBe(SECRET);
+});

@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * The one email (SMTP) settings row. The password is encrypted at rest and write-only: it is hidden, and no audit entry or
@@ -33,6 +35,18 @@ class MailSetting extends Model
     protected function casts(): array
     {
         return ['enabled' => 'boolean', 'port' => 'integer', 'password' => 'encrypted'];
+    }
+
+    /** The saved password, or null when it cannot be read (APP_KEY changed): the app keeps working and Admin re-enters it. */
+    public function savedPassword(): ?string
+    {
+        try {
+            $raw = $this->getAttributes()['password'] ?? null;
+
+            return $raw === null ? null : Crypt::decryptString($raw); // what the encrypted cast does
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     public static function current(): ?self
@@ -78,7 +92,7 @@ class MailSetting extends Model
 
         config(['mail.default' => $row->enabled ? 'smtp' : 'log']);
         if ($row->enabled) {
-            config(['mail.mailers.smtp' => array_merge((array) config('mail.mailers.smtp'), self::smtpConfig($row->attributesToArray(), $row->password))]);
+            config(['mail.mailers.smtp' => array_merge((array) config('mail.mailers.smtp'), self::smtpConfig($row->attributesToArray(), $row->savedPassword()))]);
         }
         if (filled($row->from_address)) {
             config(['mail.from.address' => $row->from_address, 'mail.from.name' => $row->from_name ?: config('mail.from.name')]);
