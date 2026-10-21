@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\Documents\ShareDocumentWithTenant;
+use App\Actions\Documents\ShareDocument;
 use App\Actions\Documents\StoreDocument;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Payments\RecordPayment;
@@ -34,7 +34,7 @@ function isolationTenant(string $name, string $code, User $finance, User $pm, Bu
         'amount' => '400.000', 'status' => 'held', 'created_by' => $finance->id,
     ])->save();
     $document = app(StoreDocument::class)->handle($pm, $tenant, UploadedFile::fake()->create("rules-{$code}.pdf", 10, 'application/pdf'), DocumentCategory::Other);
-    app(ShareDocumentWithTenant::class)->handle($pm, $document, true);
+    app(ShareDocument::class)->handle($pm, $document, 'tenant', true);
     $request = maintenanceRequest($pm, $unit);
 
     return [

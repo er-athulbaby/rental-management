@@ -3,7 +3,7 @@
 namespace App\Livewire\Documents;
 
 use App\Actions\Documents\DeleteDocument;
-use App\Actions\Documents\ShareDocumentWithTenant;
+use App\Actions\Documents\ShareDocument;
 use App\Actions\Documents\StoreDocument;
 use App\Enums\DocumentCategory;
 use App\Livewire\Concerns\WithActor;
@@ -110,7 +110,18 @@ class Panel extends Component
     }
 
     /** Spec 2026-10-18 tenant portal §4: flip "Share with tenant". The id is looked up inside this record (never a 500). */
-    public function toggleShare(mixed $documentId, ShareDocumentWithTenant $share): void
+    public function toggleShare(mixed $documentId, ShareDocument $share): void
+    {
+        $this->share($documentId, 'tenant', $share);
+    }
+
+    /** Spec 2026-10-21 owner portal §4: flip "Share with owner". The browser never names the audience. */
+    public function toggleOwnerShare(mixed $documentId, ShareDocument $share): void
+    {
+        $this->share($documentId, 'owner', $share);
+    }
+
+    private function share(mixed $documentId, string $audience, ShareDocument $share): void
     {
         $record = $this->documentable();
         $document = is_int($documentId) || (is_string($documentId) && ctype_digit($documentId))
@@ -123,7 +134,7 @@ class Panel extends Component
         }
 
         try {
-            $share->handle($this->actor(), $document, ! $document->shared_with_tenant);
+            $share->handle($this->actor(), $document, $audience, $audience === 'owner' ? ! $document->shared_with_owner : ! $document->shared_with_tenant);
         } catch (AuthorizationException) {
             abort(403);
         } catch (ValidationException $e) {
@@ -142,7 +153,8 @@ class Panel extends Component
                 ->where('documentable_id', $record->getKey())
                 ->latest()
                 ->get(),
-            'shareable' => in_array($this->type, Document::SHAREABLE, true),
+            'shareable' => in_array($this->type, Document::SHAREABLE['tenant'], true),
+            'ownerShareable' => in_array($this->type, Document::SHAREABLE['owner'], true),
             'canUpload' => $this->actor()->can('update', $record),
             // The generated contract is written only by StoreApprovedContract (spec §5.6).
             'categories' => array_filter(DocumentCategory::cases(), fn ($c) => $c !== DocumentCategory::GeneratedPdf),

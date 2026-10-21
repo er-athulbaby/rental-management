@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Audit\Audit;
+use App\Models\Document;
 use App\Models\PortalAccount;
 use App\Pdf\OwnerStatementPdf;
 use App\Portal\OwnerPortal;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -23,6 +25,16 @@ final class OwnerDownloadController
         Audit::log('owner_statement.exported', $model, properties: ['format' => 'pdf'], causer: $account);
 
         return $pdf->response($model);
+    }
+
+    /** Spec §4: a document shared with the owner on them, their contracts or their buildings; anything else is a 404. */
+    public function document(string $document): Response
+    {
+        $account = $this->account();
+        $model = Document::query()->sharedWithOwner((int) $account->owner_id)->findOrFail($document);
+        Audit::log('document.downloaded', $model, causer: $account);
+
+        return Storage::disk($model->disk)->download($model->path, $model->original_name);
     }
 
     private function account(): PortalAccount
