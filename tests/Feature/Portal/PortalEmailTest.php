@@ -61,7 +61,7 @@ test('a shared account refuses an email on one record that the other record does
 
     expect(fn () => app(SaveOwner::class)->handle($this->admin, $this->owner, ($this->ownerData)(['email' => 'new@owner.test'])))
         ->toThrow(ValidationException::class, 'This email is also the portal sign-in for Sara Tenant; change both together.')
-        ->and(fn () => app(SaveCustomer::class)->handle($this->leasing, $this->tenant, ($this->tenantData)(['email' => 'new@owner.test'])))
+        ->and(fn () => app(SaveCustomer::class)->handle($this->admin, $this->tenant, ($this->tenantData)(['email' => 'new@owner.test'])))
         ->toThrow(ValidationException::class, 'This email is also the portal sign-in for Ali Owner; change both together.')
         ->and(PortalAccount::query()->sole()->email)->toBe('ali@owner.test');
 });

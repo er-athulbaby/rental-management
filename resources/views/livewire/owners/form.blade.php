@@ -69,7 +69,7 @@
                     </flux:button>
                 @endif
                 @if ($portal['account'] && ! $portal['account']->disabled_at)
-                    <flux:button variant="ghost" wire:click="disablePortal" wire:confirm="{{ __('Disable this owner\'s portal access?') }}">{{ __('Disable') }}</flux:button>
+                    <flux:button variant="ghost" wire:click="disablePortal" wire:confirm="{{ __('Disable this owner\'s portal access?').($portal['other'] ? ' '.__('This also ends their access as tenant.') : '') }}">{{ __('Disable') }}</flux:button>
                 @elseif ($portal['account'])
                     <flux:button variant="ghost" wire:click="enablePortal">{{ __('Enable') }}</flux:button>
                 @endif

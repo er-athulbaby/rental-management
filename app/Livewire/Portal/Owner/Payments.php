@@ -24,7 +24,9 @@ class Payments extends Component
                 ->with(['contract' => fn ($q) => $q->with(['building' => fn ($b) => $b->withTrashed()])])
                 ->orderBy('due_date')->orderBy('id')->get(),
             'bank' => filled($owner->iban)
-                ? __('Bank transfers are paid to :bank, IBAN :iban.', ['bank' => (string) $owner->bank_name, 'iban' => (string) $owner->maskedIban()])
+                ? (filled($owner->bank_name)
+                    ? __('Bank transfers are paid to :bank, IBAN :iban.', ['bank' => (string) $owner->bank_name, 'iban' => (string) $owner->maskedIban()])
+                    : __('Bank transfers are paid to IBAN :iban.', ['iban' => (string) $owner->maskedIban()]))
                 : null,
         ])->title(__('Payments'));
     }

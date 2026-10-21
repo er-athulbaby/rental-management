@@ -50,12 +50,12 @@ final class SaveOwner
             'iban' => ['nullable', 'regex:/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/'],
             'account_name' => ['nullable', 'string', 'max:150'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ])->after(function (ValidatorInstance $validator) use ($data, $owner) {
+        ])->after(function (ValidatorInstance $validator) use ($actor, $data, $owner) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
             // Spec 2026-10-21 owner portal §3: the portal account follows the owner's email (plan ruling 7).
-            $problem = SyncPortalEmail::problem($owner, is_string($data['email'] ?? null) ? trim($data['email']) : null);
+            $problem = SyncPortalEmail::problem($actor, $owner, is_string($data['email'] ?? null) ? trim($data['email']) : null);
             if ($problem !== null) {
                 $validator->errors()->add('email', $problem);
             }
@@ -95,8 +95,12 @@ final class SaveOwner
                 }
 
                 return $owner;
-            });
-        } catch (UniqueConstraintViolationException) { // a racing invite or save took this email
+            }, attempts: 3);
+        } catch (UniqueConstraintViolationException $e) { // a racing invite or save took this email
+            if (! str_contains($e->getMessage(), 'portal_accounts_email_unique')) {
+                throw $e;
+            }
+
             throw ValidationException::withMessages(['email' => InviteToPortal::takenMessage($owner ?? new Owner)]);
         }
     }

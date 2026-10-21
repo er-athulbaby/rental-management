@@ -42,7 +42,7 @@ final class SaveCustomer
             'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'no_reminders' => ['sometimes', 'boolean'], // spec 2026-10-17 §6: "Don't send reminders"
-        ])->after(function (ValidatorInstance $validator) use ($data, $customer) {
+        ])->after(function (ValidatorInstance $validator) use ($actor, $data, $customer) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
@@ -62,7 +62,7 @@ final class SaveCustomer
             }
 
             // Spec 2026-10-18 tenant portal §3 and 2026-10-21 owner portal §3: the portal account follows the email (owner portal plan ruling 7).
-            $problem = SyncPortalEmail::problem($customer, is_string($data['email'] ?? null) ? $data['email'] : null);
+            $problem = SyncPortalEmail::problem($actor, $customer, is_string($data['email'] ?? null) ? $data['email'] : null);
             if ($problem !== null) {
                 $validator->errors()->add('email', $problem);
             }
@@ -79,7 +79,11 @@ final class SaveCustomer
 
                 return $customer;
             }, attempts: 3);
-        } catch (UniqueConstraintViolationException) { // a racing invite or save took this email
+        } catch (UniqueConstraintViolationException $e) { // a racing invite or save took this email
+            if (! str_contains($e->getMessage(), 'portal_accounts_email_unique')) {
+                throw $e;
+            }
+
             throw ValidationException::withMessages(['email' => __('Another tenant\'s portal account uses this email.')]);
         }
     }

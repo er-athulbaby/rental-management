@@ -5,6 +5,7 @@ namespace App\Actions\Portal;
 use App\Models\Customer;
 use App\Models\Owner;
 use App\Models\PortalAccount;
+use App\Models\User;
 use Illuminate\Support\Str;
 
 /**
@@ -14,7 +15,7 @@ use Illuminate\Support\Str;
 final class SyncPortalEmail
 {
     /** Why $email (trimmed; null clears it) cannot be saved on $record, or null when it can. */
-    public static function problem(Customer|Owner|null $record, ?string $email): ?string
+    public static function problem(User $actor, Customer|Owner|null $record, ?string $email): ?string
     {
         $account = $record?->exists ? PortalAccount::of($record) : null;
         if ($record === null || $account === null) {
@@ -39,7 +40,13 @@ final class SyncPortalEmail
             return InviteToPortal::takenMessage($record);
         }
         if ($otherEmail !== null && $otherEmail !== $email) {
-            return __('This email is also the portal sign-in for :name; change both together.', ['name' => $other->name_en]);
+            if ($actor->can('view', $other)) {
+                return __('This email is also the portal sign-in for :name; change both together.', ['name' => $other->name_en]);
+            }
+
+            return $other instanceof Customer
+                ? __('This email is also the portal sign-in for another tenant; change both together.')
+                : __('This email is also the portal sign-in for another owner; change both together.');
         }
 
         return null;
