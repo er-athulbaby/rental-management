@@ -3,8 +3,10 @@
 namespace App\Livewire\Agreements;
 
 use App\Actions\Agreements\SaveAgreement;
+use App\CustomFields\CustomFields;
 use App\Enums\AgreementStatus;
 use App\Enums\ChargeType;
+use App\Enums\CustomFieldEntity;
 use App\Enums\PaymentFrequency;
 use App\Enums\TaxCategory;
 use App\Livewire\Concerns\WithActor;
@@ -22,10 +24,11 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Form extends Component
 {
-    use WithActor;
+    use WithActor, WithFileUploads;
 
     #[Locked]
     public ?int $agreementId = null;
@@ -35,6 +38,9 @@ class Form extends Component
 
     /** @var array<int, array<string, mixed>> unit lines: unit_id, label, deposit_amount, start_date, end_date, charges */
     public array $units = [];
+
+    /** @var array<string, mixed> spec 2026-10-21 custom fields §4: "More details", field key => value (files are uploads) */
+    public array $custom = [];
 
     public string $customerSearch = '';
 
@@ -48,6 +54,7 @@ class Form extends Component
     {
         if (! $agreement?->exists) {
             abort_unless($this->actor()->can('create', Agreement::class), 403);
+            $this->custom = CustomFields::formValues(CustomFieldEntity::Agreement, null);
 
             return;
         }
@@ -77,6 +84,7 @@ class Form extends Component
                 'type' => $c->type->value, 'description' => $c->description, 'monthly_amount' => $c->monthly_amount, 'tax_category' => $c->tax_category->value,
             ])->values()->all(),
         ])->values()->all();
+        $this->custom = CustomFields::formValues(CustomFieldEntity::Agreement, $agreement);
     }
 
     public function selectCustomer(int $customerId): void
@@ -137,7 +145,7 @@ class Form extends Component
 
     public function save(SaveAgreement $save): void
     {
-        $data = [...$this->form, 'units' => array_map(fn (array $u) => collect($u)->except('label')->all(), $this->units)];
+        $data = [...$this->form, 'units' => array_map(fn (array $u) => collect($u)->except('label')->all(), $this->units), 'custom' => $this->custom];
 
         try {
             $agreement = $save->handle($this->actor(), $this->agreementId ? Agreement::findOrFail($this->agreementId) : null, $data);
@@ -146,7 +154,7 @@ class Form extends Component
         } catch (ValidationException $e) {
             // units.* keys match this component's $units property; header keys live under form.*.
             throw ValidationException::withMessages(collect($e->errors())
-                ->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'units') ? $k : "form.$k" => $m])->all());
+                ->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'units') || str_starts_with($k, 'custom.') ? $k : "form.$k" => $m])->all());
         }
 
         Flux::toast(variant: 'success', text: __('Draft saved.'));
@@ -167,6 +175,8 @@ class Form extends Component
             'chargeTypes' => ChargeType::cases(),
             'taxCategories' => TaxCategory::cases(),
             'templates' => ContractTemplate::query()->where('active', true)->orderBy('name')->get(['id', 'name']),
+            'customFields' => CustomFields::active(CustomFieldEntity::Agreement),
+            'customDocuments' => CustomFields::documents($this->agreementId !== null ? Agreement::query()->find($this->agreementId) : null),
         ])->title($this->agreementId ? __('Edit draft agreement') : __('New agreement'));
     }
 }

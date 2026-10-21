@@ -153,6 +153,8 @@
     "Payment reversal": "عكس دفعة",
     "Credit refund": "استرداد رصيد",
     "Credit refund reversal": "عكس استرداد رصيد",
+    "Save details": "حفظ التفاصيل",
+    "Details saved.": "تم حفظ التفاصيل.",
     "More details": "تفاصيل إضافية",
     "Enter :attribute as a number with up to 3 decimals.": "أدخل :attribute رقماً بثلاث خانات عشرية كحد أقصى.",
     "Choose :attribute from the list.": "اختر :attribute من القائمة.",
