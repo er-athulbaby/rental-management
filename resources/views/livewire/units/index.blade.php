@@ -19,6 +19,7 @@
         </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Unit code')" icon="magnifying-glass" class="sm:max-w-40" />
     </div>
+    <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
     <div class="overflow-x-auto">
         <flux:table :paginate="$units">

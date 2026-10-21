@@ -2,7 +2,10 @@
 
 namespace App\Livewire\Agreements;
 
+use App\CustomFields\CustomFieldFilter;
+use App\CustomFields\CustomFields;
 use App\Enums\AgreementStatus;
+use App\Enums\CustomFieldEntity;
 use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
@@ -27,6 +30,9 @@ class Index extends Component
     #[Url]
     public string $search = '';
 
+    /** Spec 2026-10-21 custom fields §5 "More filters": field, op, value, from, to, choices. Mixed and not in the URL, so a tampered value is ignored, never a TypeError (plan ruling 6). */
+    public mixed $more = [];
+
     public function updating(): void
     {
         $this->resetPage();
@@ -48,9 +54,11 @@ class Index extends Component
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('number', 'like', '%'.$this->search.'%')
                 ->orWhereHas('customer', fn ($c) => $c->search($this->search))))
+            ->tap(fn ($q) => CustomFieldFilter::apply($q, CustomFieldEntity::Agreement, $this->more))
             ->latest('id')
             ->paginate(25);
 
-        return view('livewire.agreements.index', ['agreements' => $agreements, 'statuses' => AgreementStatus::cases()]);
+        return view('livewire.agreements.index', ['agreements' => $agreements, 'statuses' => AgreementStatus::cases(),
+            'customFields' => CustomFields::active(CustomFieldEntity::Agreement)]);
     }
 }

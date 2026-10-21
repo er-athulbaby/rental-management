@@ -7,6 +7,7 @@
     </div>
 
     <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name or exact ID number')" icon="magnifying-glass" class="sm:max-w-xs" />
+    <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
     <div class="overflow-x-auto">
         <flux:table :paginate="$owners">
