@@ -69,3 +69,28 @@ test('a request logged before their contract started is not theirs', function ()
     $this->get(route('portal.owner.maintenance'))->assertOk()->assertDontSee($old->number);
     $this->get(route('portal.owner.maintenance.show', $old))->assertNotFound();
 });
+
+test('two owners on different units of one building each see only their own unit\'s requests plus the common-area ones', function () {
+    $shared = Building::factory()->create(['name' => 'Shared Block']);
+    $this->admin->buildings()->syncWithoutDetaching([$shared->id]);
+    $unitA = Unit::factory()->for($shared)->create(['code' => 'SA']);
+    $unitB = Unit::factory()->for($shared)->create(['code' => 'SB']);
+    foreach ([[$this->a, $unitA], [$this->b, $unitB]] as [$f, $unit]) {
+        activeOwnerContract(['owner_id' => $f['owner']->id, 'building_id' => $shared->id, 'type' => 'managed', 'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31', 'fee_type' => 'fixed', 'fee_value' => '0.000', 'deposits_held_by' => 'company', 'created_by' => $this->admin->id], [$unit]);
+    }
+    $onA = maintenanceRequest($this->admin, $unitA);
+    $onB = maintenanceRequest($this->admin, $unitB);
+    $common = maintenanceRequest($this->admin, $unitA, ['unit_id' => null, 'customer_id' => null]);
+
+    $this->get(route('portal.owner.maintenance'))->assertOk()
+        ->assertSee($onA->number)->assertSee($common->number)->assertDontSee($onB->number);
+    $this->get(route('portal.owner.maintenance.show', $onA))->assertOk();
+    $this->get(route('portal.owner.maintenance.show', $common))->assertOk();
+    $this->get(route('portal.owner.maintenance.show', $onB))->assertNotFound();
+
+    $this->flushSession()->actingAs($this->b['account'], 'tenant');
+    $this->get(route('portal.owner.maintenance'))->assertOk()
+        ->assertSee($onB->number)->assertSee($common->number)->assertDontSee($onA->number);
+    $this->get(route('portal.owner.maintenance.show', $onA))->assertNotFound();
+});

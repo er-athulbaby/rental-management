@@ -68,7 +68,7 @@ final class OwnerPortal
             ->whereIn('owner_contract_id', OwnerContract::query()->portalFor($ownerId)->select('id'));
     }
 
-    /** @return Builder<MaintenanceRequest> requests in their buildings, logged on a day one of their contracts on that building covered */
+    /** @return Builder<MaintenanceRequest> requests on their units (common-area ones: their buildings), logged on a day that contract covered */
     public static function requests(int $ownerId): Builder
     {
         return MaintenanceRequest::query()->whereExists(fn (QueryBuilder $q) => $q->from('owner_contracts as oc')
@@ -76,7 +76,10 @@ final class OwnerPortal
             ->where('oc.owner_id', $ownerId)
             ->whereIn('oc.status', array_map(fn (OwnerContractStatus $s) => $s->value, OwnerContract::ATTRIBUTED))
             ->whereRaw('oc.start_date <= DATE(maintenance_requests.created_at)')
-            ->whereRaw('COALESCE(oc.terminated_on, oc.end_date) >= DATE(maintenance_requests.created_at)'));
+            ->whereRaw('COALESCE(oc.terminated_on, oc.end_date) >= DATE(maintenance_requests.created_at)')
+            // A unit request belongs only to the contract that holds that unit; a common-area one to any contract on the building.
+            ->where(fn (QueryBuilder $w) => $w->whereNull('maintenance_requests.unit_id')->orWhereExists(fn (QueryBuilder $u) => $u->from('owner_contract_units as ocu')
+                ->whereColumn('ocu.owner_contract_id', 'oc.id')->whereColumn('ocu.unit_id', 'maintenance_requests.unit_id'))));
     }
 
     /** What a request cost the owner: its work orders' recorded expenses charged to the owner on their contracts. */
