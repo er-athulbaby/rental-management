@@ -4,6 +4,7 @@ use App\Livewire\Admin\AuditLog;
 use App\Livewire\Admin\Banks;
 use App\Livewire\Admin\CompanySettings;
 use App\Livewire\Admin\ContractTemplates;
+use App\Livewire\Admin\CustomFieldSettings;
 use App\Livewire\Admin\EmailSettings;
 use App\Livewire\Admin\Facilities;
 use App\Livewire\Admin\Roles;
@@ -17,6 +18,7 @@ Route::middleware(['auth:web'])->prefix('admin')->name('admin.')->group(function
     Route::livewire('facilities', Facilities::class)->middleware('can:settings.manage')->name('facilities');
     Route::livewire('unit-types', UnitTypes::class)->middleware('can:settings.manage')->name('unit-types');
     Route::livewire('banks', Banks::class)->middleware('can:settings.manage')->name('banks');
+    Route::livewire('custom-fields', CustomFieldSettings::class)->middleware('can:settings.manage')->name('custom-fields');
     Route::livewire('reminders', TenantReminders::class)->middleware('can:settings.manage')->name('reminders');
     Route::livewire('email', EmailSettings::class)->middleware('can:settings.manage')->name('email');
 
