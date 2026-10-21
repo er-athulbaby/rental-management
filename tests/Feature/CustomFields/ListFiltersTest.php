@@ -2,6 +2,7 @@
 
 use App\CustomFields\CustomFieldFilter;
 use App\Enums\CustomFieldEntity;
+use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
 use App\Livewire\Agreements\Index as AgreementsIndex;
 use App\Livewire\Buildings\Index as BuildingsIndex;
@@ -11,6 +12,7 @@ use App\Livewire\Units\Index as UnitsIndex;
 use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Owner;
 use App\Models\Unit;
 use App\Models\User;
@@ -110,3 +112,18 @@ test('every list offers "More filters" and shrugs off a tampered filter', functi
     'owners' => [OwnersIndex::class, 'owner'],
     'agreements' => [AgreementsIndex::class, 'agreement'],
 ]);
+
+test('a file field is empty once its document is soft-deleted', function () {
+    $scan = customField('owner', 'file', 'Scan');
+    [$live, $gone, $none] = Owner::factory()->count(3)->create()->all();
+    $doc = fn (Owner $o) => tap((new Document(['category' => DocumentCategory::CustomField, 'disk' => 'local', 'path' => 'documents/'.$o->id.'-x.pdf',
+        'original_name' => 'x.pdf', 'mime' => 'application/pdf', 'size' => 1, 'uploaded_by' => $this->admin->id]))->documentable()->associate($o))->save();
+    $d1 = $doc($live);
+    $d2 = $doc($gone);
+    customValue($scan, $live, ['document_id' => $d1->id]);
+    customValue($scan, $gone, ['document_id' => $d2->id]);
+    $d2->delete();
+
+    $empty = CustomFieldFilter::apply(Owner::query(), CustomFieldEntity::Owner, ['field' => 'scan', 'op' => 'empty'])->orderBy('id')->pluck('id')->all();
+    expect($empty)->toBe([$gone->id, $none->id]);
+});

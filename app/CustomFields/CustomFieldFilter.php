@@ -46,6 +46,10 @@ final class CustomFieldFilter
         $column = $field->type->column();
         $key = $query->getModel()->getQualifiedKeyName();
         $filled = CustomFieldValue::query()->select('entity_id')->where('custom_field_id', $field->id)->whereNotNull($column);
+        // A soft-deleted file reads as empty on the record (plan ruling 4), so it is not filled here either.
+        if ($field->type === CustomFieldType::File) {
+            $filled->whereHas('document');
+        }
 
         if ($filter['op'] === 'empty') {
             return $query->whereNotIn($key, $filled);
