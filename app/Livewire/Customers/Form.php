@@ -95,6 +95,7 @@ class Form extends Component
     public function render(): View
     {
         $customer = $this->customerId ? Customer::findOrFail($this->customerId) : null;
+        $account = $customer ? PortalAccount::of($customer) : null;
 
         return view('livewire.customers.form', [
             'customer' => $customer,
@@ -109,8 +110,7 @@ class Form extends Component
                 ? MaintenanceRequest::query()->visibleTo($this->actor())->where('customer_id', $customer->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
             'portal' => $customer && $this->actor()->can('update', $customer) ? [
-                'account' => PortalAccount::query()->where('customer_id', $customer->id)->first(),
-                'mailReady' => (new EmailChannel)->ready(),
+                'account' => $account, 'other' => $account?->otherThan($customer), 'mailReady' => (new EmailChannel)->ready(),
             ] : null,
         ])->title($customer ? $customer->name_en : __('New tenant'));
     }
