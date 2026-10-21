@@ -86,7 +86,7 @@
                 </flux:text>
             @endif
             @if ($portal['other'])
-                <flux:text>{{ __('Also used by owner :name', ['name' => $portal['other']->name_en]) }}</flux:text>
+                <flux:text>{{ $portal['otherSeen'] ? __('Also used by owner :name', ['name' => $portal['other']->name_en]) : __('Also used by another owner') }}</flux:text>
             @endif
             @if (! $portal['mailReady'])
                 <flux:text>{{ __('Portal email is not set up.') }}</flux:text>

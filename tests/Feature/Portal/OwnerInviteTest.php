@@ -15,6 +15,8 @@ use App\Models\Unit;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -153,4 +155,32 @@ test('the owner page portal buttons take no arguments from the browser', functio
         expect($parameters)->toHaveCount(1)
             ->and($parameters[0]->getType()?->getName())->toBeIn([InviteToPortal::class, SetPortalAccess::class]);
     }
+});
+
+test('a losing invite race is retried on a unique violation, a deadlock or a lock wait timeout, and on nothing else', function () {
+    // Not a two-connection test: the gap-lock deadlock needs two live MySQL sessions racing; the predicate is what decides the retry.
+    $query = fn (int $code) => new QueryException('mysql', 'insert', [], new PDOException('x', $code));
+    $deadlock = $query(40001);
+    $deadlock->errorInfo = ['40001', 1213, 'Deadlock'];
+    $timeout = $query(1);
+    $timeout->errorInfo = ['HY000', 1205, 'Lock wait timeout'];
+    $other = $query(1);
+    $other->errorInfo = ['42S02', 1146, 'No table'];
+
+    expect(InviteToPortal::retryable($deadlock))->toBeTrue()
+        ->and(InviteToPortal::retryable($timeout))->toBeTrue()
+        ->and(InviteToPortal::retryable(new UniqueConstraintViolationException('mysql', 'insert', [], new PDOException)))->toBeTrue()
+        ->and(InviteToPortal::retryable($other))->toBeFalse()
+        ->and(InviteToPortal::retryable(new RuntimeException))->toBeFalse();
+});
+
+test('"Also used by" names the other record only to staff who can view it', function () {
+    portalAccount($this->tenant, ['owner_id' => $this->owner->id]);
+    $leasing = matrixUser(R::Leasing, $this->building); // manages tenants here, cannot view owners
+
+    Livewire::actingAs($leasing, 'web')->test(CustomerForm::class, ['customer' => $this->tenant])
+        ->assertSee('Also used by another owner')->assertDontSee('Ali Owner');
+    ($this->page)()->assertSee('Also used by tenant Sara Tenant');
+
+    Livewire::actingAs($this->admin, 'web')->test(CustomerForm::class, ['customer' => $this->tenant])->assertSee('Also used by owner Ali Owner');
 });

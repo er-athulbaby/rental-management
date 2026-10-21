@@ -161,6 +161,8 @@
     "This owner has not been invited to the portal.": "لم تتم دعوة هذا المالك إلى البوابة.",
     "Add the owner's email before enabling the portal.": "أضف البريد الإلكتروني للمالك قبل تفعيل البوابة.",
     "Also used by owner :name": "يستخدمه أيضاً المالك :name",
+    "Also used by another owner": "يستخدمه أيضاً مالك آخر",
+    "Also used by another tenant": "يستخدمه أيضاً مستأجر آخر",
     "Also used by tenant :name": "يستخدمه أيضاً المستأجر :name",
     "Disable this owner's portal access?": "تعطيل وصول هذا المالك إلى البوابة؟",
     "Sign in to the portal": "تسجيل الدخول إلى البوابة",

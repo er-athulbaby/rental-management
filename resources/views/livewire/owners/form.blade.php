@@ -57,7 +57,7 @@
                 </flux:text>
             @endif
             @if ($portal['other'])
-                <flux:text>{{ __('Also used by tenant :name', ['name' => $portal['other']->name_en]) }}</flux:text>
+                <flux:text>{{ $portal['otherSeen'] ? __('Also used by tenant :name', ['name' => $portal['other']->name_en]) : __('Also used by another tenant') }}</flux:text>
             @endif
             @if (! $portal['mailReady'])
                 <flux:text>{{ __('Portal email is not set up.') }}</flux:text>
@@ -77,7 +77,6 @@
             <flux:error name="portal" />
         </flux:card>
     @endif
-
 
     @if ($owner)
         <livewire:documents.panel :documentable="$owner" :key="'docs-owner-'.$owner->id" />

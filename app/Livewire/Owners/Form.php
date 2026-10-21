@@ -113,7 +113,7 @@ class Form extends Component
             'canViewBank' => $owner ? $this->actor()->can('viewBank', $owner) : $this->actor()->can('owners.bank.manage'),
             'canEditBank' => $owner ? $this->actor()->can('updateBank', $owner) : $this->actor()->can('owners.bank.manage'),
             'portal' => $owner && $this->actor()->can('update', $owner) ? [
-                'account' => $account, 'other' => $account?->otherThan($owner), 'mailReady' => (new EmailChannel)->ready(),
+                'account' => $account, 'other' => $account?->otherThan($owner), 'otherSeen' => ($other = $account?->otherThan($owner)) !== null && $this->actor()->can('view', $other), 'mailReady' => (new EmailChannel)->ready(),
             ] : null,
         ])->title($owner ? $owner->name_en : __('New owner'));
     }

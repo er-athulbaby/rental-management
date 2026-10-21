@@ -110,7 +110,7 @@ class Form extends Component
                 ? MaintenanceRequest::query()->visibleTo($this->actor())->where('customer_id', $customer->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
             'portal' => $customer && $this->actor()->can('update', $customer) ? [
-                'account' => $account, 'other' => $account?->otherThan($customer), 'mailReady' => (new EmailChannel)->ready(),
+                'account' => $account, 'other' => $account?->otherThan($customer), 'otherSeen' => ($other = $account?->otherThan($customer)) !== null && $this->actor()->can('view', $other), 'mailReady' => (new EmailChannel)->ready(),
             ] : null,
         ])->title($customer ? $customer->name_en : __('New tenant'));
     }

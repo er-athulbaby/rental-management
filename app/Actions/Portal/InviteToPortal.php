@@ -10,6 +10,7 @@ use App\Models\PortalAccount;
 use App\Models\User;
 use App\Reminders\EmailChannel;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\DB;
@@ -43,8 +44,12 @@ final class InviteToPortal
         try {
             // Two invites for the two kinds of one new email can both insert; the loser's second try links to the winner's row.
             $account = retry(2, fn () => DB::transaction(fn () => $this->write($actor, $record, $email)), 0,
-                fn (Throwable $e) => $e instanceof UniqueConstraintViolationException);
-        } catch (UniqueConstraintViolationException) {
+                self::retryable(...));
+        } catch (QueryException $e) {
+            if (! self::retryable($e)) {
+                throw $e;
+            }
+
             throw ValidationException::withMessages(['portal' => self::takenMessage($record)]);
         }
 
@@ -57,6 +62,13 @@ final class InviteToPortal
         }
 
         return $account;
+    }
+
+    /** A losing race: a unique violation, or the deadlock (1213) / lock wait timeout (1205) two gap-locked inserts of one new email end in. */
+    public static function retryable(Throwable $e): bool
+    {
+        return $e instanceof UniqueConstraintViolationException
+            || ($e instanceof QueryException && in_array($e->errorInfo[1] ?? 0, [1213, 1205], true));
     }
 
     /** "Another tenant's / owner's portal account uses this email." */
