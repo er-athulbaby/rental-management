@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal\Owner;
 
+use App\CustomFields\CustomFields;
 use App\Livewire\Concerns\InPortal;
 use App\Portal\OwnerPortal;
 use Illuminate\Contracts\View\View;
@@ -16,6 +17,12 @@ class Buildings extends Component
 
     public function render(): View
     {
-        return view('livewire.portal.owner.buildings', ['buildings' => OwnerPortal::buildings($this->ownerId())])->title(__('Buildings'));
+        $buildings = OwnerPortal::buildings($this->ownerId());
+
+        return view('livewire.portal.owner.buildings', [
+            'buildings' => $buildings,
+            // Spec 2026-10-21 custom fields §5: building fields marked "Show in portal" on the building cards (plan ruling 8).
+            'details' => $buildings->mapWithKeys(fn (array $card) => [$card['building']->id => CustomFields::display($card['building'], portal: true)])->all(),
+        ])->title(__('Buildings'));
     }
 }

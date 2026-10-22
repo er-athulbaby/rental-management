@@ -1,5 +1,6 @@
 <section class="space-y-6">
     <flux:heading size="xl" level="1">{{ __('Welcome, :name', ['name' => $name]) }}</flux:heading>
+    <x-custom-fields.display :items="$details" file-route="portal.custom-fields.file" />
 
     <div class="grid grid-cols-2 gap-3">
         <flux:card>

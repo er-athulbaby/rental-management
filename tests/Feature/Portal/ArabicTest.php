@@ -24,6 +24,7 @@ test('every __() string in the portal files has an Arabic translation', function
         ...glob(resource_path('views/livewire/portal/owner/*.blade.php')),
         ...glob(app_path('Livewire/Portal/Owner/*.php')),
         resource_path('views/layouts/portal.blade.php'),
+        resource_path('views/components/custom-fields/display.blade.php'),
         ...glob(app_path('Livewire/Portal/*.php')),
         app_path('Http/Middleware/PortalSession.php'),
         app_path('Actions/Portal/SendLoginCode.php'),

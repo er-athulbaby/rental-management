@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Audit\Audit;
+use App\CustomFields\CustomFields;
 use App\Models\Document;
 use App\Models\PortalAccount;
 use App\Pdf\OwnerStatementPdf;
@@ -32,6 +33,16 @@ final class OwnerDownloadController
     {
         $account = $this->account();
         $model = Document::query()->sharedWithOwner((int) $account->owner_id)->findOrFail($document);
+        Audit::log('document.downloaded', $model, causer: $account);
+
+        return Storage::disk($model->disk)->download($model->path, $model->original_name);
+    }
+
+    /** Spec 2026-10-21 custom fields §5: a "Show in portal" file on the owner or a building of their contracts (plan ruling 8). */
+    public function customFieldFile(string $document): Response
+    {
+        $account = $this->account();
+        $model = CustomFields::portalDocument($document, CustomFields::ownerScope((int) $account->owner_id));
         Audit::log('document.downloaded', $model, causer: $account);
 
         return Storage::disk($model->disk)->download($model->path, $model->original_name);

@@ -4,14 +4,19 @@ namespace App\CustomFields;
 
 use App\Actions\Documents\StoreDocument;
 use App\Audit\Audit;
+use App\Enums\AgreementStatus;
 use App\Enums\CustomFieldEntity;
 use App\Enums\CustomFieldType;
 use App\Enums\DocumentCategory;
+use App\Models\Agreement;
+use App\Models\AgreementUnit;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\Document;
+use App\Models\OwnerContract;
 use App\Models\User;
 use App\Support\Fils;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -220,6 +225,56 @@ final class CustomFields
         }
 
         return $items;
+    }
+
+    /**
+     * Plan ruling 8: the records whose "Show in portal" files a signed-in tenant may download: themselves, their
+     * agreements past approval (as the Agreements page lists them) and those agreements' units.
+     *
+     * @return array<string, list<int>|Builder<Agreement>|Builder<AgreementUnit>>
+     */
+    public static function tenantScope(int $customerId): array
+    {
+        $agreements = fn () => Agreement::query()->where('customer_id', $customerId)
+            ->whereNotIn('status', [AgreementStatus::Draft, AgreementStatus::PendingApproval])->select('id');
+
+        return [
+            CustomFieldEntity::Customer->value => [$customerId],
+            CustomFieldEntity::Agreement->value => $agreements(),
+            CustomFieldEntity::Unit->value => AgreementUnit::query()->whereIn('agreement_id', $agreements())->select('unit_id'),
+        ];
+    }
+
+    /**
+     * Plan ruling 8: the owner and the buildings of their contracts (owner portal plan ruling 8).
+     *
+     * @return array<string, list<int>|Builder<OwnerContract>>
+     */
+    public static function ownerScope(int $ownerId): array
+    {
+        return [
+            CustomFieldEntity::Owner->value => [$ownerId],
+            CustomFieldEntity::Building->value => OwnerContract::query()->portalFor($ownerId)->select('building_id'),
+        ];
+    }
+
+    /**
+     * Plan ruling 8: a file a portal page links to is the current file of an active "Show in portal" file field on one
+     * of $scope's records. Anything else is a 404, including a replaced file and a deleted document.
+     *
+     * @param  array<string, list<int>|Builder<Agreement>|Builder<AgreementUnit>|Builder<OwnerContract>>  $scope  entity => record ids
+     */
+    public static function portalDocument(string $documentId, array $scope): Document
+    {
+        $value = CustomFieldValue::query()->where('document_id', $documentId)
+            ->whereHas('field', fn (Builder $f) => $f->where('type', CustomFieldType::File)->where('in_portal', true)->whereNull('archived_at'))
+            ->where(function (Builder $q) use ($scope) {
+                foreach ($scope as $entity => $ids) {
+                    $q->orWhere(fn (Builder $w) => $w->where('entity', $entity)->whereIn('entity_id', $ids));
+                }
+            })->firstOrFail();
+
+        return Document::query()->findOrFail($value->document_id);
     }
 
     /** A validated input as its column stores it (plan ruling 1); blank is null. */

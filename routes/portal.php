@@ -32,6 +32,7 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
             Route::get('statement/pdf', [DownloadController::class, 'statement'])->name('statement.pdf');
             Route::livewire('documents', Portal\Documents::class)->name('documents');
             Route::get('documents/{document}', [DownloadController::class, 'document'])->whereNumber('document')->name('documents.download');
+            Route::get('custom-fields/{document}', [DownloadController::class, 'customFieldFile'])->whereNumber('document')->name('custom-fields.file');
             Route::livewire('maintenance', Portal\Maintenance::class)->name('maintenance');
             Route::livewire('maintenance/new', Portal\NewMaintenanceRequest::class)->name('maintenance.create');
             Route::livewire('maintenance/{maintenance}', Portal\MaintenanceShow::class)->whereNumber('maintenance')->name('maintenance.show');
@@ -41,6 +42,7 @@ Route::prefix('portal')->name('portal.')->middleware(PortalSession::class)->grou
             Route::livewire('/', Portal\Owner\Home::class)->name('home');
             Route::livewire('documents', Portal\Owner\Documents::class)->name('documents');
             Route::get('documents/{document}', [OwnerDownloadController::class, 'document'])->whereNumber('document')->name('documents.download');
+            Route::get('custom-fields/{document}', [OwnerDownloadController::class, 'customFieldFile'])->whereNumber('document')->name('custom-fields.file');
             Route::livewire('maintenance', Portal\Owner\Maintenance::class)->name('maintenance');
             Route::livewire('maintenance/{maintenance}', Portal\Owner\MaintenanceShow::class)->whereNumber('maintenance')->name('maintenance.show');
             Route::livewire('buildings', Portal\Owner\Buildings::class)->name('buildings');
