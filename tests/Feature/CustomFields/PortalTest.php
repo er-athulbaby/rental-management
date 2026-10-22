@@ -5,6 +5,7 @@ use App\Actions\Documents\StoreDocument;
 use App\Actions\EnsureNumberSequences;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
+use App\Models\Agreement;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -134,4 +135,36 @@ test('made-up ids and deleted documents are a 404 on both portal file routes', f
     }
     $this->aliPlan->delete();
     $this->get(route('portal.owner.custom-fields.file', $this->aliPlan))->assertNotFound();
+});
+
+test('an owner whose contract has ended sees no building fields and cannot download its files; a current owner still does', function () {
+    $this->actingAs($this->ali['account'], 'tenant')->get(route('portal.owner.buildings'))->assertOk()->assertSee('TD-TOWER-7')->assertSee('ali-plan.pdf');
+    $this->get(route('portal.owner.custom-fields.file', $this->aliPlan))->assertOk();
+
+    $this->travelTo(CarbonImmutable::parse('2027-01-15 10:00', 'Asia/Bahrain')); // both of Ali's contracts ended on 2026-12-31
+    $this->get(route('portal.owner.buildings'))->assertOk()->assertSee('Ali Owner Tower')->assertDontSee('TD-TOWER-7')->assertDontSee('ali-plan.pdf');
+    $this->get(route('portal.owner.custom-fields.file', $this->aliPlan))->assertNotFound();
+    $this->get(route('portal.owner.home'))->assertOk()->assertSee('PL-7'); // the owner's own fields stay
+});
+
+test('a contract terminated early stops showing building fields', function () {
+    $this->ali['managed']->forceFill(['terminated_on' => '2026-10-20', 'termination_reason' => 'Sold', 'status' => 'terminated'])->save();
+
+    $this->actingAs($this->ali['account'], 'tenant')->get(route('portal.owner.buildings'))->assertOk()->assertDontSee('TD-TOWER-7');
+    $this->get(route('portal.owner.custom-fields.file', $this->aliPlan))->assertNotFound();
+});
+
+test('a tenant whose agreement has ended sees no unit fields and cannot download their files; a current tenant still does', function () {
+    $unit = Unit::query()->where('code', '101')->sole();
+    $plan = customField('unit', 'file', 'Floor plan', ['in_portal' => true]);
+    $document = app(StoreDocument::class)->handle($this->admin, $unit, UploadedFile::fake()->create('floor.pdf', 5, 'application/pdf'), DocumentCategory::CustomField);
+    customValue($plan, $unit, ['document_id' => $document->id]);
+
+    $this->actingAs($this->saraAccount, 'tenant')->get(route('portal.agreements'))->assertOk()->assertSee('EWA-101')->assertSee('floor.pdf');
+    $this->get(route('portal.custom-fields.file', $document))->assertOk();
+
+    Agreement::query()->where('customer_id', $this->saraAccount->customer_id)->update(['status' => 'expired']);
+    $this->get(route('portal.agreements'))->assertOk()->assertSee('Gulf Realty')->assertDontSee('EWA-101')->assertDontSee('floor.pdf'); // the agreement's own fields stay
+    $this->get(route('portal.custom-fields.file', $document))->assertNotFound();
+    $this->get(route('portal.home'))->assertOk()->assertSee('Bapco'); // so do the tenant's own
 });

@@ -4,6 +4,7 @@ use App\Actions\CustomFields\DeleteCustomField;
 use App\Actions\CustomFields\MoveCustomField;
 use App\Actions\CustomFields\SaveCustomField;
 use App\Actions\CustomFields\SetCustomFieldArchived;
+use App\CustomFields\CustomFields;
 use App\Enums\RoleName;
 use App\Livewire\Admin\CustomFieldSettings;
 use App\Models\CustomField;
@@ -13,6 +14,7 @@ use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
@@ -164,4 +166,52 @@ test('tampered ids and kinds give a 404 or a message, never a 500', function () 
     Livewire::actingAs($this->admin)->test(CustomFieldSettings::class)->set('entity', 'invoice')->assertNotFound();
     Livewire::actingAs($this->admin)->test(CustomFieldSettings::class)->set('entity', 'unit')->call('edit', $parking->id)
         ->set('choices.0.id', $sea->id)->call('save')->assertHasErrors('choices.0.id');
+});
+
+test('a type change checks for values under the field\'s row lock', function () {
+    $field = ($this->save)([]);
+    customValue($field, Unit::factory()->create(), ['value_text' => 'EWA-1']);
+
+    $sql = [];
+    DB::listen(function ($q) use (&$sql) {
+        $sql[] = $q->sql;
+    });
+    expect(fn () => ($this->save)(['type' => 'number'], $field))->toThrow(ValidationException::class, 'The type cannot change once values are saved.');
+
+    $locked = collect($sql)->search(fn (string $s) => str_contains($s, 'from `custom_fields`') && str_contains($s, 'for update'));
+    $checked = collect($sql)->search(fn (string $s) => str_contains($s, 'from `custom_field_values`'));
+    expect($locked)->not->toBeFalse()->and($checked)->not->toBeFalse()->and($locked)->toBeLessThan($checked);
+});
+
+test('a blank choice row does not block saving a field that is not a choice list', function () {
+    $field = customField('unit', 'choice', 'Parking', choices: ['Covered']);
+
+    Livewire::actingAs($this->admin)->test(CustomFieldSettings::class)
+        ->set('entity', 'unit')->call('edit', $field->id)
+        ->call('addChoice')
+        ->set('form.type', 'text')
+        ->call('save')->assertHasNoErrors();
+
+    expect($field->refresh()->type->value)->toBe('text')->and($field->choices()->count())->toBe(0);
+});
+
+test('two fields with one English label are audited apart when both change in one save', function () {
+    $first = customField('unit', 'text', 'Phone');
+    $second = customField('unit', 'text', 'Phone');
+    $unit = Unit::factory()->create();
+
+    CustomFields::save($this->admin, $unit, [$first->key => '111', $second->key => '222']);
+
+    $audit = Activity::query()->where('event', 'custom_fields.changed')->sole();
+    expect($first->key)->not->toBe($second->key)
+        ->and($audit->attribute_changes['attributes'])->toBe(["Phone ({$first->key})" => '111', "Phone ({$second->key})" => '222']);
+});
+
+test('the audit names a hidden choice in English whatever the admin\'s language', function () {
+    app()->setLocale('ar');
+    $field = ($this->save)(['type' => 'choice', 'choices' => [($this->choice)('Sea')]]);
+    ($this->save)(['type' => 'choice', 'choices' => [($this->choice)('Sea', $field->choices()->value('id'), hidden: true)]], $field);
+
+    $audit = Activity::query()->where('event', 'custom_field.updated')->sole();
+    expect($audit->attribute_changes['attributes']['choices'])->toBe(['Sea (Hidden)']);
 });

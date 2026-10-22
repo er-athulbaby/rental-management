@@ -10,7 +10,7 @@
                 <div class="text-sm text-zinc-600 dark:text-zinc-300">{{ $a->agreementUnits->map(fn ($au) => $au->unit->building->name.' '.$au->unit->code)->implode(', ') }}</div>
                 <x-custom-fields.display :items="$details[$a->id] ?? []" file-route="portal.custom-fields.file" />
                 @foreach ($a->agreementUnits as $au)
-                    @if (($unitDetails[$au->unit_id] ?? []) !== [])
+                    @if ($a->status === \App\Enums\AgreementStatus::Active && ($unitDetails[$au->unit_id] ?? []) !== [])
                         <flux:text size="sm" class="font-medium">{{ __('Unit') }} {{ $au->unit->code }}</flux:text>
                         <x-custom-fields.display :items="$unitDetails[$au->unit_id]" file-route="portal.custom-fields.file" />
                     @endif

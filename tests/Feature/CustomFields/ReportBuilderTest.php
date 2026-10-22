@@ -153,3 +153,15 @@ test('a custom field a saved report uses cannot be deleted, so no new field can 
     app(DeleteCustomField::class)->handle($this->admin, $free);
     expect(CustomField::query()->find($free->id))->toBeNull()->and(CustomField::query()->find($used->id))->not->toBeNull();
 });
+
+test('the delete guard matches the whole key: cf_score_2 does not block score, and a key only in a report name does not either', function () {
+    $score = customField('unit', 'text', 'Score');
+    $other = customField('unit', 'text', 'Score 2');
+    SavedReport::create(['name' => 'Uses cf_score', 'subject' => 'units', 'visibility' => 'private', 'created_by' => $this->admin->id, 'updated_by' => $this->admin->id,
+        'definition' => ['version' => 1, 'columns' => ['code', 'cf_score_2']]]);
+
+    expect($other->key)->toBe('score_2');
+    app(DeleteCustomField::class)->handle($this->admin, $score);
+    expect(CustomField::query()->find($score->id))->toBeNull()
+        ->and(fn () => app(DeleteCustomField::class)->handle($this->admin, $other))->toThrow(ValidationException::class, 'used by a saved report');
+});

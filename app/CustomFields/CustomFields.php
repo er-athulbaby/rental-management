@@ -35,9 +35,10 @@ final class CustomFields
     public const string FILE_MIMES = 'jpg,jpeg,png,webp,pdf';
 
     /** @return Collection<int, CustomField> the kind's active fields in order, with their choices */
-    public static function active(CustomFieldEntity $entity): Collection
+    public static function active(CustomFieldEntity $entity, bool $shared = false): Collection
     {
-        return CustomField::query()->where('entity', $entity)->whereNull('archived_at')->with('choices')->orderBy('position')->orderBy('id')->get();
+        return CustomField::query()->where('entity', $entity)->whereNull('archived_at')->with('choices')->orderBy('position')->orderBy('id')
+            ->when($shared, fn (Builder $q) => $q->sharedLock())->get();
     }
 
     /** @return Collection<int, CustomFieldValue> the record's values keyed by field id, with the choice and the (not deleted) document */
@@ -97,17 +98,20 @@ final class CustomFields
      * field's file; the old one stays among the record's documents (plan ruling 4). Every change is audited once per
      * save, with old and new text (plan ruling 13).
      *
-     * ponytail: a retried transaction (SaveCustomer's attempts: 3) stores a sent file again; harmless, the value points at the last one.
+     * ponytail: a retried transaction (SaveCustomer's attempts: 3) stores a sent file again, and a rollback leaves the stored file on disk
+     * with no document row; harmless orphans, the value points at the last document.
      *
      * @param  array<string, mixed>  $values  validated, keyed by field key
      */
     public static function save(User $actor, Model $record, array $values): void
     {
         $entity = CustomFieldEntity::of($record);
+        // Share-locked, so a type change (SaveCustomField locks the field row) waits for this save or sees its value row.
+        $fields = self::active($entity, shared: true);
         $existing = self::values($record);
         $old = [];
         $new = [];
-        foreach (self::active($entity) as $field) {
+        foreach ($fields as $field) {
             if (! array_key_exists($field->key, $values)) {
                 continue;
             }
@@ -130,8 +134,10 @@ final class CustomFields
             $row ??= (new CustomFieldValue)->forceFill(['custom_field_id' => $field->id, 'entity' => $entity, 'entity_id' => $record->getKey()]);
             $row->forceFill([$column => $value, 'updated_by' => $actor->id])->save();
             $row->unsetRelations();
-            $old[$field->label_en] = $before;
-            $new[$field->label_en] = self::text($field, $row, 'en');
+            // Two fields of one kind may share an English label: those are told apart by key, the rest keep the plain label.
+            $name = $fields->where('label_en', $field->label_en)->count() > 1 ? $field->label_en.' ('.$field->key.')' : $field->label_en;
+            $old[$name] = $before;
+            $new[$name] = self::text($field, $row, 'en');
         }
 
         if ($new !== []) {
@@ -229,7 +235,7 @@ final class CustomFields
 
     /**
      * Plan ruling 8: the records whose "Show in portal" files a signed-in tenant may download: themselves, their
-     * agreements past approval (as the Agreements page lists them) and those agreements' units.
+     * agreements past approval (as the Agreements page lists them) and, through their currently active agreements only, those agreements' units.
      *
      * @return array<string, list<int>|Builder<Agreement>|Builder<AgreementUnit>>
      */
@@ -237,16 +243,17 @@ final class CustomFields
     {
         $agreements = fn () => Agreement::query()->where('customer_id', $customerId)
             ->whereNotIn('status', [AgreementStatus::Draft, AgreementStatus::PendingApproval])->select('id');
+        $active = fn () => Agreement::query()->where('customer_id', $customerId)->where('status', AgreementStatus::Active)->select('id');
 
         return [
             CustomFieldEntity::Customer->value => [$customerId],
             CustomFieldEntity::Agreement->value => $agreements(),
-            CustomFieldEntity::Unit->value => AgreementUnit::query()->whereIn('agreement_id', $agreements())->select('unit_id'),
+            CustomFieldEntity::Unit->value => AgreementUnit::query()->whereIn('agreement_id', $active())->select('unit_id'),
         ];
     }
 
     /**
-     * Plan ruling 8: the owner and the buildings of their contracts (owner portal plan ruling 8).
+     * Plan ruling 8 and the window ruling: the owner and the buildings of a contract covering today (not ended or terminated ones).
      *
      * @return array<string, list<int>|Builder<OwnerContract>>
      */
@@ -254,7 +261,7 @@ final class CustomFields
     {
         return [
             CustomFieldEntity::Owner->value => [$ownerId],
-            CustomFieldEntity::Building->value => OwnerContract::query()->portalFor($ownerId)->select('building_id'),
+            CustomFieldEntity::Building->value => OwnerContract::query()->currentFor($ownerId)->select('building_id'),
         ];
     }
 

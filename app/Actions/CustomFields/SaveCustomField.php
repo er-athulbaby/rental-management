@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Validation\Validator as ValidatorInstance;
 
 /** Spec 2026-10-21 custom fields §3: adds or changes a field and its choice list (plan rulings 9–11, 13). */
 final class SaveCustomField
@@ -51,12 +50,7 @@ final class SaveCustomField
         ], [
             'label_en' => __('Label (English)'), 'label_ar' => __('Label (Arabic)'), 'help' => __('Help text'),
             'choices.*.label_en' => __('Choice (English)'), 'choices.*.label_ar' => __('Choice (Arabic)'),
-        ])->after(function (ValidatorInstance $validator) use ($field, $data) {
-            if ($validator->errors()->isEmpty() && $field !== null && $data['type'] !== $field->type->value
-                && CustomFieldValue::query()->where('custom_field_id', $field->id)->exists()) {
-                $validator->errors()->add('type', __('The type cannot change once values are saved.'));
-            }
-        })->validate();
+        ])->validate();
 
         return DB::transaction(function () use ($actor, $field, $validated) {
             $before = null;
@@ -73,6 +67,10 @@ final class SaveCustomField
                 ]);
             } else {
                 $field = CustomField::query()->lockForUpdate()->findOrFail($field->id);
+                // Under the field's lock: CustomFields::save() share-locks the same row, so no first value lands under the old type meanwhile.
+                if ($validated['type'] !== $field->type->value && CustomFieldValue::query()->where('custom_field_id', $field->id)->exists()) {
+                    throw ValidationException::withMessages(['type' => __('The type cannot change once values are saved.')]);
+                }
                 $before = self::snapshot($field);
             }
 
@@ -129,7 +127,7 @@ final class SaveCustomField
             'label_en' => $field->label_en, 'label_ar' => $field->label_ar, 'type' => $field->type->value, 'help' => $field->help,
             'required' => $field->required, 'in_portal' => $field->in_portal,
             'choices' => $field->choices()->get()->map(fn (CustomFieldChoice $c) => $c->label_en.($c->label_ar ? ' / '.$c->label_ar : '')
-                .($c->hidden_at ? ' ('.__('Hidden').')' : ''))->all(),
+                .($c->hidden_at ? ' ('.__('Hidden', [], 'en').')' : ''))->all(),
         ];
     }
 

@@ -96,7 +96,7 @@ class CustomFieldSettings extends Component
         abort_unless($this->editing, 404);
         try {
             $save->handle($this->actor(), $this->editingId !== null ? $this->field($this->editingId) : null,
-                [...$this->form, 'entity' => $this->kind()->value, 'choices' => $this->choices]);
+                [...$this->form, 'entity' => $this->kind()->value, 'choices' => ($this->form['type'] ?? null) === CustomFieldType::Choice->value ? $this->choices : []]);
         } catch (AuthorizationException) {
             abort(403);
         } catch (ValidationException $e) {

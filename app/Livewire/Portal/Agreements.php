@@ -24,12 +24,12 @@ class Agreements extends Component
             ->with(['agreementUnits.unit' => fn ($q) => $q->withTrashed(), 'agreementUnits.unit.building' => fn ($q) => $q->withTrashed(), 'agreementUnits.charges'])
             ->orderByDesc('start_date')->orderByDesc('id')->get();
 
-        // Spec 2026-10-21 custom fields §5: agreement and unit fields marked "Show in portal" (plan ruling 8).
+        // Spec 2026-10-21 custom fields §5: agreement fields, and unit fields through the tenant's currently active agreements only (plan ruling 8, window ruling).
         // ponytail: a few small queries per agreement and unit; batch them if a tenant ever has dozens.
         return view('livewire.portal.agreements', [
             'agreements' => $agreements,
             'details' => $agreements->mapWithKeys(fn (Agreement $a) => [$a->id => CustomFields::display($a, portal: true)])->all(),
-            'unitDetails' => $agreements->flatMap(fn (Agreement $a) => $a->agreementUnits->pluck('unit'))->filter()->unique('id')
+            'unitDetails' => $agreements->where('status', AgreementStatus::Active)->flatMap(fn (Agreement $a) => $a->agreementUnits->pluck('unit'))->filter()->unique('id')
                 ->mapWithKeys(fn (Unit $u) => [$u->id => CustomFields::display($u, portal: true)])->all(),
         ])->title(__('Agreements'));
     }

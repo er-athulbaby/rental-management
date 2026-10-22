@@ -173,6 +173,23 @@ class OwnerContract extends Model
             ->where($query->qualifyColumn('end_date'), '>=', $day);
     }
 
+    /**
+     * Custom-fields window ruling: the owner's contracts covering today, active from start_date to the earlier close
+     * (terminated_on, else end_date).
+     *
+     * @param  Builder<OwnerContract>  $query
+     */
+    #[Scope]
+    protected function currentFor(Builder $query, int $ownerId): void
+    {
+        $day = now('Asia/Bahrain')->toDateString();
+
+        $query->where($query->qualifyColumn('owner_id'), $ownerId)
+            ->where($query->qualifyColumn('status'), OwnerContractStatus::Active->value)
+            ->where($query->qualifyColumn('start_date'), '<=', $day)
+            ->whereRaw('COALESCE(owner_contracts.terminated_on, owner_contracts.end_date) >= ?', [$day]);
+    }
+
     public function label(): string
     {
         return $this->number ?? __('Draft #:id', ['id' => $this->id]);
