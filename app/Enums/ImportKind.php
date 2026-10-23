@@ -22,6 +22,19 @@ enum ImportKind: string
         return str($this->value)->replace('customer', 'tenant')->headline()->toString();
     }
 
+    /** Spec 2026-10-21 custom fields §5: the record kind whose cf_<key> columns this file takes, if any. */
+    public function customFieldEntity(): ?CustomFieldEntity
+    {
+        return match ($this) {
+            self::Buildings => CustomFieldEntity::Building,
+            self::Units => CustomFieldEntity::Unit,
+            self::Owners => CustomFieldEntity::Owner,
+            self::Customers => CustomFieldEntity::Customer,
+            self::Agreements => CustomFieldEntity::Agreement,
+            default => null,
+        };
+    }
+
     /** @return list<string> */
     public function headers(): array
     {

@@ -77,7 +77,7 @@ class Panel extends Component
     {
         $this->validate([
             'upload' => ['required', 'file'],
-            'category' => ['required', Rule::enum(DocumentCategory::class)],
+            'category' => ['required', Rule::enum(DocumentCategory::class)->except(DocumentCategory::CustomField)], // written only through a file field
             'expiresOn' => ['nullable', 'date_format:Y-m-d'],
         ]);
 
@@ -157,7 +157,7 @@ class Panel extends Component
             'ownerShareable' => in_array($this->type, Document::SHAREABLE['owner'], true),
             'canUpload' => $this->actor()->can('update', $record),
             // The generated contract is written only by StoreApprovedContract (spec §5.6).
-            'categories' => array_filter(DocumentCategory::cases(), fn ($c) => $c !== DocumentCategory::GeneratedPdf),
+            'categories' => array_filter(DocumentCategory::cases(), fn ($c) => ! in_array($c, [DocumentCategory::GeneratedPdf, DocumentCategory::CustomField], true)),
         ]);
     }
 }

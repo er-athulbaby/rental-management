@@ -5,6 +5,8 @@ namespace App\Actions\Owners;
 use App\Actions\Portal\InviteToPortal;
 use App\Actions\Portal\SyncPortalEmail;
 use App\Audit\Audit;
+use App\CustomFields\CustomFields;
+use App\Enums\CustomFieldEntity;
 use App\Enums\IdType;
 use App\Enums\PartyType;
 use App\Enums\PermissionName;
@@ -35,6 +37,9 @@ final class SaveOwner
             $data['iban'] = strtoupper(str_replace(' ', '', $data['iban'])) ?: null;
         }
 
+        // Spec 2026-10-21 custom fields §4: "More details" is validated with the owner (plan ruling 2).
+        [$customRules, $customMessages, $customNames] = CustomFields::validation(CustomFieldEntity::Owner, $owner, $data);
+
         $validated = Validator::make($data, [
             'type' => ['required', Rule::enum(PartyType::class)],
             'name_en' => ['required', 'string', 'max:150'],
@@ -50,7 +55,8 @@ final class SaveOwner
             'iban' => ['nullable', 'regex:/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/'],
             'account_name' => ['nullable', 'string', 'max:150'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ])->after(function (ValidatorInstance $validator) use ($actor, $data, $owner) {
+            ...$customRules,
+        ], $customMessages, $customNames)->after(function (ValidatorInstance $validator) use ($actor, $data, $owner) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
@@ -61,6 +67,7 @@ final class SaveOwner
             }
         })->validate();
 
+        $custom = Arr::pull($validated, 'custom');
         $bankNew = Arr::only($validated, Owner::BANK_FIELDS) + array_fill_keys(Owner::BANK_FIELDS, null);
         $bankOld = $owner ? $owner->only(Owner::BANK_FIELDS) : array_fill_keys(Owner::BANK_FIELDS, null);
         $pick = fn (array $src) => array_map(fn (string $f) => $src[$f] ?? null, Owner::BANK_FIELDS);
@@ -74,7 +81,7 @@ final class SaveOwner
         }
 
         try {
-            return DB::transaction(function () use ($actor, $owner, $validated, $bankChanged, $bankOld, $bankNew, $importing) {
+            return DB::transaction(function () use ($actor, $owner, $validated, $bankChanged, $bankOld, $bankNew, $importing, $custom) {
                 $owner ??= new Owner;
                 $owner->fill($validated);
 
@@ -84,6 +91,9 @@ final class SaveOwner
 
                 $owner->save();
                 SyncPortalEmail::apply($owner);
+                if (is_array($custom)) {
+                    CustomFields::save($actor, $owner, $custom);
+                }
 
                 if ($bankChanged) {
                     $mask = fn (?string $iban) => $iban ? '••••'.substr($iban, -4) : null;

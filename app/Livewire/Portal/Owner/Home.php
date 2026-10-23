@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal\Owner;
 
+use App\CustomFields\CustomFields;
 use App\Enums\OwnerContractStatus;
 use App\Enums\OwnerContractType;
 use App\Enums\OwnerPayableStatus;
@@ -29,6 +30,7 @@ class Home extends Component
 
         return view('livewire.portal.owner.home', [
             'name' => $owner->displayName(app()->getLocale()),
+            'details' => CustomFields::display($owner, portal: true), // spec 2026-10-21 custom fields §5: owner fields on Home
             'balances' => $contracts->filter(fn (OwnerContract $c) => $c->type === OwnerContractType::Managed)
                 ->map(fn (OwnerContract $c) => ['contract' => $c, 'statement' => OwnerStatement::query()->where('owner_contract_id', $c->id)
                     ->where('status', OwnerStatementStatus::Finalised)->orderByDesc('period_start')->first()])

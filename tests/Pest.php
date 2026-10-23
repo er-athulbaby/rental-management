@@ -6,6 +6,7 @@ use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
 use App\Billing\OwnerStatementCalculator;
+use App\Enums\CustomFieldEntity;
 use App\Enums\DocumentCategory;
 use App\Enums\RoleName;
 use App\Mail\PortalSignInCode;
@@ -14,6 +15,8 @@ use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\Customer;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
 use App\Models\Disbursement;
 use App\Models\Document;
 use App\Models\Expense;
@@ -37,6 +40,7 @@ use App\Reports\Builder\ReportResult;
 use App\Support\Fils;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -428,4 +432,32 @@ function portalOwnerFixture(string $name, string $code, User $by): array
         'markers' => [$name, "OS-{$code}", "DSB-{$code}-1", "TRF-{$code}", "Leak repair {$code}", "Paint touch-up {$code}", $request->number,
             "Renter {$code}", (string) $managed->number, (string) $leased->number],
     ];
+}
+
+/**
+ * A custom field (custom field tests), written directly: active, optional, not in the portal, last in its kind, unless
+ * $attributes say otherwise. Each choice is an English label or an [English, Arabic] pair, in order.
+ */
+function customField(string $entity, string $type, string $label, array $attributes = [], array $choices = []): CustomField
+{
+    $field = (new CustomField)->forceFill([
+        'entity' => $entity, 'key' => CustomField::keyFor(CustomFieldEntity::from($entity), $label), 'label_en' => $label, 'type' => $type,
+        'position' => (int) CustomField::query()->where('entity', $entity)->max('position') + 1, ...$attributes,
+    ]);
+    $field->save();
+    foreach (array_values($choices) as $i => $choice) {
+        [$en, $ar] = is_array($choice) ? $choice : [$choice, null];
+        $field->choices()->create(['label_en' => $en, 'label_ar' => $ar, 'position' => $i + 1]);
+    }
+
+    return $field->load('choices');
+}
+
+/** A stored value of $field on $record (custom field tests), e.g. ['value_text' => 'Bapco'] or ['choice_id' => 3]. */
+function customValue(CustomField $field, Model $record, array $columns): CustomFieldValue
+{
+    $value = (new CustomFieldValue)->forceFill(['custom_field_id' => $field->id, 'entity' => $field->entity, 'entity_id' => $record->getKey(), ...$columns]);
+    $value->save();
+
+    return $value;
 }

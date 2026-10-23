@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Customers;
 
+use App\CustomFields\CustomFieldFilter;
+use App\CustomFields\CustomFields;
+use App\Enums\CustomFieldEntity;
 use App\Enums\PermissionName;
 use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
@@ -20,6 +23,9 @@ class Index extends Component
     #[Url]
     public string $search = '';
 
+    /** Spec 2026-10-21 custom fields §5 "More filters": field, op, value, from, to, choices. Mixed and not in the URL, so a tampered value is ignored, never a TypeError (plan ruling 6). */
+    public mixed $more = [];
+
     public function updating(): void
     {
         $this->resetPage();
@@ -33,6 +39,7 @@ class Index extends Component
             ->visibleTo($this->actor())
             ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->when($term !== '', fn ($q) => $q->search($term))
+            ->tap(fn ($q) => CustomFieldFilter::apply($q, CustomFieldEntity::Customer, $this->more))
             ->orderBy('name_en')
             ->paginate(25);
 
@@ -48,6 +55,6 @@ class Index extends Component
             }
         }
 
-        return view('livewire.customers.index', ['customers' => $customers, 'hint' => $hint]);
+        return view('livewire.customers.index', ['customers' => $customers, 'hint' => $hint, 'customFields' => CustomFields::active(CustomFieldEntity::Customer)]);
     }
 }

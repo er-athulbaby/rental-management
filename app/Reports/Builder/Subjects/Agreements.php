@@ -3,10 +3,12 @@
 namespace App\Reports\Builder\Subjects;
 
 use App\Enums\AgreementStatus;
+use App\Enums\CustomFieldEntity;
 use App\Enums\PaymentFrequency;
 use App\Enums\PermissionName;
 use App\Models\Agreement;
 use App\Models\User;
+use App\Reports\Builder\CustomColumns;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\Sql;
 use App\Reports\Builder\Subject;
@@ -63,6 +65,8 @@ final class Agreements extends Subject
                     WHERE ca.agreement_id = agreements.id AND c.type = 'rent')"),
             Field::money('deposit', __('Deposit'), __('Amounts'),
                 '(SELECT COALESCE(SUM(da.deposit_amount), 0) FROM agreement_units da WHERE da.agreement_id = agreements.id)'),
+            ...CustomColumns::fields(CustomFieldEntity::Agreement, 'cf_', __('More details'), 'agreements.id'),
+            ...CustomColumns::fields(CustomFieldEntity::Customer, 'cft_', __('Tenant'), 'agreements.customer_id'),
         ];
     }
 

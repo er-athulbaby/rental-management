@@ -2,12 +2,14 @@
 
 namespace App\Reports\Builder\Subjects;
 
+use App\Enums\CustomFieldEntity;
 use App\Enums\Furnishing;
 use App\Enums\PermissionName;
 use App\Enums\UnitUse;
 use App\Models\Unit;
 use App\Models\UnitType;
 use App\Models\User;
+use App\Reports\Builder\CustomColumns;
 use App\Reports\Builder\Field;
 use App\Reports\Builder\Subject;
 use App\Reports\Queries;
@@ -68,6 +70,8 @@ final class Units extends Subject
             Field::money('current_rent', __('Current rent'), __('Amounts'),
                 "(SELECT SUM(rc.monthly_amount) FROM agreement_unit_charges rc WHERE rc.agreement_unit_id = cau.id AND rc.type = 'rent')"),
             Field::date('agreement_end', __('Agreement end'), __('Occupancy'), 'cau.end_date'),
+            ...CustomColumns::fields(CustomFieldEntity::Unit, 'cf_', __('More details'), 'units.id'),
+            ...CustomColumns::fields(CustomFieldEntity::Building, 'cfb_', __('Building'), 'units.building_id'),
         ];
     }
 

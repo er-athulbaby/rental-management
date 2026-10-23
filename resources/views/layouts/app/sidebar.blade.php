@@ -93,6 +93,7 @@
                             <flux:sidebar.item icon="sparkles" :href="route('admin.facilities')" :current="request()->routeIs('admin.facilities')" wire:navigate>{{ __('Facilities') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="home-modern" :href="route('admin.unit-types')" :current="request()->routeIs('admin.unit-types')" wire:navigate>{{ __('Unit types') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="building-library" :href="route('admin.banks')" :current="request()->routeIs('admin.banks')" wire:navigate>{{ __('Banks') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="adjustments-horizontal" :href="route('admin.custom-fields')" :current="request()->routeIs('admin.custom-fields')" wire:navigate>{{ __('Custom fields') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="envelope" :href="route('admin.reminders')" :current="request()->routeIs('admin.reminders')" wire:navigate>{{ __('Tenant reminders') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="server" :href="route('admin.email')" :current="request()->routeIs('admin.email')" wire:navigate>{{ __('Email settings') }}</flux:sidebar.item>
                         @endcan

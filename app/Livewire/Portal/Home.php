@@ -3,6 +3,7 @@
 namespace App\Livewire\Portal;
 
 use App\Billing\CustomerCredit;
+use App\CustomFields\CustomFields;
 use App\Enums\AgreementStatus;
 use App\Enums\ChequeDirection;
 use App\Enums\ChequeStatus;
@@ -34,6 +35,7 @@ class Home extends Component
 
         return view('livewire.portal.home', [
             'name' => $customer->displayName(app()->getLocale()),
+            'details' => CustomFields::display($customer, portal: true), // spec 2026-10-21 custom fields §5: tenant fields on Home
             'owed' => Fils::grouped($customer->outstandingFils()),
             'credit' => Fils::grouped(CustomerCredit::fils($customer->id)),
             'nextDue' => Invoice::query()->where('customer_id', $customer->id)->where('status', InvoiceStatus::Issued)

@@ -2,8 +2,10 @@
 
 namespace App\Actions\Agreements;
 
+use App\CustomFields\CustomFields;
 use App\Enums\AgreementStatus;
 use App\Enums\ChargeType;
+use App\Enums\CustomFieldEntity;
 use App\Enums\PaymentFrequency;
 use App\Enums\TaxCategory;
 use App\Models\Agreement;
@@ -15,6 +17,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Support\Fils;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -37,6 +40,9 @@ final class SaveAgreement
 
         $data = self::blankToNull($data);
 
+        // Spec 2026-10-21 custom fields §4: "More details" is validated with the draft (plan rulings 2–3).
+        [$customRules, $customMessages, $customNames] = CustomFields::validation(CustomFieldEntity::Agreement, $agreement, $data);
+
         $validated = Validator::make($data, [
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->whereNull('deleted_at')],
             'start_date' => ['required', 'date_format:Y-m-d'],
@@ -56,7 +62,9 @@ final class SaveAgreement
             'units.*.charges.*.description' => ['nullable', 'string', 'max:150'],
             'units.*.charges.*.monthly_amount' => ['required', Fils::rule()],
             'units.*.charges.*.tax_category' => ['required', Rule::enum(TaxCategory::class)],
-        ])->after(fn (ValidatorInstance $v) => $this->check($v, $data, $actor))->validate();
+            ...$customRules,
+        ], $customMessages, $customNames)->after(fn (ValidatorInstance $v) => $this->check($v, $data, $actor))->validate();
+        $custom = Arr::pull($validated, 'custom');
 
         // Every unit a write targets must be in the actor's buildings (spec §8.2).
         $unitIds = array_map(fn (array $u) => (int) $u['unit_id'], $validated['units']);
@@ -67,7 +75,7 @@ final class SaveAgreement
         $id = $agreement?->id;
 
         // Retry-safe: every attempt re-reads and re-locks its rows instead of reusing the caller's model.
-        return DB::transaction(function () use ($actor, $id, $validated) {
+        return DB::transaction(function () use ($actor, $id, $validated, $custom) {
             $settings = CompanySetting::current();
 
             if ($id !== null) {
@@ -120,6 +128,10 @@ final class SaveAgreement
                         'tax_category' => $charge['tax_category'],
                     ]);
                 }
+            }
+
+            if (is_array($custom)) {
+                CustomFields::save($actor, $agreement, $custom);
             }
 
             return $agreement->load('agreementUnits.charges');

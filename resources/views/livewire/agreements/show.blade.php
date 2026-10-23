@@ -113,6 +113,15 @@
         </div>
     @endforeach
 
+    @if ($canManage && $customFields->isNotEmpty())
+        <form wire:submit="saveDetails" class="space-y-3">
+            <x-custom-fields.section :fields="$customFields" :values="$custom" :documents="$customDocuments" />
+            <flux:button type="submit">{{ __('Save details') }}</flux:button>
+        </form>
+    @elseif (! $canManage)
+        <x-custom-fields.display :items="$customDetails" />
+    @endif
+
     @if ($amendments->isNotEmpty())
         <div class="space-y-2">
             <flux:heading size="lg">{{ __('Amendments') }}</flux:heading>

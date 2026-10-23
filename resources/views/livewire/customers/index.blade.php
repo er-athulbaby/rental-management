@@ -10,6 +10,7 @@
         <x-building-filter :buildings="$this->buildings" label="" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name, mobile, ID number or unit')" icon="magnifying-glass" class="sm:max-w-xs" />
     </div>
+    <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
     @if ($hint)
         <flux:callout icon="information-circle" :heading="$hint" />

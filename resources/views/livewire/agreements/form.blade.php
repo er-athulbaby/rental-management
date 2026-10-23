@@ -84,6 +84,7 @@
             @endforeach
         </flux:fieldset>
 
+        <x-custom-fields.section :fields="$customFields" :values="$custom" :documents="$customDocuments" />
         <flux:button variant="primary" type="submit">{{ __('Save draft') }}</flux:button>
     </form>
 </section>

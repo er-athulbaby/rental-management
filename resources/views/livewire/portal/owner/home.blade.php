@@ -1,5 +1,6 @@
 <section class="space-y-6">
     <flux:heading size="xl" level="1">{{ __('Welcome, :name', ['name' => $name]) }}</flux:heading>
+    <x-custom-fields.display :items="$details" file-route="portal.owner.custom-fields.file" />
 
     <div class="space-y-2">
         <flux:heading size="lg" level="2">{{ __('Balance owed to you') }}</flux:heading>

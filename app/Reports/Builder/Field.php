@@ -11,7 +11,7 @@ use BackedEnum;
  */
 final readonly class Field
 {
-    /** @param  array<string, string>  $options  value => label, for enum fields */
+    /** @param  array<array-key, string>  $options  value => label, for enum fields (custom field choice ids are numeric keys) */
     public function __construct(
         public string $key,
         public string $label,
@@ -22,6 +22,7 @@ final readonly class Field
         public bool $groupable = true,
         public bool $filterable = true,
         public ?PermissionName $permission = null,
+        public bool $archived = false, // custom fields plan ruling 5: an archived custom field: empty column, filter skipped, hidden from pickers
     ) {}
 
     public static function text(string $key, string $label, string $section, string $sql, bool $groupable = true, bool $filterable = true, ?PermissionName $permission = null): self

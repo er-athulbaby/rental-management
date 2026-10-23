@@ -66,9 +66,13 @@
             <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
         </fieldset>
         @if ($canEdit)
+            <x-custom-fields.section :fields="$customFields" :values="$custom" :documents="$customDocuments" />
             <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
         @endif
     </form>
+    @unless ($canEdit)
+        <x-custom-fields.display :items="$customDetails" />
+    @endunless
 
     @if ($portal)
         <flux:card class="space-y-3">

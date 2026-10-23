@@ -68,6 +68,7 @@
                         <div>
                             <div class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $section }}</div>
                             @foreach ($sectionFields as $f)
+                                @continue($f->archived && ! in_array($f->key, is_array($def['columns'] ?? null) ? $def['columns'] : [], true))
                                 <label class="flex items-center gap-2 py-0.5 text-sm">
                                     <input type="checkbox" wire:click="toggleColumn('{{ $f->key }}')" @checked(in_array($f->key, is_array($def['columns'] ?? null) ? $def['columns'] : [], true))>
                                     {{ $f->label }}
@@ -89,7 +90,7 @@
                             <div class="flex gap-1">
                                 <flux:select wire:model.live="def.filters.{{ $i }}.field" size="sm" :aria-label="__('Field')">
                                     <option value="">{{ __('Field…') }}</option>
-                                    @foreach ($fields as $f)@if ($f->filterable)<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
+                                    @foreach ($fields as $f)@if ($f->filterable && (! $f->archived || ($filter['field'] ?? null) === $f->key))<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
                                 </flux:select>
                                 <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="removeFilter({{ $i }})" :aria-label="__('Remove filter')" />
                             </div>
@@ -142,7 +143,7 @@
 
             <div class="grid grid-cols-2 gap-2">
                 <flux:select wire:model.live="def.sort.field" :label="__('Sort by')">
-                    @foreach ($fields as $f)<option value="{{ $f->key }}">{{ $f->label }}</option>@endforeach
+                    @foreach ($fields as $f)@if (! $f->archived || ($def['sort']['field'] ?? null) === $f->key)<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
                 </flux:select>
                 <flux:select wire:model.live="def.sort.dir" :label="__('Order')">
                     <option value="asc">{{ __('Ascending') }}</option>
@@ -159,7 +160,7 @@
                         <div class="flex gap-1" wire:key="group-{{ $level }}">
                             <flux:select wire:model.live="def.groups.{{ $level }}.field" size="sm" :aria-label="__('Group level :n', ['n' => $level + 1])">
                                 <option value="">{{ $level === 0 ? __('No grouping') : __('No second level') }}</option>
-                                @foreach ($fields as $f)@if ($f->groupable)<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
+                                @foreach ($fields as $f)@if ($f->groupable && (! $f->archived || ($g['field'] ?? null) === $f->key))<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
                             </flux:select>
                             @if ($gf?->type->value === 'date')
                                 <flux:select wire:model.live="def.groups.{{ $level }}.bucket" size="sm" :aria-label="__('Date grouping')">

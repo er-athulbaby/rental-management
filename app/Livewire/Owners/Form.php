@@ -5,6 +5,8 @@ namespace App\Livewire\Owners;
 use App\Actions\Owners\SaveOwner;
 use App\Actions\Portal\InviteToPortal;
 use App\Actions\Portal\SetPortalAccess;
+use App\CustomFields\CustomFields;
+use App\Enums\CustomFieldEntity;
 use App\Enums\IdType;
 use App\Enums\PartyType;
 use App\Livewire\Concerns\WithActor;
@@ -18,16 +20,20 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Form extends Component
 {
-    use WithActor;
+    use WithActor, WithFileUploads;
 
     #[Locked]
     public ?int $ownerId = null;
 
     /** @var array<string, mixed> */
     public array $form = ['type' => 'person', 'id_type' => 'cpr'];
+
+    /** @var array<string, mixed> spec 2026-10-21 custom fields §4: "More details", field key => value (files are uploads) */
+    public array $custom = [];
 
     public function mount(?Owner $owner = null): void
     {
@@ -45,6 +51,7 @@ class Form extends Component
         } else {
             abort_unless($this->actor()->can('create', Owner::class), 403);
         }
+        $this->custom = CustomFields::formValues(CustomFieldEntity::Owner, $this->ownerId !== null ? $owner : null);
     }
 
     public function save(SaveOwner $save): void
@@ -58,13 +65,13 @@ class Form extends Component
         }
 
         try {
-            $owner = $save->handle($this->actor(), $existing, $data);
+            $owner = $save->handle($this->actor(), $existing, [...$data, 'custom' => $this->custom]);
         } catch (AuthorizationException $e) {
             $this->addError('form.iban', $e->getMessage() ?: __('This action is not allowed.'));
 
             return;
         } catch (ValidationException $e) {
-            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => ["form.$k" => $m])->all());
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'custom') ? $k : "form.$k" => $m])->all());
         }
 
         Flux::toast(variant: 'success', text: __('Owner saved.'));
@@ -110,6 +117,9 @@ class Form extends Component
             'types' => PartyType::cases(),
             'idTypes' => IdType::cases(),
             'canEdit' => $owner ? $this->actor()->can('update', $owner) : true,
+            'customFields' => CustomFields::active(CustomFieldEntity::Owner),
+            'customDocuments' => CustomFields::documents($owner),
+            'customDetails' => $owner ? CustomFields::display($owner) : [],
             'canViewBank' => $owner ? $this->actor()->can('viewBank', $owner) : $this->actor()->can('owners.bank.manage'),
             'canEditBank' => $owner ? $this->actor()->can('updateBank', $owner) : $this->actor()->can('owners.bank.manage'),
             'portal' => $owner && $this->actor()->can('update', $owner) ? [

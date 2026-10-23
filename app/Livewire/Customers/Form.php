@@ -6,7 +6,9 @@ use App\Actions\Customers\SaveCustomer;
 use App\Actions\Portal\InviteToPortal;
 use App\Actions\Portal\SetPortalAccess;
 use App\Billing\CustomerCredit;
+use App\CustomFields\CustomFields;
 use App\Enums\CustomerType;
+use App\Enums\CustomFieldEntity;
 use App\Enums\IdType;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Customer;
@@ -22,16 +24,20 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Form extends Component
 {
-    use WithActor;
+    use WithActor, WithFileUploads;
 
     #[Locked]
     public ?int $customerId = null;
 
     /** @var array<string, mixed> */
     public array $form = ['type' => 'individual', 'id_type' => 'cpr', 'no_reminders' => false];
+
+    /** @var array<string, mixed> spec 2026-10-21 custom fields §4: "More details", field key => value (files are uploads) */
+    public array $custom = [];
 
     public function mount(?Customer $customer = null): void
     {
@@ -47,16 +53,17 @@ class Form extends Component
         } else {
             abort_unless($this->actor()->can('create', Customer::class), 403);
         }
+        $this->custom = CustomFields::formValues(CustomFieldEntity::Customer, $this->customerId !== null ? $customer : null);
     }
 
     public function save(SaveCustomer $save): void
     {
         try {
-            $customer = $save->handle($this->actor(), $this->customerId ? Customer::findOrFail($this->customerId) : null, $this->form);
+            $customer = $save->handle($this->actor(), $this->customerId ? Customer::findOrFail($this->customerId) : null, [...$this->form, 'custom' => $this->custom]);
         } catch (AuthorizationException) {
             abort(403);
         } catch (ValidationException $e) {
-            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => ["form.$k" => $m])->all());
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'custom') ? $k : "form.$k" => $m])->all());
         }
 
         Flux::toast(variant: 'success', text: __('Tenant saved.'));
@@ -109,6 +116,9 @@ class Form extends Component
             'maintenance' => $customer && $this->actor()->can('maintenance.view')
                 ? MaintenanceRequest::query()->visibleTo($this->actor())->where('customer_id', $customer->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $customer ? $this->actor()->can('update', $customer) : true,
+            'customFields' => CustomFields::active(CustomFieldEntity::Customer),
+            'customDocuments' => CustomFields::documents($customer),
+            'customDetails' => $customer ? CustomFields::display($customer) : [],
             'portal' => $customer && $this->actor()->can('update', $customer) ? [
                 'account' => $account, 'other' => $account?->otherThan($customer), 'otherSeen' => ($other = $account?->otherThan($customer)) !== null && $this->actor()->can('view', $other), 'mailReady' => (new EmailChannel)->ready(),
             ] : null,

@@ -6,8 +6,11 @@ use App\Actions\Agreements\DeleteDraftAgreement;
 use App\Actions\Agreements\RecordMoveOut;
 use App\Actions\Agreements\RecordNotice;
 use App\Actions\Agreements\RenewAgreement;
+use App\Actions\Agreements\SaveAgreementDetails;
 use App\Actions\Agreements\SubmitAgreement;
+use App\CustomFields\CustomFields;
 use App\Enums\AmendmentStatus;
+use App\Enums\CustomFieldEntity;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\AgreementAmendment;
@@ -23,10 +26,11 @@ use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Show extends Component
 {
-    use WithActor;
+    use WithActor, WithFileUploads;
 
     #[Locked]
     public int $agreementId;
@@ -37,10 +41,29 @@ class Show extends Component
 
     public string $plannedExit = '';
 
+    /** @var array<string, mixed> spec 2026-10-21 custom fields §4: the "More details" panel, field key => value */
+    public array $custom = [];
+
     public function mount(Agreement $agreement): void
     {
         abort_unless($this->actor()->can('view', $agreement), 403);
         $this->agreementId = $agreement->id;
+        $this->custom = CustomFields::formValues(CustomFieldEntity::Agreement, $agreement);
+    }
+
+    /** Spec 2026-10-21 custom fields §4: "More details" stay editable at any status, for whoever can manage the agreement (plan ruling 3). */
+    public function saveDetails(SaveAgreementDetails $save): void
+    {
+        $this->resetErrorBag();
+
+        try {
+            $save->handle($this->actor(), $this->agreement(), $this->custom);
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        $this->custom = CustomFields::formValues(CustomFieldEntity::Agreement, $this->agreement());
+        Flux::toast(variant: 'success', text: __('Details saved.'));
     }
 
     protected function agreement(): Agreement
@@ -149,6 +172,9 @@ class Show extends Component
         return view('livewire.agreements.show', [
             'agreement' => $agreement,
             'canManage' => $this->actor()->can('update', $agreement),
+            'customFields' => CustomFields::active(CustomFieldEntity::Agreement),
+            'customDocuments' => CustomFields::documents($agreement),
+            'customDetails' => CustomFields::display($agreement),
             'amendments' => $agreement->amendments()->with('creator:id,name')->latest('id')->get(),
             'canAmend' => $this->actor()->can('update', $agreement) && $agreement->status->value === 'active',
             'canRenew' => $this->actor()->can('create', Agreement::class) && $this->actor()->can('update', $agreement) && in_array($agreement->status->value, ['active', 'expired'], true),

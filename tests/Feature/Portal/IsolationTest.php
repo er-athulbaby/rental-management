@@ -62,6 +62,7 @@ function isolationOwnerUrls(array $o): array
         route('portal.owner.home'), route('portal.owner.buildings'), route('portal.owner.statements'), route('portal.owner.statements.pdf', $o['statement']),
         route('portal.owner.payments'), route('portal.owner.expenses'), route('portal.owner.maintenance'), route('portal.owner.maintenance.show', $o['request']),
         route('portal.owner.contracts'), route('portal.owner.documents'), route('portal.owner.documents.download', $o['document']),
+        route('portal.owner.custom-fields.file', $o['file']),
     ];
 }
 
@@ -86,6 +87,20 @@ beforeEach(function () {
     $this->b = isolationTenant('Omar Other', '202', $finance, $pm, $building);
     $this->oa = isolationOwner('Ali Owner', '303', $this->admin);
     $this->ob = isolationOwner('Badr Owner', '404', $this->admin);
+
+    // A "Show in portal" file on each tenant's unit and each owner's building (custom fields).
+    $unitFile = customField('unit', 'file', 'Unit plan', ['in_portal' => true]);
+    $buildingFile = customField('building', 'file', 'Site plan', ['in_portal' => true]);
+    $attach = function ($field, $record, string $name) {
+        $document = app(StoreDocument::class)->handle($this->admin, $record, UploadedFile::fake()->create($name, 10, 'application/pdf'), DocumentCategory::CustomField);
+        customValue($field, $record, ['document_id' => $document->id]);
+
+        return $document;
+    };
+    $this->a['file'] = $attach($unitFile, $this->a['unit'], 'unit-plan-101.pdf');
+    $this->b['file'] = $attach($unitFile, $this->b['unit'], 'unit-plan-202.pdf');
+    $this->oa['file'] = $attach($buildingFile, $this->oa['tower'], 'site-plan-303.pdf');
+    $this->ob['file'] = $attach($buildingFile, $this->ob['tower'], 'site-plan-404.pdf');
 });
 
 test('tenant A sees none of tenant B\'s records on any portal page', function () {
@@ -113,7 +128,7 @@ test('every one of tenant B\'s ids is a 404 for tenant A, and so are made-up ids
         route('portal.agreements.pdf', $this->b['agreement']),
         route('portal.invoices.pdf', $this->b['invoice']),
         route('portal.payments.receipt', $this->b['payment']),
-        route('portal.documents.download', $this->b['document']),
+        route('portal.documents.download', $this->b['document']), route('portal.custom-fields.file', $this->b['file']),
         route('portal.maintenance.show', $this->b['request']),
         '/portal/agreements/999999999/contract', '/portal/invoices/abc/pdf', '/portal/payments/1e3/receipt',
         '/portal/documents/99999999999999999999999', '/portal/maintenance/-1',
@@ -154,7 +169,7 @@ test('a staff session opens no portal page, and portal components refuse a staff
         route('portal.invoices.pdf', $a['invoice']), route('portal.payments'), route('portal.payments.receipt', $a['payment']), route('portal.cheques'),
         route('portal.statement'), route('portal.statement.pdf', ['from' => '2026-01-01', 'to' => '2026-10-18']), route('portal.documents'),
         route('portal.documents.download', $a['document']), route('portal.maintenance'), route('portal.maintenance.create'),
-        route('portal.maintenance.show', $a['request']),
+        route('portal.maintenance.show', $a['request']), route('portal.custom-fields.file', $a['file']),
     ] as $url) {
         $this->get($url)->assertRedirect(route('portal.login'));
     }
@@ -189,7 +204,7 @@ test('portal components expose no public method that takes a customer or owner i
 test('owner A sees none of owner B\'s records on any owner page', function () {
     $this->actingAs($this->oa['account'], 'tenant');
 
-    foreach ([...array_filter(isolationOwnerUrls($this->oa), fn (string $url) => ! str_ends_with($url, '/pdf') && ! str_contains($url, '/documents/'))] as $url) {
+    foreach ([...array_filter(isolationOwnerUrls($this->oa), fn (string $url) => ! str_ends_with($url, '/pdf') && ! str_contains($url, '/documents/') && ! str_contains($url, '/custom-fields/'))] as $url) {
         $html = $this->get($url)->assertOk()->getContent();
         foreach ($this->ob['markers'] as $marker) {
             expect($html)->not->toContain($marker);
@@ -206,6 +221,7 @@ test('every one of owner B\'s ids is a 404 for owner A, and so are made-up ids',
 
     foreach ([
         route('portal.owner.statements.pdf', $this->ob['statement']), route('portal.owner.documents.download', $this->ob['document']),
+        route('portal.owner.custom-fields.file', $this->ob['file']), route('portal.custom-fields.file', $this->ob['file']),
         route('portal.owner.maintenance.show', $this->ob['request']),
         '/portal/owner/statements/999999999/pdf', '/portal/owner/statements/abc/pdf', '/portal/owner/documents/99999999999999999999999',
         '/portal/owner/maintenance/-1', '/portal/owner/maintenance/1e3',
@@ -237,6 +253,7 @@ test('tenant pages refuse an owner-only account; /portal sends it to the owner h
         route('portal.payments'), route('portal.payments.receipt', $a['payment']), route('portal.cheques'), route('portal.statement'),
         route('portal.statement.pdf', ['from' => '2026-01-01', 'to' => '2026-10-18']), route('portal.documents'), route('portal.documents.download', $a['document']),
         route('portal.maintenance'), route('portal.maintenance.create'), route('portal.maintenance.show', $a['request']),
+        route('portal.custom-fields.file', $a['file']),
     ] as $url) {
         $this->get($url)->assertNotFound();
     }

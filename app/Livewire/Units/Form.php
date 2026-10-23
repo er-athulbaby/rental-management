@@ -3,6 +3,8 @@
 namespace App\Livewire\Units;
 
 use App\Actions\Units\SaveUnit;
+use App\CustomFields\CustomFields;
+use App\Enums\CustomFieldEntity;
 use App\Enums\Furnishing;
 use App\Enums\TaxCategory;
 use App\Enums\UnitUse;
@@ -17,16 +19,20 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Form extends Component
 {
-    use WithActor;
+    use WithActor, WithFileUploads;
 
     #[Locked]
     public ?int $unitId = null;
 
     /** @var array<string, mixed> */
     public array $form = ['use' => 'residential', 'type' => 'flat', 'furnishing' => 'unfurnished', 'blocked' => false];
+
+    /** @var array<string, mixed> spec 2026-10-21 custom fields §4: "More details", field key => value (files are uploads) */
+    public array $custom = [];
 
     public function mount(?Unit $unit = null): void
     {
@@ -43,6 +49,7 @@ class Form extends Component
         } else {
             abort_unless($this->actor()->can('create', Unit::class), 403);
         }
+        $this->custom = CustomFields::formValues(CustomFieldEntity::Unit, $this->unitId !== null ? $unit : null);
     }
 
     /** Picking a type fills in its usual use (a shop is commercial); the use can still be changed. $key is null when Livewire replaces the whole form. */
@@ -56,11 +63,11 @@ class Form extends Component
     public function save(SaveUnit $save): void
     {
         try {
-            $unit = $save->handle($this->actor(), $this->unitId ? Unit::findOrFail($this->unitId) : null, $this->form);
+            $unit = $save->handle($this->actor(), $this->unitId ? Unit::findOrFail($this->unitId) : null, [...$this->form, 'custom' => $this->custom]);
         } catch (AuthorizationException) {
             abort(403);
         } catch (ValidationException $e) {
-            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => ["form.$k" => $m])->all());
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'custom') ? $k : "form.$k" => $m])->all());
         }
 
         Flux::toast(variant: 'success', text: __('Unit saved.'));
@@ -81,6 +88,9 @@ class Form extends Component
             'maintenance' => $unit && $this->actor()->can('maintenance.view')
                 ? MaintenanceRequest::query()->visibleTo($this->actor())->where('unit_id', $unit->id)->latest('id')->limit(20)->get() : null,
             'canEdit' => $unit ? $this->actor()->can('update', $unit) : true,
+            'customFields' => CustomFields::active(CustomFieldEntity::Unit),
+            'customDocuments' => CustomFields::documents($unit),
+            'customDetails' => $unit ? CustomFields::display($unit) : [],
         ])->title($unit ? __('Unit :code', ['code' => $unit->code]) : __('New unit'));
     }
 }

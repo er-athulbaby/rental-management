@@ -8,6 +8,7 @@
                     <flux:badge size="sm">{{ __(':occupied of :total units let', ['occupied' => $card['occupied'], 'total' => $card['total']]) }}</flux:badge>
                 @endif
             </div>
+            <x-custom-fields.display :items="$details[$card['building']->id] ?? []" file-route="portal.owner.custom-fields.file" />
             @if ($card['roll'] === null)
                 <flux:text>{{ __('Units') }}: {{ implode(', ', $card['units']) }}</flux:text>
             @else

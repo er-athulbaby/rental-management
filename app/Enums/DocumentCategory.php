@@ -13,6 +13,7 @@ enum DocumentCategory: string
     case OwnerApproval = 'owner_approval';
     case GeneratedPdf = 'generated_pdf';
     case Maintenance = 'maintenance';
+    case CustomField = 'custom_field'; // spec 2026-10-21 custom fields §4: written only through a file field
     case Other = 'other';
 
     public function label(): string
@@ -27,6 +28,7 @@ enum DocumentCategory: string
             self::OwnerApproval => __('Owner approval'),
             self::GeneratedPdf => __('Generated PDF'),
             self::Maintenance => __('Maintenance photo'),
+            self::CustomField => __('Custom field'),
             self::Other => __('Other'),
         };
     }
