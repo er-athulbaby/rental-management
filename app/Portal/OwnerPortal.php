@@ -115,7 +115,7 @@ final class OwnerPortal
      * Spec §4 "Buildings": one card per building of their contracts. The rent roll only while one of their managed
      * contracts on it is active today; otherwise the unit codes alone (owner portal plan ruling 9).
      *
-     * @return Collection<int, array{building: Building, managed: bool, units: list<string>, roll: list<array{unit: string, tenant: ?string, start: ?string, end: ?string, rent: ?int, owed: ?int}>|null, occupied: int<0, max>, total: int<0, max>}>
+     * @return Collection<int, array{building: Building, managed: bool, units: list<string>, roll: list<array{unit: string, tenant: ?string, start: ?string, end: ?string, rent: ?int, overdue: ?int, not_due: ?int}>|null, occupied: int<0, max>, total: int<0, max>}>
      */
     public static function buildings(int $ownerId): Collection
     {
@@ -151,7 +151,8 @@ final class OwnerPortal
                                 'start' => $occupied ? $date($u->start_date) : null,
                                 'end' => $occupied ? $date($u->end_date) : null,
                                 'rent' => $occupied ? Fils::fromDecimal((string) ($u->rent ?? '0')) : null,
-                                'owed' => $first ? Fils::fromDecimal((string) ($u->owed ?? '0')) : null,
+                                'overdue' => $first ? Fils::fromDecimal((string) ($u->overdue ?? '0')) : null,
+                                'not_due' => $first ? Fils::fromDecimal((string) ($u->not_due ?? '0')) : null,
                             ];
                         });
                     $roll = array_values($roll->all());

@@ -133,10 +133,10 @@ function activeAgreement(array $attributes, iterable $units, string $rent = '400
  * An issued invoice built directly (no schedule). $lines: list of ['net' => '100.000', 'tax' => 'exempt'|'standard'|…,
  * 'type' => 'rent'|'deposit'|…, 'au' => ?AgreementUnit]. Tax is written by IssueInvoice.
  */
-function issuedInvoice(Customer $customer, array $lines, string $due = '2026-10-01', ?Agreement $agreement = null): Invoice
+function issuedInvoice(Customer $customer, array $lines, string $due = '2026-10-01', ?Agreement $agreement = null, ?string $type = null): Invoice
 {
     $invoice = (new Invoice)->forceFill([
-        'type' => $agreement ? 'rent' : 'manual', 'customer_id' => $customer->id, 'agreement_id' => $agreement?->id,
+        'type' => $type ?? ($agreement ? 'rent' : 'manual'), 'customer_id' => $customer->id, 'agreement_id' => $agreement?->id,
         'issue_date' => $due, 'due_date' => $due, 'status' => 'draft', 'subtotal' => '0.000', 'tax_total' => '0.000', 'total' => '0.000',
     ]);
     $invoice->save();

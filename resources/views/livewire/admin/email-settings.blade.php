@@ -40,6 +40,9 @@
             <flux:button wire:click="sendTest" wire:loading.attr="disabled" wire:target="sendTest">{{ __('Send test email') }}</flux:button>
             @if ($testMessage !== '')
                 <flux:callout :variant="$testOk ? 'success' : 'danger'" :icon="$testOk ? 'check-circle' : 'exclamation-triangle'" :heading="$testMessage" />
+                @if ($testOk && ! data_get($form, 'enabled'))
+                    <flux:text>{{ __("The test worked. Switch on 'Send email through this server' and save to start sending.") }}</flux:text>
+                @endif
             @endif
         </div>
     </flux:fieldset>
