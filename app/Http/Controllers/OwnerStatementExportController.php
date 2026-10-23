@@ -8,6 +8,7 @@ use App\Billing\OwnerStatementCalculator;
 use App\Models\OwnerStatement;
 use App\Models\User;
 use App\Support\Fils;
+use App\Support\SafeCells;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Spatie\SimpleExcel\SimpleExcelWriter;
@@ -25,15 +26,16 @@ final class OwnerStatementExportController
         $f = OwnerStatementCalculator::stored($statement);
         $path = sys_get_temp_dir().'/rms-statement-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
+        $writer->addRow(SafeCells::row(['Date', 'Entry', 'Reference', 'Amount', 'Balance']));
         $balance = $f['opening'];
-        $writer->addRow(['Date' => '', 'Entry' => 'Opening balance', 'Reference' => '', 'Amount' => '', 'Balance' => Fils::toDecimal($balance)]);
+        $writer->addRow(SafeCells::row(['Date' => '', 'Entry' => 'Opening balance', 'Reference' => '', 'Amount' => '', 'Balance' => Fils::toDecimal($balance)]));
         foreach ($f['entries'] as $e) {
             $balance += $e['amount'];
-            $writer->addRow(['Date' => $e['date'], 'Entry' => OwnerLedger::kindLabel($e['kind']), 'Reference' => $e['reference'], 'Amount' => Fils::toDecimal($e['amount']), 'Balance' => Fils::toDecimal($balance)]);
+            $writer->addRow(SafeCells::row(['Date' => $e['date'], 'Entry' => OwnerLedger::kindLabel($e['kind']), 'Reference' => $e['reference'], 'Amount' => Fils::toDecimal($e['amount']), 'Balance' => Fils::toDecimal($balance)]));
         }
-        $writer->addRow(['Date' => '', 'Entry' => 'Management fee', 'Reference' => 'on '.Fils::toDecimal($f['fee_base']), 'Amount' => Fils::toDecimal(-$f['fee']), 'Balance' => '']);
-        $writer->addRow(['Date' => '', 'Entry' => 'VAT on the fee', 'Reference' => '', 'Amount' => Fils::toDecimal(-$f['fee_tax']), 'Balance' => '']);
-        $writer->addRow(['Date' => '', 'Entry' => 'Closing balance', 'Reference' => '', 'Amount' => '', 'Balance' => Fils::toDecimal($f['closing'])]);
+        $writer->addRow(SafeCells::row(['Date' => '', 'Entry' => 'Management fee', 'Reference' => 'on '.Fils::toDecimal($f['fee_base']), 'Amount' => Fils::toDecimal(-$f['fee']), 'Balance' => '']));
+        $writer->addRow(SafeCells::row(['Date' => '', 'Entry' => 'VAT on the fee', 'Reference' => '', 'Amount' => Fils::toDecimal(-$f['fee_tax']), 'Balance' => '']));
+        $writer->addRow(SafeCells::row(['Date' => '', 'Entry' => 'Closing balance', 'Reference' => '', 'Amount' => '', 'Balance' => Fils::toDecimal($f['closing'])]));
         $writer->close();
 
         return response()->download($path, ($statement->number ?? 'statement-draft').'.xlsx')->deleteFileAfterSend();

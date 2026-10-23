@@ -7,6 +7,7 @@ use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\ReminderSend;
 use App\Models\ReminderSetting;
+use App\Support\SafeCells;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -65,10 +66,10 @@ class Index extends Component
 
         $path = sys_get_temp_dir().'/rms-reminders-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
-        $writer->addHeader([__('Date'), __('Tenant'), __('Type'), __('Item'), __('Channel'), __('Status'), __('Reason'), __('Sent by')]);
+        $writer->addRow(SafeCells::row([__('Date'), __('Tenant'), __('Type'), __('Item'), __('Channel'), __('Status'), __('Reason'), __('Sent by')]));
         foreach ($this->query()->get() as $row) { // ponytail: the whole range in memory; chunk it if a range ever holds tens of thousands
-            $writer->addRow([$row->sent_on->format('d/m/Y'), $row->customer->name_en ?? '', ReminderSetting::label($row->type), $row->itemLabel(),
-                __('Email'), $row->statusLabel(), ReminderSend::reasonText($row->reason), $row->manual ? __('Manual · :name', ['name' => $row->sender->name ?? '']) : __('Automatic')]);
+            $writer->addRow(SafeCells::row([$row->sent_on->format('d/m/Y'), $row->customer->name_en ?? '', ReminderSetting::label($row->type), $row->itemLabel(),
+                __('Email'), $row->statusLabel(), ReminderSend::reasonText($row->reason), $row->manual ? __('Manual · :name', ['name' => $row->sender->name ?? '']) : __('Automatic')]));
         }
         $writer->close();
         Audit::log('report.exported', properties: ['report' => 'reminders', ...$this->filters()], causer: $this->actor()); // only once the file exists

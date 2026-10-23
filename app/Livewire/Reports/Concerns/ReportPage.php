@@ -7,6 +7,7 @@ use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\User;
 use App\Support\Fils;
+use App\Support\SafeCells;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Validator;
@@ -127,9 +128,9 @@ trait ReportPage
         $path = sys_get_temp_dir().'/rms-'.$report.'-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
         $sheet = $this->sheetData();
-        $writer->addHeader($sheet['columns']);
+        $writer->addRow(SafeCells::row($sheet['columns']));
         foreach ($sheet['rows'] as $row) {
-            $writer->addRow($row);
+            $writer->addRow(SafeCells::row($row));
         }
         $writer->close();
 

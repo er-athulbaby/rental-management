@@ -11,6 +11,7 @@ use App\Models\Building;
 use App\Models\Disbursement;
 use App\Models\OwnerContract;
 use App\Models\OwnerPayable;
+use App\Support\SafeCells;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -96,9 +97,10 @@ class Index extends Component
 
         $path = sys_get_temp_dir().'/rms-head-lease-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
+        $writer->addRow(SafeCells::row(['Due', 'Contract', 'Building', 'Owner', 'From', 'To', 'Amount']));
         foreach ($this->rows() as $p) {
-            $writer->addRow(['Due' => $p->due_date->toDateString(), 'Contract' => $p->contract?->number, 'Building' => $p->contract?->building?->code,
-                'Owner' => $p->contract?->owner?->name_en, 'From' => $p->period_start->toDateString(), 'To' => $p->period_end->toDateString(), 'Amount' => $p->amount]);
+            $writer->addRow(SafeCells::row(array_values(['Due' => $p->due_date->toDateString(), 'Contract' => $p->contract?->number, 'Building' => $p->contract?->building?->code,
+                'Owner' => $p->contract?->owner?->name_en, 'From' => $p->period_start->toDateString(), 'To' => $p->period_end->toDateString(), 'Amount' => $p->amount])));
         }
         $writer->close();
 
