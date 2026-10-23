@@ -153,6 +153,8 @@
     "Payment reversal": "عكس دفعة",
     "Credit refund": "استرداد رصيد",
     "Credit refund reversal": "عكس استرداد رصيد",
+    "Not yet due": "غير مستحق بعد",
+    "The test worked. Switch on 'Send email through this server' and save to start sending.": "نجح الاختبار. فعّل «إرسال البريد عبر هذا الخادم» ثم احفظ لبدء الإرسال.",
     "Unknown custom field column :column.": "عمود حقل مخصص غير معروف :column.",
     "File fields cannot be imported: :column.": "لا يمكن استيراد حقول الملفات: :column.",
     ":field: \":value\" is not one of: :list.": ":field: \":value\" ليس من: :list.",

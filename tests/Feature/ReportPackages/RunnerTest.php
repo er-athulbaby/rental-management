@@ -46,6 +46,7 @@ test('items run in package order as the given user, each with its title, real da
         ['Collections by date and method', '01/09/2026 – 30/09/2026', 2, 'Amount: 100.000', null],
         ['Monthly collections', '01/09/2026 – 30/09/2026', 1, 'Amount: 100.000', null],
     ])
+        ->and(array_slice($result->sheets[0]->columns, -2))->toBe(['Overdue', 'Not yet due'])
         ->and($result->sheets[0]->columns)->toBe(ReadyMade::get('rent_roll')::sheet($this->finance, ['to' => '2026-10-15'])['columns'])
         ->and($result->periodLabel())->toBe('As at 15/10/2026')
         ->and($result->allSkipped())->toBeFalse()

@@ -23,8 +23,9 @@
                                 <div class="flex flex-wrap justify-between gap-2 text-zinc-600 dark:text-zinc-300">
                                     <span>{{ $row['start'] }} – {{ $row['end'] }}</span>
                                     <span class="tabular-nums">{{ __('Monthly rent') }}: {{ __(':amount BHD', ['amount' => App\Support\Fils::grouped((int) $row['rent'])]) }}</span>
-                                    @if ($row['owed'] !== null)
-                                        <span class="tabular-nums">{{ __('Balance owed') }}: {{ __(':amount BHD', ['amount' => App\Support\Fils::grouped($row['owed'])]) }}</span>
+                                    @if ($row['overdue'] !== null)
+                                        <span class="tabular-nums">{{ __('Overdue') }}: {{ __(':amount BHD', ['amount' => App\Support\Fils::grouped($row['overdue'])]) }}</span>
+                                        <span class="tabular-nums">{{ __('Not yet due') }}: {{ __(':amount BHD', ['amount' => App\Support\Fils::grouped($row['not_due'])]) }}</span>
                                     @endif
                                 </div>
                             @endif

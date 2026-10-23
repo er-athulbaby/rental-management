@@ -95,8 +95,10 @@ final class Queries
             ->groupBy('dm.agreement_unit_id', 'au2.unit_id')->havingRaw('SUM(dm.amount) > 0')
             ->select('au2.unit_id', DB::raw('SUM(dm.amount) as held'));
         $held = DB::query()->fromSub($perAu, 'x')->groupBy('unit_id')->select('unit_id', DB::raw('SUM(held) as held'));
+        $today = now('Asia/Bahrain')->toDateString();
         $owed = DB::table('invoices')->where('status', 'issued')->where('type', '<>', 'credit_note')->whereNotNull('agreement_id')
-            ->groupBy('agreement_id')->select('agreement_id', DB::raw('SUM(balance) as owed'));
+            ->groupBy('agreement_id')
+            ->selectRaw('agreement_id, SUM(CASE WHEN due_date < ? THEN balance ELSE 0 END) as overdue, SUM(CASE WHEN due_date < ? THEN 0 ELSE balance END) as not_due', [$today, $today]); // the due date alone decides, deposit invoices included
 
         return DB::table('units as u')
             ->join('buildings as b', 'b.id', '=', 'u.building_id')
@@ -111,7 +113,7 @@ final class Queries
             ->whereIn('u.id', $unitIds)
             ->orderBy('b.code')->orderBy('u.code')
             ->get(['u.building_id', 'b.code as building', 'u.code as unit', 'u.blocked', 'u.list_rent', 'u.type', 'ut.name as type_name',
-                'au.id as au_id', 'au.start_date', 'au.end_date', 'a.id as agreement_id', 'a.number', 'c.name_en as tenant', 'r.rent', 'd.held', 'o.owed']);
+                'au.id as au_id', 'au.start_date', 'au.end_date', 'a.id as agreement_id', 'a.number', 'c.name_en as tenant', 'r.rent', 'd.held', 'o.overdue', 'o.not_due']);
     }
 
     /** @param  Builder<Unit>  $unitIds  a select('id') query */

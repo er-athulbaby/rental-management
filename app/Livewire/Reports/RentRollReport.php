@@ -45,14 +45,14 @@ class RentRollReport extends Component implements PackageReport
         return [
             'building' => __('Building'), 'unit' => __('Unit'), 'type' => __('Type'), 'status' => __('Status'), 'tenant' => __('Tenant'),
             'agreement' => __('Agreement'), 'start' => __('Start'), 'end' => __('End'),
-            ...($this->showMoney() ? ['rent' => __('Monthly rent'), 'deposit' => __('Deposit held'), 'balance' => __('Balance owed')] : []),
+            ...($this->showMoney() ? ['rent' => __('Monthly rent'), 'deposit' => __('Deposit held'), 'overdue' => __('Overdue'), 'not_due' => __('Not yet due')] : []),
         ];
     }
 
     /** @return list<string> */
     protected function numeric(): array
     {
-        return ['rent', 'deposit', 'balance'];
+        return ['rent', 'deposit', 'overdue', 'not_due'];
     }
 
     /** @return list<array<string, string|int|null>> */
@@ -68,7 +68,7 @@ class RentRollReport extends Component implements PackageReport
         $date = fn (mixed $d) => $d === null ? '' : CarbonImmutable::parse((string) $d)->format('d/m/Y');
         $rows = [];
         $seen = [];
-        $all = ['units' => 0, 'blocked' => 0, 'occupied' => 0, 'counted' => 0, 'rent' => 0, 'deposit' => 0, 'balance' => 0];
+        $all = ['units' => 0, 'blocked' => 0, 'occupied' => 0, 'counted' => 0, 'rent' => 0, 'deposit' => 0, 'overdue' => 0, 'not_due' => 0];
         foreach ($units->groupBy('building_id') as $group) {
             $sub = array_fill_keys(array_keys($all), 0);
             $code = '';
@@ -82,14 +82,16 @@ class RentRollReport extends Component implements PackageReport
                 }
                 $rentFils = $occupied ? $fils($u->rent) : 0;
                 $depositFils = $fils($u->held);
-                $balanceFils = $first ? $fils($u->owed) : 0;
+                $overdueFils = $first ? $fils($u->overdue) : 0;
+                $notDueFils = $first ? $fils($u->not_due) : 0;
                 $sub['units']++;
                 $sub['blocked'] += (int) $blocked;
                 $sub['occupied'] += (int) $occupied;
                 $sub['counted'] += (int) ($occupied && ! $blocked); // a blocked unit can't count towards the %
                 $sub['rent'] += $rentFils;
                 $sub['deposit'] += $depositFils;
-                $sub['balance'] += $balanceFils;
+                $sub['overdue'] += $overdueFils;
+                $sub['not_due'] += $notDueFils;
 
                 $rows[] = [
                     'building' => $code, 'unit' => $u->unit, 'type' => $u->type_name ?? $u->type,
@@ -98,7 +100,8 @@ class RentRollReport extends Component implements PackageReport
                     ...($money ? [
                         'rent' => $occupied ? Fils::toDecimal($rentFils) : ($blocked || $u->list_rent === null ? '' : __(':amount (list)', ['amount' => Fils::toDecimal($fils($u->list_rent))])),
                         'deposit' => $occupied || $depositFils > 0 ? Fils::toDecimal($depositFils) : '',
-                        'balance' => $occupied ? ($first ? Fils::toDecimal($balanceFils) : __('(all units)')) : '',
+                        'overdue' => $occupied ? ($first ? Fils::toDecimal($overdueFils) : __('(all units)')) : '',
+                        'not_due' => $occupied ? ($first ? Fils::toDecimal($notDueFils) : __('(all units)')) : '',
                     ] : []),
                     '_muted' => ! $occupied && ! $blocked && $u->list_rent !== null ? 'rent' : null, // a vacant unit's list rent
                 ];
@@ -127,7 +130,7 @@ class RentRollReport extends Component implements PackageReport
             'building' => $label,
             'unit' => __(':n units', ['n' => $t['units']]),
             'status' => __(':n occupied, :pct', ['n' => $t['occupied'], 'pct' => $available > 0 ? number_format(100 * $t['counted'] / $available, 1).'%' : '—']),
-            ...($money ? ['rent' => Fils::toDecimal($t['rent']), 'deposit' => Fils::toDecimal($t['deposit']), 'balance' => Fils::toDecimal($t['balance'])] : []),
+            ...($money ? ['rent' => Fils::toDecimal($t['rent']), 'deposit' => Fils::toDecimal($t['deposit']), 'overdue' => Fils::toDecimal($t['overdue']), 'not_due' => Fils::toDecimal($t['not_due'])] : []),
             '_kind' => 'total',
         ];
     }

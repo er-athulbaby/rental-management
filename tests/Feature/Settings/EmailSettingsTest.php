@@ -252,3 +252,17 @@ test('a password that can no longer be decrypted (APP_KEY changed) never breaks 
     saveMailAs($this->admin)->assertHasNoErrors();
     expect(MailSetting::current()->password)->toBe(SECRET);
 });
+
+test('send test: with the switch off, a successful test hints to switch it on; with it on, or when the test fails, no hint', function () {
+    $hint = "The test worked. Switch on 'Send email through this server' and save to start sending.";
+
+    fakeSmtp();
+    Livewire::actingAs($this->admin)->test(EmailSettings::class)->set('form', mailForm(['enabled' => false]))->call('sendTest')
+        ->assertSee('Test email sent to')->assertSee($hint);
+    Livewire::actingAs($this->admin)->test(EmailSettings::class)->set('form', mailForm(['enabled' => true]))->call('sendTest')
+        ->assertSee('Test email sent to')->assertDontSee($hint);
+
+    fakeSmtp('Connection refused');
+    Livewire::actingAs($this->admin)->test(EmailSettings::class)->set('form', mailForm(['enabled' => false]))->call('sendTest')
+        ->assertSee('Connection refused')->assertDontSee($hint);
+});

@@ -48,13 +48,13 @@ test('one row per unit as at a date, a subtotal per building and a grand total',
     $html = Livewire::actingAs($this->finance)->test(RentRollReport::class)->html();
     $m = $this->mine->code;
 
-    expect(reportRowText($html, 'A101'))->toBe("{$m} A101 Flat / Apartment Occupied Alice Tenant {$this->number} 01/01/2026 31/12/2026 400.000 400.000 800.000")
-        ->and(reportRowText($html, 'A102'))->toBe("{$m} A102 Flat / Apartment Occupied Alice Tenant {$this->number} 01/01/2026 31/12/2026 400.000 0.000 (all units)")
+    expect(reportRowText($html, 'A101'))->toBe("{$m} A101 Flat / Apartment Occupied Alice Tenant {$this->number} 01/01/2026 31/12/2026 400.000 400.000 800.000 0.000")
+        ->and(reportRowText($html, 'A102'))->toBe("{$m} A102 Flat / Apartment Occupied Alice Tenant {$this->number} 01/01/2026 31/12/2026 400.000 0.000 (all units) (all units)")
         ->and(reportRowText($html, 'A103'))->toBe("{$m} A103 Flat / Apartment Vacant 350.000 (list)")    // list rent, muted
         ->and(reportRowText($html, 'A104'))->toBe("{$m} A104 Flat / Apartment Blocked")
-        ->and(reportRowText($html, "Subtotal {$m}"))->toBe("Subtotal {$m} 4 units 2 occupied, 66.7% 800.000 400.000 800.000") // 2 ÷ (4 − 1 blocked)
+        ->and(reportRowText($html, "Subtotal {$m}"))->toBe("Subtotal {$m} 4 units 2 occupied, 66.7% 800.000 400.000 800.000 0.000") // 2 ÷ (4 − 1 blocked)
         ->and(reportRowText($html, 'T201'))->toBe("{$this->theirs->code} T201 Flat / Apartment Vacant 400.000 (list)")
-        ->and(reportRowText($html, '5 units'))->toBe('Total 5 units 2 occupied, 50.0% 800.000 400.000 800.000');
+        ->and(reportRowText($html, '5 units'))->toBe('Total 5 units 2 occupied, 50.0% 800.000 400.000 800.000 0.000');
 });
 
 test('without reports.financial the money columns are hidden; a building-scoped user sees only their buildings', function () {
@@ -76,7 +76,7 @@ test('a unit added by an amendment shows its own rent from its start; before the
     expect(reportRowText($page->html(), 'A103'))->toBe("{$this->mine->code} A103 Flat / Apartment Vacant 350.000 (list)");
 
     expect(reportRowText($page->set('to', '2026-06-20')->html(), 'A103'))
-        ->toBe("{$this->mine->code} A103 Flat / Apartment Occupied Alice Tenant {$this->number} 15/06/2026 31/12/2026 300.000 0.000 (all units)");
+        ->toBe("{$this->mine->code} A103 Flat / Apartment Occupied Alice Tenant {$this->number} 15/06/2026 31/12/2026 300.000 0.000 (all units) (all units)");
 });
 
 test('the rent roll exports to Excel, audited; a bad date shows an error, not a crash; it is listed on the Reports page', function () {
@@ -101,7 +101,7 @@ test('deposit held reconciles to the Deposits held report, including a released 
     $deposits = Livewire::actingAs($this->finance)->test(DepositsHeldReport::class)->html();
 
     expect(reportRowText($html, 'A105'))->toBe("{$this->mine->code} A105 Flat / Apartment Vacant 400.000 (list) 250.000")
-        ->and(reportRowText($html, '6 units'))->toBe('Total 6 units 2 occupied, 40.0% 800.000 650.000 800.000')
+        ->and(reportRowText($html, '6 units'))->toBe('Total 6 units 2 occupied, 40.0% 800.000 650.000 800.000 0.000')
         ->and(reportRowText($deposits, 'Total'))->toContain('650.000');
 });
 
@@ -117,8 +117,8 @@ test('the building filter limits rows and totals', function () {
 
     expect(reportRowText($html, 'A101'))->toContain('Alice Tenant')
         ->and($html)->not->toContain('T201')
-        ->and(reportRowText($html, '4 units'))->toBe("Subtotal {$this->mine->code} 4 units 2 occupied, 66.7% 800.000 400.000 800.000")
-        ->and(reportRowText(collect(explode('</tr>', $html))->filter(fn ($tr) => str_contains($tr, '4 units'))->last().'</tr>', '4 units'))->toBe('Total 4 units 2 occupied, 66.7% 800.000 400.000 800.000');
+        ->and(reportRowText($html, '4 units'))->toBe("Subtotal {$this->mine->code} 4 units 2 occupied, 66.7% 800.000 400.000 800.000 0.000")
+        ->and(reportRowText(collect(explode('</tr>', $html))->filter(fn ($tr) => str_contains($tr, '4 units'))->last().'</tr>', '4 units'))->toBe('Total 4 units 2 occupied, 66.7% 800.000 400.000 800.000 0.000');
 });
 
 test('the occupancy percentage agrees with the Occupancy report', function () {
@@ -126,4 +126,47 @@ test('the occupancy percentage agrees with the Occupancy report', function () {
 
     expect(reportRowText($occupancy, $this->mine->code))->toContain('66.7%')
         ->and(reportRowText(Livewire::actingAs($this->finance)->test(RentRollReport::class)->html(), "Subtotal {$this->mine->code}"))->toContain('66.7%');
+});
+
+/** Another issued invoice on the shared agreement, of the given type (rent when null). */
+function rentRollInvoice(string $net, string $due, ?string $type = null): void
+{
+    $agreement = test()->agreement;
+    issuedInvoice($agreement->customer, [['net' => $net, 'au' => $agreement->agreementUnits()->orderBy('id')->first()]], $due, $agreement, $type);
+}
+
+test('overdue and not yet due split the open balance by due date; they add up to the old balance owed', function () {
+    rentRollInvoice('200.000', '2026-07-01');                // future rent
+    rentRollInvoice('150.000', '2026-06-20', 'deposit');     // deposit invoice, not yet due
+    rentRollInvoice('100.000', '2026-06-10');                // due today: not overdue
+
+    $page = Livewire::actingAs($this->finance)->test(RentRollReport::class);
+    $html = $page->html();
+    $m = $this->mine->code;
+
+    expect(reportRowText($html, 'A101'))->toBe("{$m} A101 Flat / Apartment Occupied Alice Tenant {$this->number} 01/01/2026 31/12/2026 400.000 400.000 800.000 450.000")
+        ->and(reportRowText($html, 'A102'))->toEndWith('(all units) (all units)')
+        ->and(reportRowText($html, "Subtotal {$m}"))->toBe("Subtotal {$m} 4 units 2 occupied, 66.7% 800.000 400.000 800.000 450.000")
+        ->and(reportRowText($html, '5 units'))->toBe('Total 5 units 2 occupied, 50.0% 800.000 400.000 800.000 450.000');
+
+    expect(Customer::query()->where('name_en', 'Alice Tenant')->sole()->outstandingFils())->toBe(1_250_000);
+});
+
+test('a deposit invoice past its due date counts as overdue: the due date alone decides', function () {
+    rentRollInvoice('150.000', '2026-06-05', 'deposit');
+
+    $html = Livewire::actingAs($this->finance)->test(RentRollReport::class)->html();
+
+    expect(reportRowText($html, 'A101'))->toEndWith('400.000 400.000 950.000 0.000')
+        ->and(reportRowText($html, '5 units'))->toEndWith('800.000 400.000 950.000 0.000');
+});
+
+test('the Excel export has Overdue and Not yet due columns with their values', function () {
+    rentRollInvoice('200.000', '2026-07-01');
+
+    $path = Livewire::actingAs($this->finance)->test(RentRollReport::class)->instance()->export()->getFile()->getPathname();
+    $rows = xlsxRows($path);
+
+    expect($rows[0])->toBe(['Building', 'Unit', 'Type', 'Status', 'Tenant', 'Agreement', 'Start', 'End', 'Monthly rent', 'Deposit held', 'Overdue', 'Not yet due'])
+        ->and(array_slice(collect($rows)->first(fn (array $r) => $r[1] === 'A101'), -4))->toBe(['400.000', '400.000', '800.000', '200.000']);
 });
