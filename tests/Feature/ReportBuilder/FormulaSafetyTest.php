@@ -1,6 +1,8 @@
 <?php
 
+use App\Actions\EnsureNumberSequences;
 use App\Enums\RoleName;
+use App\Livewire\Reminders\Index;
 use App\Models\Building;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -9,6 +11,7 @@ use App\Reports\Packages\PackageResult;
 use App\Reports\Packages\PackageSheet;
 use App\Reports\Packages\PackageWorkbook;
 use App\Support\SafeCells;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Str;
 use OpenSpout\Common\Entity\Cell\FormulaCell;
@@ -90,4 +93,18 @@ test('a report package keeps titles, notes and rows that start with = as text', 
 
     expect(formulaCount($path))->toBe(0)
         ->and(cellTexts($path))->toContain('=Evil', '=Col', '=2+2', '@x', '-12.500', '=Gone', '=Reason');
+});
+
+test('the reminders export keeps a tenant named =1+1 as text', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 08:00', 'Asia/Bahrain'));
+    app(EnsureNumberSequences::class)(2026);
+    $building = Building::factory()->create();
+    $finance = matrixUser(RoleName::Finance, $building);
+    [$tenant, $agreement] = reminderTenant(['name_en' => '=1+1', 'email' => 'x@tenant.test'], '2027-01-09', $building);
+    logReminder($tenant, 'renewal', $agreement, ['rule_day' => 60]);
+
+    $path = Livewire\Livewire::actingAs($finance)->test(Index::class)->instance()->export()->getFile()->getPathname();
+
+    expect(formulaCount($path))->toBe(0)
+        ->and(cellTexts($path))->toContain('=1+1');
 });
