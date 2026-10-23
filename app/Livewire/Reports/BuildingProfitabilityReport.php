@@ -7,6 +7,7 @@ use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Reports\BuildingProfitability;
 use App\Support\Fils;
+use App\Support\SafeCells;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -66,8 +67,12 @@ class BuildingProfitabilityReport extends Component
 
         $path = sys_get_temp_dir().'/rms-profitability-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
-        foreach ($this->rows() as $r) {
-            $writer->addRow(['Building' => $r['building']->code.' '.$r['building']->name, ...collect($r['figures'])->mapWithKeys(fn (int $v, string $k) => [str($k)->headline()->toString() => Fils::toDecimal($v)])->all()]);
+        $rows = collect($this->rows())->map(fn (array $r) => ['Building' => $r['building']->code.' '.$r['building']->name, ...collect($r['figures'])->mapWithKeys(fn (int $v, string $k) => [str($k)->headline()->toString() => Fils::toDecimal($v)])->all()]);
+        if ($rows->isNotEmpty()) {
+            $writer->addRow(SafeCells::row(array_keys($rows->first())));
+        }
+        foreach ($rows as $row) {
+            $writer->addRow(SafeCells::row($row));
         }
         $writer->close();
 

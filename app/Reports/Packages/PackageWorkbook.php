@@ -2,6 +2,7 @@
 
 namespace App\Reports\Packages;
 
+use App\Support\SafeCells;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
 /**
@@ -22,20 +23,20 @@ final class PackageWorkbook
             } else {
                 $writer->addNewSheetAndMakeItCurrent($name);
             }
-            $writer->addRow([$sheet->title]);
+            $writer->addRow(SafeCells::row([$sheet->title]));
             if ($sheet->skipped !== null) {
-                $writer->addRow([$sheet->skipped]);
+                $writer->addRow(SafeCells::row([$sheet->skipped]));
 
                 continue;
             }
-            $writer->addRow([$sheet->periodLabel]);
+            $writer->addRow(SafeCells::row([$sheet->periodLabel]));
             if ($sheet->note !== null) {
-                $writer->addRow([$sheet->note]);
+                $writer->addRow(SafeCells::row([$sheet->note]));
             }
-            $writer->addRow([]);
-            $writer->addRow($sheet->columns);
+            $writer->addRow(SafeCells::row([]));
+            $writer->addRow(SafeCells::row($sheet->columns));
             foreach ($sheet->rows as $row) {
-                $writer->addRow($row);
+                $writer->addRow(SafeCells::row($row));
             }
         }
         $writer->close();

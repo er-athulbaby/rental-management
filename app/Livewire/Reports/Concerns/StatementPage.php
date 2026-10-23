@@ -11,6 +11,7 @@ use App\Models\OwnerContract;
 use App\Models\User;
 use App\Reports\IncomeStatement;
 use App\Support\Fils;
+use App\Support\SafeCells;
 use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -169,9 +170,9 @@ trait StatementPage
         $path = sys_get_temp_dir().'/rms-'.$report.'-'.Str::uuid().'.xlsx';
         $writer = SimpleExcelWriter::create($path);
         $sheet = $this->statementSheet($statement);
-        $writer->addHeader($sheet['columns']);
+        $writer->addRow(SafeCells::row($sheet['columns']));
         foreach ($sheet['rows'] as $row) {
-            $writer->addRow($row);
+            $writer->addRow(SafeCells::row($row));
         }
         $writer->close();
 

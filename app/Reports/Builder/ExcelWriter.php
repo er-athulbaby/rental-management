@@ -2,6 +2,7 @@
 
 namespace App\Reports\Builder;
 
+use App\Support\SafeCells;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
 /** The builder's Excel file: one header row, raw values, then the grand total (spec §5). */
@@ -11,9 +12,9 @@ final class ExcelWriter
     public static function write(ReportResult $result, string $path): void
     {
         $writer = SimpleExcelWriter::create($path);
-        $writer->addHeader(self::columns($result));
+        $writer->addRow(SafeCells::row(self::columns($result)));
         foreach (self::rows($result) as $row) {
-            $writer->addRow($row);
+            $writer->addRow(SafeCells::row($row));
         }
         $writer->close();
     }
