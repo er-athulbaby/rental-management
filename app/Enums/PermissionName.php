@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-/** The 25 permissions of spec §8.1 plus the two of the maintenance spec (2026-10-17 §6). The values are the names stored by spatie/laravel-permission. */
+/** The 25 permissions of spec §8.1, the two of the maintenance spec (2026-10-17 §6) and the three of the general ledger (2026-10-24 §3). The values are the names stored by spatie/laravel-permission. */
 enum PermissionName: string
 {
     case UsersManage = 'users.manage';
@@ -32,6 +32,9 @@ enum PermissionName: string
     case ImportRun = 'import.run';
     case MaintenanceView = 'maintenance.view';
     case MaintenanceManage = 'maintenance.manage';
+    case LedgerView = 'ledger.view';     // Finance and Admin: pages, reports, health (general ledger plan ruling 12)
+    case LedgerManage = 'ledger.manage'; // Finance: manual journals, lock, rebuild
+    case LedgerAdmin = 'ledger.admin';   // Admin: accounts, rules, start date, opening balances, unlock, rebuild
 
     /**
      * "Finance *.manage" (spec §8.1).
@@ -52,7 +55,7 @@ enum PermissionName: string
     {
         return [
             self::UsersManage, self::RolesManage, self::SettingsManage, self::AuditView, self::FinanceView,
-            ...self::financeManage(), self::ApprovalsDecide,
+            ...self::financeManage(), self::ApprovalsDecide, self::LedgerView, self::LedgerManage, self::LedgerAdmin,
         ];
     }
 
