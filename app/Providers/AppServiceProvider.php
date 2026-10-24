@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Audit\AuthEventSubscriber;
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
 use App\Http\Middleware\PortalSession;
+use App\Ledger\Poster;
 use App\Models\MailSetting;
 use App\Reminders\Channel;
 use App\Reminders\EmailChannel;
@@ -58,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::subscribe(AuthEventSubscriber::class);
+
+        // General ledger plan ruling 1: money records post to the ledger after their own transaction commits.
+        Poster::observe();
 
         // Email settings saved on screen: this request, and each queued job (a worker never restarts for them).
         MailSetting::apply();

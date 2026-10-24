@@ -21,6 +21,8 @@ use App\Models\Disbursement;
 use App\Models\Document;
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\Journal;
+use App\Models\LedgerSetting;
 use App\Models\MaintenanceRequest;
 use App\Models\Owner;
 use App\Models\OwnerCharge;
@@ -460,4 +462,38 @@ function customValue(CustomField $field, Model $record, array $columns): CustomF
     $value->save();
 
     return $value;
+}
+
+/** Sets the ledger start date directly (ledger tests; the Admin action is SetLedgerStart). */
+function ledgerStart(string $date): void
+{
+    LedgerSetting::current()->forceFill(['start_date' => $date])->save();
+}
+
+/** The journal a source posted, if any (ledger tests). */
+function journalFor(string $sourceType, int $sourceId): ?Journal
+{
+    return Journal::query()->where('source_type', $sourceType)->where('source_id', $sourceId)->first();
+}
+
+/** A journal's lines as "code debit credit", in line order, e.g. ['1100 440.000 0.000', '2100 0.000 400.000']; [] for none. */
+function linesOf(?Journal $journal): array
+{
+    return $journal === null ? [] : DB::table('journal_lines as l')->join('ledger_accounts as a', 'a.id', '=', 'l.ledger_account_id')
+        ->where('l.journal_id', $journal->id)->orderBy('l.id')
+        ->get(['a.code', 'l.debit', 'l.credit'])->map(fn ($r) => "{$r->code} {$r->debit} {$r->credit}")->all();
+}
+
+function postedLines(string $sourceType, int $sourceId): array
+{
+    return linesOf(journalFor($sourceType, $sourceId));
+}
+
+/** Every account's balance (debit − credit, BHD) keyed by code, journals up to a date (all when null), zero balances left out. */
+function ledgerBalances(?string $upTo = null): array
+{
+    return DB::table('journal_lines as l')->join('journals as j', 'j.id', '=', 'l.journal_id')->join('ledger_accounts as a', 'a.id', '=', 'l.ledger_account_id')
+        ->when($upTo, fn ($q, string $d) => $q->where('j.date', '<=', $d))
+        ->groupBy('a.code')->havingRaw('SUM(l.debit) <> SUM(l.credit)')->orderBy('a.code')
+        ->selectRaw('a.code, SUM(l.debit) - SUM(l.credit) AS balance')->pluck('balance', 'code')->all();
 }
