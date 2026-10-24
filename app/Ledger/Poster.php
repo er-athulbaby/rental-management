@@ -46,18 +46,27 @@ final class Poster
         }
     }
 
+    /** @var array<string, true> sources saved since they last posted; a record saved twice in one transaction posts once */
+    private static array $queued = [];
+
     /** @param  list<string>  $types */
     public static function queue(array $types, int $id): void
     {
-        DB::afterCommit(function () use ($types, $id) {
-            foreach ($types as $type) {
+        foreach ($types as $type) {
+            $key = "{$type}:{$id}";
+            self::$queued[$key] = true; // a rolled-back save leaves this set; the next save of the record re-registers, so it is harmless
+            DB::afterCommit(function () use ($type, $id, $key) {
+                if (! isset(self::$queued[$key])) {
+                    return; // an earlier callback of this commit already posted it
+                }
+                unset(self::$queued[$key]);
                 try {
                     app(self::class)->post($type, $id);
                 } catch (Throwable $e) {
                     report($e); // spec §8: the money record stands; catch-up retries and Ledger health shows the gap
                 }
-            }
-        });
+            });
+        }
     }
 
     /** Posts one source when it is eligible and has no journal yet. Idempotent. */

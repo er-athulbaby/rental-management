@@ -46,3 +46,6 @@ Schedule::command('rms:reports:send-scheduled')->everyFifteenMinutes()->withoutO
 
 Schedule::command('rms:reminders:send')->dailyAt('08:00')->withoutOverlapping(120)
     ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.tenant_reminders')), (string) $url);
+
+Schedule::command('rms:ledger:nightly')->dailyAt('00:30')->withoutOverlapping(120)
+    ->pingOnSuccessIf(filled($url = config('services.forge.heartbeats.ledger')), (string) $url);
