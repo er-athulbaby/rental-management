@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Approvals\DecideApproval;
+use App\Actions\Cheques\BounceCheque;
 use App\Actions\Cheques\ClearCheque;
 use App\Actions\Deposits\CreateDepositSettlement;
 use App\Actions\Deposits\SaveSettlementDeductions;
@@ -14,6 +15,7 @@ use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Journal;
 use App\Models\LedgerSetting;
 use App\Models\PaymentAllocation;
@@ -56,7 +58,7 @@ test('a receipt debits its method\'s account and credits Tenant credit; what it 
         ->and(journalFor('payment', $payment->id)->date->toDateString())->toBe('2026-10-03')
         ->and(journalFor('payment', $payment->id)->lines->first()->customer_id)->toBe($this->tenant->id)
         ->and(postedLines('allocation', $allocation->id))->toBe(['2300 440.000 0.000', '1100 0.000 440.000'])
-        ->and(journalFor('allocation', $allocation->id)->date->toDateString())->toBe('2026-10-03')
+        ->and(journalFor('allocation', $allocation->id)->date->toDateString())->toBe('2026-10-05')
         ->and(ledgerBalances())->toBe([1000 => '500.000', 2300 => '-60.000', 4000 => '-440.000']);
 });
 
@@ -128,6 +130,72 @@ test('a source that is not pending takes no lock on the settings row', function 
 
     expect(app(Poster::class)->post('invoice', $this->rent->id))->toBeNull(); // already posted
     $this->rent->forceFill(['allocated' => $this->rent->allocated])->save(); // a watched save that changes nothing postable
+
+    expect(collect($queries)->contains(fn (string $sql) => str_contains($sql, 'for update')))->toBeFalse();
+});
+
+test('a backdated receipt applied the day it was recorded to a later invoice is dated the invoice, so receivables never go negative', function () {
+    ($this->pay)(['method' => 'cash', 'amount' => '500.000']); // dated 10-03, recorded 10-05; 60.000 left as credit
+    $later = issuedInvoice($this->tenant, [['net' => '50.000', 'type' => 'utilities', 'au' => $this->au]], '2026-10-05', $this->agreement);
+    $allocation = PaymentAllocation::query()->whereHas('line', fn ($q) => $q->where('invoice_id', $later->id))->sole();
+
+    expect(journalFor('allocation', $allocation->id)->date->toDateString())->toBe('2026-10-05')
+        ->and(ledgerBalances('2026-10-04')[1100] ?? '0.000')->toBe('0.000')
+        ->and(ledgerBalances()[1100] ?? '0.000')->toBe('0.000');
+});
+
+test('a bank transfer receipt debits Bank', function () {
+    $payment = ($this->pay)(['method' => 'bank_transfer', 'amount' => '440.000']);
+
+    expect(postedLines('payment', $payment->id))->toBe(['1010 440.000 0.000', '2300 0.000 440.000']);
+});
+
+test('a cheque that bounces after clearing posts the exact opposite and negative allocations', function () {
+    $cheque = (new Cheque)->forceFill(['direction' => 'received', 'customer_id' => $this->tenant->id, 'agreement_id' => $this->agreement->id, 'invoice_id' => $this->rent->id,
+        'cheque_no' => '000124', 'bank_name' => 'NBB', 'cheque_date' => '2026-10-01', 'amount' => '440.000', 'status' => 'held', 'created_by' => $this->finance->id]);
+    $cheque->save();
+    $cheque->forceFill(['status' => 'deposited', 'deposited_on' => '2026-10-04'])->save();
+    $payment = app(ClearCheque::class)->handle($this->finance, $cheque, '2026-10-05');
+    $this->travelTo(CarbonImmutable::parse('2026-10-08 10:00', 'Asia/Bahrain'));
+    app(DecideApproval::class)->handle($this->management, app(BounceCheque::class)->handle($this->finance, $cheque->fresh(), '2026-10-08', 'Returned by the bank'), true);
+    $cut = PaymentAllocation::query()->where('payment_id', $payment->id)->whereNotNull('reverses_allocation_id')->sole();
+
+    expect(postedLines('payment_reversal', $payment->id))->toBe(['1010 0.000 440.000', '2300 440.000 0.000'])
+        ->and(journalFor('payment_reversal', $payment->id)->date->toDateString())->toBe('2026-10-08')
+        ->and(postedLines('allocation', $cut->id))->toBe(['2300 0.000 440.000', '1100 440.000 0.000'])
+        ->and(ledgerBalances())->toBe([1100 => '440.000', 4000 => '-440.000']);
+});
+
+test('a deposit applied from an owner-held deposit leaves Owner payable', function () {
+    $tenant = Customer::factory()->create();
+    $unit = Unit::factory()->for($this->building)->create();
+    activeOwnerContract(['building_id' => $this->building->id, 'type' => 'managed', 'deposits_held_by' => 'owner', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$unit]);
+    $agreement = activeAgreement(['customer_id' => $tenant->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$unit]);
+    $au = $agreement->agreementUnits->sole();
+    $rent = issuedInvoice($tenant, [['net' => '300.000', 'au' => $au]], '2026-10-01', $agreement);
+    $deposit = issuedInvoice($tenant, [['net' => '400.000', 'tax' => 'out_of_scope', 'type' => 'deposit', 'au' => $au]], '2025-12-01', $agreement, 'deposit');
+    app(RecordPayment::class)->handle($this->finance, $tenant, ['received_on' => '2026-10-03', 'method' => 'cash', 'amount' => '400.000', 'allocations' => [['invoice_id' => $deposit->id, 'amount' => '400.000']]]);
+    $au->forceFill(['move_out_date' => '2026-10-04'])->save();
+    $settlement = DB::transaction(fn () => app(CreateDepositSettlement::class)->handle($agreement, [$au->id], $this->finance));
+    app(SaveSettlementDeductions::class)->handle($this->finance, $settlement, [
+        ['agreement_unit_id' => $au->id, 'type' => 'unpaid_rent', 'description' => 'October rent', 'amount' => '300.000', 'invoice_line_id' => $rent->lines->sole()->id],
+    ]);
+    app(DecideApproval::class)->handle($this->management, app(SubmitDepositSettlement::class)->handle($this->finance, $settlement->fresh()), true);
+    $payment = $settlement->fresh()->payment;
+
+    expect(postedLines('payment', $payment->id))->toBe(['2100 300.000 0.000', '2300 0.000 300.000']);
+});
+
+test('a real draft invoice save takes no lock on the settings row', function () {
+    $queries = [];
+    DB::listen(function ($q) use (&$queries) {
+        $queries[] = strtolower($q->sql);
+    });
+
+    $draft = (new Invoice)->forceFill(['type' => 'manual', 'customer_id' => $this->tenant->id, 'issue_date' => '2026-10-05', 'due_date' => '2026-10-05',
+        'status' => 'draft', 'subtotal' => '0.000', 'tax_total' => '0.000', 'total' => '0.000']);
+    $draft->save();
+    $draft->forceFill(['subtotal' => '10.000', 'total' => '10.000'])->save();
 
     expect(collect($queries)->contains(fn (string $sql) => str_contains($sql, 'for update')))->toBeFalse();
 });

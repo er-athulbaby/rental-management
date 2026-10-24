@@ -23,8 +23,8 @@ final class Sources
         'invoice' => ['invoices', 't.issue_date', "t.status = 'issued'", false],
         'payment' => ['payments', 't.received_on', '1 = 1', false],
         'payment_reversal' => ['payments', 'DATE(t.reversed_at)', "t.status = 'reversed'", false],
-        // Made with the receipt (same day it was recorded): the receipt's date. Later (credit applied, a cut): the day it happened.
-        'allocation' => ['payment_allocations', 'IF(t.amount > 0 AND DATE(t.posted_at) = DATE(p.posted_at), p.received_on, DATE(t.posted_at))', '1 = 1', true],
+        // Made with the receipt (same day it was recorded): the receipt's date, but never before the invoice it pays exists. Later (credit applied, a cut): the day it happened.
+        'allocation' => ['payment_allocations', 'IF(t.amount > 0 AND DATE(t.posted_at) = DATE(p.posted_at), GREATEST(p.received_on, (SELECT i.issue_date FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id WHERE l.id = t.invoice_line_id)), DATE(t.posted_at))', '1 = 1', true],
     ];
 
     /** reversal type => the type whose lines it negates */
