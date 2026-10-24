@@ -7,6 +7,8 @@ use App\Models\Journal;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
+use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Support\Fils;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,8 @@ final class Poster
     /** model => the source types its saves may post (plan ruling 1) */
     public const array WATCH = [
         Invoice::class => ['invoice'],
+        Payment::class => ['payment', 'payment_reversal'],
+        PaymentAllocation::class => ['allocation'],
     ];
 
     /** Called once from AppServiceProvider::boot(). */
@@ -51,18 +55,22 @@ final class Poster
     /** Posts one source when it is eligible and has no journal yet. Idempotent. */
     public function post(string $type, int $id): ?Journal
     {
-        if (LedgerSetting::current()->start_date === null) {
-            return null; // the ledger is not set up: nothing to post, and no lock taken
+        $start = LedgerSetting::current()->start_date?->toDateString();
+        $today = now('Asia/Bahrain')->toDateString();
+        // Lock-free pre-check: most saves (drafts, allocated updates, a source already posted) can post nothing, so they never take the lock.
+        // The same eligibility is re-checked under the lock below.
+        if ($start === null || ! Sources::pending($type, $start, $today)->where('t.id', $id)->exists()) {
+            return null;
         }
 
-        return DB::transaction(function () use ($type, $id) {
+        return DB::transaction(function () use ($type, $id, $today) {
             // ponytail: one row lock serialises every posting, lock change and rebuild chunk; per-month locks if volume ever needs it.
             $settings = LedgerSetting::query()->lockForUpdate()->firstOrFail();
             $first = $settings->firstOpenDay();
             if ($settings->start_date === null || $first === null) {
                 return null;
             }
-            $row = Sources::pending($type, $settings->start_date->toDateString(), now('Asia/Bahrain')->toDateString())->where('t.id', $id)->first();
+            $row = Sources::pending($type, $settings->start_date->toDateString(), $today)->where('t.id', $id)->first();
             if ($row === null) {
                 return null;
             }

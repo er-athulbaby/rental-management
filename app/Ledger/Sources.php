@@ -6,6 +6,7 @@ use App\Support\Fils;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
+use stdClass;
 
 /**
  * General ledger spec §4 (plan rulings 1–3 and 7): the money records the ledger reads, one source type each. A type has
@@ -20,6 +21,10 @@ final class Sources
     /** type => [table, own date (SQL over alias t), eligibility (SQL over t), joins payments as p] (plan ruling 3) */
     public const array TYPES = [
         'invoice' => ['invoices', 't.issue_date', "t.status = 'issued'", false],
+        'payment' => ['payments', 't.received_on', '1 = 1', false],
+        'payment_reversal' => ['payments', 'DATE(t.reversed_at)', "t.status = 'reversed'", false],
+        // Made with the receipt (same day it was recorded): the receipt's date. Later (credit applied, a cut): the day it happened.
+        'allocation' => ['payment_allocations', 'IF(t.amount > 0 AND DATE(t.posted_at) = DATE(p.posted_at), p.received_on, DATE(t.posted_at))', '1 = 1', true],
     ];
 
     /** reversal type => the type whose lines it negates */
@@ -54,6 +59,8 @@ final class Sources
 
         return match ($type) {
             'invoice' => self::invoice($id, $rules),
+            'payment' => self::payment($id, $rules),
+            'allocation' => self::allocation($id, $rules),
             default => throw new LogicException("Unknown ledger source [{$type}]."),
         };
     }
@@ -121,6 +128,65 @@ final class Sources
         }
 
         return ['description' => (string) $invoice->number, 'lines' => $lines];
+    }
+
+    /**
+     * Rows 7–9: the method's account (one line per part of a split; the deposit's holder for a deposit applied) against
+     * Tenant credit. Allocations then move the credit to receivables (row 10).
+     *
+     * @return Built
+     */
+    private static function payment(int $id, Rules $rules): array
+    {
+        $p = DB::table('payments')->where('id', $id)->first(['number', 'customer_id', 'method', 'amount']) ?? throw new LogicException("Payment {$id} is missing.");
+        $customer = (int) $p->customer_id;
+        $amount = self::fils($p->amount);
+
+        /** @var list<Line> $lines */
+        $lines = match ($p->method) {
+            'split' => DB::table('payment_tenders')->where('payment_id', $id)->orderBy('id')->get(['method', 'amount'])
+                ->map(fn (stdClass $t) => self::line($rules->account('method.'.$t->method), self::fils($t->amount), $customer))->values()->all(),
+            'deposit_applied' => DB::table('deposit_movements as m')
+                ->join('deposit_settlements as s', 's.id', '=', 'm.source_id')
+                ->join('agreement_units as au', 'au.id', '=', 'm.agreement_unit_id')
+                ->join('units as u', 'u.id', '=', 'au.unit_id')
+                ->leftJoin('owner_contracts as c', 'c.id', '=', 'm.owner_contract_id')
+                ->where('m.source_type', 'deposit_settlement')->where('m.type', 'applied')->where('s.payment_id', $id)->orderBy('m.id')
+                ->get(['m.amount', 'c.type AS contract_type', 'c.deposits_held_by', 'c.owner_id', 'u.id AS unit_id', 'u.building_id'])
+                ->map(fn (stdClass $m) => self::line(self::heldAccount($m->contract_type, $m->deposits_held_by, $rules), -self::fils($m->amount), $customer,
+                    self::id($m->owner_id), self::id($m->building_id), self::id($m->unit_id)))->values()->all(),
+            default => [self::line($rules->account('method.'.$p->method), $amount, $customer)],
+        };
+        $lines[] = self::line($rules->account('tenant_credit'), -$amount, $customer);
+
+        return ['description' => (string) $p->number, 'lines' => $lines];
+    }
+
+    /**
+     * Row 10: a payment applied to an invoice line moves the amount from Tenant credit to receivables; a negative row (a
+     * reversal or a credit note's cut) moves it back.
+     *
+     * @return Built
+     */
+    private static function allocation(int $id, Rules $rules): array
+    {
+        $a = DB::table('payment_allocations as a')
+            ->join('payments as p', 'p.id', '=', 'a.payment_id')
+            ->join('invoice_lines as l', 'l.id', '=', 'a.invoice_line_id')
+            ->join('invoices as i', 'i.id', '=', 'l.invoice_id')
+            ->leftJoin('agreement_units as au', 'au.id', '=', 'l.agreement_unit_id')
+            ->leftJoin('units as u', 'u.id', '=', DB::raw('COALESCE(l.unit_id, au.unit_id)'))
+            ->leftJoin('owner_contracts as c', 'c.id', '=', 'a.owner_contract_id')
+            ->where('a.id', $id)
+            ->first(['a.amount', 'p.number AS payment', 'i.number AS invoice', 'p.customer_id', 'c.owner_id', 'u.id AS unit_id', 'u.building_id'])
+            ?? throw new LogicException("Payment allocation {$id} is missing.");
+        $amount = self::fils($a->amount);
+        $dims = [(int) $a->customer_id, self::id($a->owner_id), self::id($a->building_id), self::id($a->unit_id)];
+
+        return ['description' => "{$a->payment} → {$a->invoice}", 'lines' => [
+            self::line($rules->account('tenant_credit'), $amount, ...$dims),
+            self::line($rules->account('receivables'), -$amount, ...$dims),
+        ]];
     }
 
     /** Plan ruling 3: a deposit sits with the owner only on a managed contract whose owner holds deposits. */
