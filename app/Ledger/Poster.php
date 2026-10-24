@@ -103,8 +103,9 @@ final class Poster
      * Posts every pending source: nightly, after a rebuild's deletions, after the start date moves. Returns how many it tried.
      *
      * @param  (callable(int): void)|null  $progress  called with the running count after each chunk
+     * @param  float|null  $until  microtime(true) after which it stops at the next chunk end (a rebuild leg); a later call resumes, it only walks pending sources
      */
-    public function catchUp(?callable $progress = null): int
+    public function catchUp(?callable $progress = null, ?float $until = null): int
     {
         $start = LedgerSetting::current()->start_date?->toDateString();
         if ($start === null) {
@@ -127,6 +128,9 @@ final class Poster
                 }
                 if ($progress !== null) {
                     $progress($done);
+                }
+                if ($until !== null && microtime(true) >= $until) {
+                    return $done;
                 }
             }
         }

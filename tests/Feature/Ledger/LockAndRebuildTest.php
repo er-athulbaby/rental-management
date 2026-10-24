@@ -168,3 +168,51 @@ test('a disbursement saved several times in one action is checked for posting on
 
     expect($queries)->toBe(2); // disbursement and disbursement_reversal, once each
 });
+
+test('a lock covers closed days only: today cannot be locked', function () {
+    expect(fn () => app(LockLedger::class)->handle($this->f['finance'], '2026-10-20'))->toThrow(ValidationException::class)
+        ->and(LedgerSetting::current()->locked_until)->toBeNull();
+
+    app(LockLedger::class)->handle($this->f['finance'], '2026-10-19');
+    expect(LedgerSetting::current()->locked_until->toDateString())->toBe('2026-10-19');
+});
+
+test('a rebuild split into many short legs gives the same ledger as one leg and ends done', function () {
+    $f = $this->f;
+    $before = ledgerSnapshot();
+    $old = Journal::query()->where('kind', 'auto')->count();
+    LedgerSetting::query()->update(['rebuild_status' => 'queued']);
+
+    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $f['finance']->id, budget: -1); // every leg is over budget after one chunk
+
+    $settings = LedgerSetting::current();
+    expect(ledgerSnapshot())->toBe($before)
+        ->and($settings->rebuild_status)->toBe('done')
+        ->and($settings->rebuild_total)->toBe($old)
+        ->and($settings->rebuild_done)->toBe($old)
+        ->and(Activity::query()->where('event', 'ledger.rebuilt')->count())->toBe(1);
+});
+
+test('a job the queue fails leaves the rebuild failed, not running', function () {
+    LedgerSetting::query()->update(['rebuild_status' => 'running']);
+
+    (new RebuildLedgerJob('2026-10-01', '2026-10-20', $this->f['finance']->id))->failed(new RuntimeException('timed out'));
+
+    $settings = LedgerSetting::current();
+    expect($settings->rebuild_status)->toBe('failed')->and($settings->rebuild_message)->toBe('timed out')->and($settings->rebuilding())->toBeFalse();
+});
+
+test('the nightly run reports what it really posted and fails while anything is still unposted', function () {
+    $f = $this->f;
+    $utilities = LedgerAccount::query()->where('code', '5110');
+    $utilities->update(['active' => false]);
+    $expense = app(RecordExpense::class)->handle($f['finance'], ['building_id' => $f['tower']->id, 'category' => 'utilities', 'description' => 'Stuck bill',
+        'expense_date' => '2026-10-19', 'net' => '12.000', 'charge_to' => 'company']);
+    expect(journalFor('expense', $expense->id))->toBeNull();
+
+    $this->artisan('rms:ledger:nightly')->expectsOutputToContain('Posted 0 pending ledger sources, 1 still unposted.')->assertExitCode(1);
+
+    $utilities->update(['active' => true]);
+    $this->artisan('rms:ledger:nightly')->expectsOutputToContain('Posted 1 pending ledger sources, 0 still unposted.')->assertExitCode(0);
+    expect(journalFor('expense', $expense->id))->not->toBeNull();
+});

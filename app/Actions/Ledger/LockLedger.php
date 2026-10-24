@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
-/** Spec §5 (plan ruling 5): Finance moves "Locked up to" forward. Nothing on or before it is posted, rebuilt or changed. */
+/** Spec §5 (plan ruling 5): Finance moves "Locked up to" forward, to a closed day (before today). Nothing on or before it is posted, rebuilt or changed. */
 final class LockLedger
 {
     public function handle(User $actor, mixed $date): LedgerSetting
@@ -20,7 +20,7 @@ final class LockLedger
             throw new AuthorizationException;
         }
         Validator::make(['lockDate' => $date], [
-            'lockDate' => ['required', 'string', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Bahrain')->toDateString()],
+            'lockDate' => ['required', 'string', 'date_format:Y-m-d', 'before:'.now('Asia/Bahrain')->toDateString()],
         ])->validate();
         $date = (string) $date;
 
