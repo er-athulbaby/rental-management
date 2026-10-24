@@ -1,7 +1,9 @@
 <?php
 
 use App\Actions\Billing\IssueInvoice;
+use App\Actions\Disbursements\RecordDisbursement;
 use App\Actions\EnsureNumberSequences;
+use App\Actions\Expenses\RecordExpense;
 use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
@@ -14,6 +16,7 @@ use App\Models\Agreement;
 use App\Models\Bank;
 use App\Models\Building;
 use App\Models\Cheque;
+use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
@@ -29,6 +32,7 @@ use App\Models\OwnerCharge;
 use App\Models\OwnerContract;
 use App\Models\OwnerPayable;
 use App\Models\OwnerStatement;
+use App\Models\Payment;
 use App\Models\PortalAccount;
 use App\Models\ReminderSend;
 use App\Models\ReportPackage;
@@ -40,6 +44,7 @@ use App\Reports\Builder\Engine;
 use App\Reports\Builder\ReportDefinition;
 use App\Reports\Builder\ReportResult;
 use App\Support\Fils;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Model;
@@ -496,4 +501,86 @@ function ledgerBalances(?string $upTo = null): array
         ->when($upTo, fn ($q, string $d) => $q->where('j.date', '<=', $d))
         ->groupBy('a.code')->havingRaw('SUM(l.debit) <> SUM(l.credit)')->orderBy('a.code')
         ->selectRaw('a.code, SUM(l.debit) - SUM(l.credit) AS balance')->pluck('balance', 'code')->all();
+}
+
+/**
+ * The general ledger worked example (plan ruling 9): October 2026, VAT 10%, ledger start 01/10/2026. Seed
+ * RolesAndPermissionsSeeder and fake the local disk first. Ends on 20/10/2026 10:00.
+ *  - Tower (TWR) unit T1, managed for Ali Owner, deposits held by the company: Sara's rent 400.000 + VAT 40.000 and her
+ *    deposit 400.000, issued 01/10.
+ *  - Lease House (LSE) unit L1, leased from Badr Owner at 300.000 a month: Omar's rent 300.000 (exempt), issued 01/10;
+ *    the October payable, due 01/10.
+ *  - 05/10 Sara pays 900.000 cash (840.000 applied, 60.000 credit); 06/10 Omar pays 300.000 by card.
+ *  - 08/10 expenses: "Lobby lights" 50.000 (company, maintenance) and "T1 tap" 30.000 (charged to Ali).
+ *  - 10/10 the head lease 300.000 paid by bank transfer; 15/10 Ali's management fee 20.000 + VAT 2.000;
+ *    18/10 Sara's 60.000 credit refunded in cash.
+ *
+ * @return array{finance: User, management: User, admin: User, sara: Customer, omar: Customer, ali: Owner, tower: Building, lease: Building, t1: Unit, l1: Unit, managed: OwnerContract, leased: OwnerContract, saraAgreement: Agreement, saraRent: Invoice, saraDeposit: Invoice, omarRent: Invoice, saraPayment: Payment, companyExpense: Expense, ownerExpense: Expense, payable: OwnerPayable, headLease: Disbursement, statement: OwnerStatement, fee: OwnerCharge, refund: Disbursement}
+ */
+function ledgerFixture(): array
+{
+    $at = fn (string $when) => test()->travelTo(CarbonImmutable::parse($when, 'Asia/Bahrain'));
+    CompanySetting::factory()->create(['vat_registered' => true, 'vat_rate' => '10.00', 'require_different_approver' => true]);
+    $at('2026-10-01 09:00');
+    app(EnsureNumberSequences::class)(2026);
+    ledgerStart('2026-10-01');
+
+    $tower = Building::factory()->create(['code' => 'TWR', 'name' => 'Tower']);
+    $lease = Building::factory()->create(['code' => 'LSE', 'name' => 'Lease House']);
+    $finance = matrixUser(RoleName::Finance, $tower);
+    $finance->buildings()->attach($lease->id);
+    $management = matrixUser(RoleName::Management, $tower);
+    $admin = matrixUser(RoleName::Admin, $tower);
+    $ali = Owner::factory()->create(['name_en' => 'Ali Owner']);
+    $badr = Owner::factory()->create(['name_en' => 'Badr Owner']);
+    $t1 = Unit::factory()->for($tower)->create(['code' => 'T1']);
+    $l1 = Unit::factory()->for($lease)->create(['code' => 'L1']);
+    $managed = activeOwnerContract(['owner_id' => $ali->id, 'building_id' => $tower->id, 'type' => 'managed', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+        'fee_type' => 'fixed', 'fee_value' => '20.000', 'expense_approval_limit' => null, 'deposits_held_by' => 'company', 'created_by' => $finance->id], [$t1]);
+    $leased = activeOwnerContract(['owner_id' => $badr->id, 'building_id' => $lease->id, 'type' => 'leased', 'rent_amount' => '300.000', 'payment_frequency' => 'monthly',
+        'fee_type' => null, 'fee_value' => null, 'expense_approval_limit' => null, 'deposits_held_by' => null, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+        'created_by' => $finance->id], [$l1]);
+    $sara = Customer::factory()->create(['name_en' => 'Sara Tenant']);
+    $omar = Customer::factory()->create(['name_en' => 'Omar Tenant']);
+    $saraAgreement = activeAgreement(['customer_id' => $sara->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$t1]);
+    $omarAgreement = activeAgreement(['customer_id' => $omar->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$l1]);
+    $saraAu = $saraAgreement->agreementUnits->sole();
+    $saraRent = issuedInvoice($sara, [['net' => '400.000', 'tax' => 'standard', 'au' => $saraAu]], '2026-10-01', $saraAgreement);
+    $saraDeposit = issuedInvoice($sara, [['net' => '400.000', 'tax' => 'out_of_scope', 'type' => 'deposit', 'au' => $saraAu]], '2026-10-01', $saraAgreement, 'deposit');
+    $omarRent = issuedInvoice($omar, [['net' => '300.000', 'au' => $omarAgreement->agreementUnits->sole()]], '2026-10-01', $omarAgreement);
+
+    $at('2026-10-05 10:00');
+    $saraPayment = app(RecordPayment::class)->handle($finance, $sara, ['received_on' => '2026-10-05', 'method' => 'cash', 'amount' => '900.000']);
+    $at('2026-10-06 10:00');
+    app(RecordPayment::class)->handle($finance, $omar, ['received_on' => '2026-10-06', 'method' => 'card', 'amount' => '300.000']);
+
+    $at('2026-10-08 10:00');
+    $companyExpense = app(RecordExpense::class)->handle($finance, ['building_id' => $tower->id, 'category' => 'maintenance', 'description' => 'Lobby lights',
+        'expense_date' => '2026-10-08', 'net' => '50.000', 'charge_to' => 'company']);
+    $ownerExpense = app(RecordExpense::class)->handle($finance, ['building_id' => $tower->id, 'unit_id' => $t1->id, 'category' => 'maintenance', 'description' => 'T1 tap',
+        'expense_date' => '2026-10-08', 'net' => '30.000', 'charge_to' => 'owner']);
+
+    $at('2026-10-10 10:00');
+    $payable = (new OwnerPayable)->forceFill(['owner_contract_id' => $leased->id, 'period_start' => '2026-10-01', 'period_end' => '2026-10-31', 'due_date' => '2026-10-01',
+        'amount' => '300.000', 'status' => 'scheduled']);
+    $payable->save();
+    $headLease = app(RecordDisbursement::class)->handle($finance, ['purpose' => 'head_lease', 'owner_payable_id' => $payable->id, 'amount' => '300.000',
+        'method' => 'bank_transfer', 'paid_on' => '2026-10-10']);
+
+    $at('2026-10-15 10:00');
+    $statement = (new OwnerStatement)->forceFill(['owner_contract_id' => $managed->id, 'period_start' => '2026-09-01', 'period_end' => '2026-09-30',
+        'cutoff_at' => '2026-09-30 23:59:59', 'status' => 'draft', 'created_by' => $finance->id]);
+    $statement->save();
+    $fee = OwnerCharge::create(['owner_contract_id' => $managed->id, 'owner_statement_id' => $statement->id, 'type' => 'management_fee', 'net' => '20.000',
+        'tax_amount' => '2.000', 'amount' => '-22.000', 'posted_at' => '2026-10-15 10:00:00', 'created_by' => $finance->id]);
+
+    $at('2026-10-18 10:00');
+    $refund = app(RecordDisbursement::class)->handle($finance, ['purpose' => 'credit_refund', 'payment_id' => $saraPayment->id, 'amount' => '60.000',
+        'method' => 'cash', 'paid_on' => '2026-10-18']);
+    $at('2026-10-20 10:00');
+
+    return ['finance' => $finance, 'management' => $management, 'admin' => $admin, 'sara' => $sara, 'omar' => $omar, 'ali' => $ali, 'tower' => $tower, 'lease' => $lease,
+        't1' => $t1, 'l1' => $l1, 'managed' => $managed, 'leased' => $leased, 'saraAgreement' => $saraAgreement, 'saraRent' => $saraRent, 'saraDeposit' => $saraDeposit,
+        'omarRent' => $omarRent, 'saraPayment' => $saraPayment, 'companyExpense' => $companyExpense, 'ownerExpense' => $ownerExpense, 'payable' => $payable,
+        'headLease' => $headLease, 'statement' => $statement, 'fee' => $fee, 'refund' => $refund];
 }

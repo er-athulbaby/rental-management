@@ -2,11 +2,15 @@
 
 namespace App\Ledger;
 
+use App\Models\Disbursement;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Journal;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
+use App\Models\OwnerCharge;
+use App\Models\OwnerPayable;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Support\Fils;
@@ -28,6 +32,10 @@ final class Poster
         Invoice::class => ['invoice'],
         Payment::class => ['payment', 'payment_reversal'],
         PaymentAllocation::class => ['allocation'],
+        Expense::class => ['expense', 'expense_reversal'],
+        Disbursement::class => ['disbursement', 'disbursement_reversal'],
+        OwnerCharge::class => ['owner_charge'],
+        OwnerPayable::class => ['owner_payable', 'owner_payable_cancel'],
     ];
 
     /** Called once from AppServiceProvider::boot(). */

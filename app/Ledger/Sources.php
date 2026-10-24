@@ -3,6 +3,7 @@
 namespace App\Ledger;
 
 use App\Support\Fils;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -25,6 +26,15 @@ final class Sources
         'payment_reversal' => ['payments', 'DATE(t.reversed_at)', "t.status = 'reversed'", false],
         // Made with the receipt (same day it was recorded): the receipt's date, but never before the invoice it pays exists. Later (credit applied, a cut): the day it happened.
         'allocation' => ['payment_allocations', 'IF(t.amount > 0 AND DATE(t.posted_at) = DATE(p.posted_at), GREATEST(p.received_on, (SELECT i.issue_date FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id WHERE l.id = t.invoice_line_id)), DATE(t.posted_at))', '1 = 1', true],
+        'expense' => ['expenses', 't.expense_date', '1 = 1', false],
+        'expense_reversal' => ['expenses', 'DATE(t.reversed_at)', "t.status = 'reversed'", false],
+        'disbursement' => ['disbursements', 't.paid_on', "t.status IN ('paid', 'reversed')", false],
+        'disbursement_reversal' => ['disbursements', 'DATE(t.reversed_at)', "t.status = 'reversed'", false],
+        'owner_charge' => ['owner_charges', 'DATE(t.posted_at)', '1 = 1', false],
+        // Due today or earlier; a payable cancelled before its due date never posts. Once cancelled it never changes again,
+        // so updated_at is its cancellation time.
+        'owner_payable' => ['owner_payables', 't.due_date', "(t.status <> 'cancelled' OR DATE(t.updated_at) >= t.due_date)", false],
+        'owner_payable_cancel' => ['owner_payables', 'DATE(t.updated_at)', "t.status = 'cancelled' AND DATE(t.updated_at) >= t.due_date", false],
     ];
 
     /** reversal type => the type whose lines it negates */
@@ -61,6 +71,10 @@ final class Sources
             'invoice' => self::invoice($id, $rules),
             'payment' => self::payment($id, $rules),
             'allocation' => self::allocation($id, $rules),
+            'expense' => self::expense($id, $rules),
+            'disbursement' => self::disbursement($id, $rules),
+            'owner_charge' => self::ownerCharge($id, $rules),
+            'owner_payable' => self::ownerPayable($id, $rules),
             default => throw new LogicException("Unknown ledger source [{$type}]."),
         };
     }
@@ -186,6 +200,113 @@ final class Sources
         return ['description' => "{$a->payment} → {$a->invoice}", 'lines' => [
             self::line($rules->account('tenant_credit'), $amount, ...$dims),
             self::line($rules->account('receivables'), -$amount, ...$dims),
+        ]];
+    }
+
+    /**
+     * Rows 13–15: the expense's total (VAT included, plan ruling 14) is a cost of the company (by category) or of the
+     * owner, owed to the vendor. A tenant charge is the company's cost; its recharge invoice posts as an invoice.
+     *
+     * @return Built
+     */
+    private static function expense(int $id, Rules $rules): array
+    {
+        $e = DB::table('expenses as e')->leftJoin('owner_contracts as c', 'c.id', '=', 'e.owner_contract_id')->where('e.id', $id)
+            ->first(['e.description', 'e.category', 'e.charge_to', 'e.total', 'e.building_id', 'e.unit_id', 'c.owner_id'])
+            ?? throw new LogicException("Expense {$id} is missing.");
+        $total = self::fils($e->total);
+        $dims = [null, self::id($e->owner_id), self::id($e->building_id), self::id($e->unit_id)];
+        $debit = $e->charge_to === 'owner' ? 'owner_payable' : 'category.'.$e->category;
+
+        return ['description' => (string) $e->description, 'lines' => [
+            self::line($rules->account($debit), $total, ...$dims),
+            self::line($rules->account('vendor_payable'), -$total, ...$dims),
+        ]];
+    }
+
+    /**
+     * Rows 16–20: what the payment out settles (the owner, the tenant's credit, the deposit's holder per refunded unit, or
+     * Other payments out) against the payout method's account.
+     *
+     * @return Built
+     */
+    private static function disbursement(int $id, Rules $rules): array
+    {
+        $d = DB::table('disbursements')->where('id', $id)->first(['number', 'payee_type', 'payee_id', 'purpose', 'amount', 'method', 'source_id'])
+            ?? throw new LogicException("Payment out {$id} is missing.");
+        $amount = self::fils($d->amount);
+        $customer = $d->payee_type === 'customer' ? (int) $d->payee_id : null;
+        $owner = $d->payee_type === 'owner' ? (int) $d->payee_id : null;
+        $building = self::id(match ($d->purpose) {
+            'owner_remittance' => DB::table('owner_statements as s')->join('owner_contracts as c', 'c.id', '=', 's.owner_contract_id')->where('s.id', $d->source_id)->value('c.building_id'),
+            'head_lease' => DB::table('owner_payables as p')->join('owner_contracts as c', 'c.id', '=', 'p.owner_contract_id')->where('p.id', $d->source_id)->value('c.building_id'),
+            default => null,
+        });
+
+        /** @var list<Line> $lines */
+        $lines = match ($d->purpose) {
+            'owner_remittance', 'head_lease' => [self::line($rules->account('owner_payable'), $amount, null, $owner, $building)],
+            'credit_refund' => [self::line($rules->account('tenant_credit'), $amount, $customer)],
+            'deposit_refund' => DB::table('deposit_movements as m')
+                ->join('agreement_units as au', 'au.id', '=', 'm.agreement_unit_id')
+                ->join('units as u', 'u.id', '=', 'au.unit_id')
+                ->leftJoin('owner_contracts as c', 'c.id', '=', 'm.owner_contract_id')
+                ->where('m.source_type', 'disbursement')->where('m.source_id', $id)->where('m.type', 'refunded')->orderBy('m.id')
+                ->get(['m.amount', 'c.type AS contract_type', 'c.deposits_held_by', 'c.owner_id', 'u.id AS unit_id', 'u.building_id'])
+                ->map(fn (stdClass $m) => self::line(self::heldAccount($m->contract_type, $m->deposits_held_by, $rules), -self::fils($m->amount), $customer,
+                    self::id($m->owner_id), self::id($m->building_id), self::id($m->unit_id)))->values()->all(),
+            default => [self::line($rules->account('other_payments_out'), $amount, $customer, $owner)],
+        };
+        $lines[] = self::line($rules->account('method.'.$d->method), -$amount, $customer, $owner, $building);
+
+        return ['description' => (string) $d->number, 'lines' => $lines];
+    }
+
+    /**
+     * Rows 21–22: a management fee is owed by the owner (net + VAT) as fee income and VAT; an opening balance moves
+     * Opening balance equity to the owner (amount + = the company owes the owner).
+     *
+     * @return Built
+     */
+    private static function ownerCharge(int $id, Rules $rules): array
+    {
+        $c = DB::table('owner_charges as oc')->join('owner_contracts as c', 'c.id', '=', 'oc.owner_contract_id')->where('oc.id', $id)
+            ->first(['oc.type', 'oc.net', 'oc.tax_amount', 'oc.amount', 'c.number', 'c.owner_id', 'c.building_id'])
+            ?? throw new LogicException("Owner charge {$id} is missing.");
+        $amount = self::fils($c->amount);
+        $dims = [null, (int) $c->owner_id, (int) $c->building_id];
+
+        $lines = $c->type === 'management_fee'
+            ? [
+                self::line($rules->account('owner_payable'), -$amount, ...$dims),
+                self::line($rules->account('fee_income'), -self::fils($c->net), ...$dims),
+                self::line($rules->account('vat_payable'), -self::fils($c->tax_amount), ...$dims),
+            ]
+            : [
+                self::line($rules->account('opening_equity'), $amount, ...$dims),
+                self::line($rules->account('owner_payable'), -$amount, ...$dims),
+            ];
+
+        return ['description' => (string) $c->number, 'lines' => $lines];
+    }
+
+    /**
+     * Row 23: a leased contract's rent for a period is the company's cost and owed to the owner from its due date.
+     *
+     * @return Built
+     */
+    private static function ownerPayable(int $id, Rules $rules): array
+    {
+        $p = DB::table('owner_payables as p')->join('owner_contracts as c', 'c.id', '=', 'p.owner_contract_id')->where('p.id', $id)
+            ->first(['p.amount', 'p.period_start', 'p.period_end', 'c.number', 'c.owner_id', 'c.building_id'])
+            ?? throw new LogicException("Owner payable {$id} is missing.");
+        $amount = self::fils($p->amount);
+        $dims = [null, (int) $p->owner_id, (int) $p->building_id];
+        $period = CarbonImmutable::parse((string) $p->period_start)->format('d/m/Y').'–'.CarbonImmutable::parse((string) $p->period_end)->format('d/m/Y');
+
+        return ['description' => trim($p->number.' '.$period), 'lines' => [
+            self::line($rules->account('lease_rent'), $amount, ...$dims),
+            self::line($rules->account('owner_payable'), -$amount, ...$dims),
         ]];
     }
 
