@@ -10,6 +10,7 @@ use App\Models\LedgerAccount;
 use App\Reports\Packages\PackageReport;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -73,14 +74,14 @@ class JournalListReport extends Component implements PackageReport
             ->when($this->account !== 'all', fn ($q) => $q->where('l.ledger_account_id', (int) $this->account))
             ->when(in_array($this->source, ['manual', 'opening'], true), fn ($q) => $q->where('j.kind', $this->source))
             ->when(! in_array($this->source, ['all', 'manual', 'opening'], true), fn ($q) => $q->where('j.source_type', $this->source));
+        $cap = $this->screenCap();
+        $lines = (clone $query)->when($cap !== null, fn ($q) => $q->limit($cap + 1))->get();
+        $capped = $cap !== null && $lines->count() > $cap;
+        $this->capped = $capped;
         $rows = [];
-        $debits = 0;
-        $credits = 0;
-        foreach ($query->get() as $line) {
+        foreach ($capped ? $lines->take($cap) : $lines as $line) {
             $debit = Fils::fromDecimal((string) $line->debit);
             $credit = Fils::fromDecimal((string) $line->credit);
-            $debits += $debit;
-            $credits += $credit;
             $rows[] = [
                 '_url' => Balances::url($line),
                 'date' => CarbonImmutable::parse((string) $line->date)->format('d/m/Y'),
@@ -92,6 +93,9 @@ class JournalListReport extends Component implements PackageReport
                 'credit' => $credit > 0 ? Fils::toDecimal($credit) : '',
             ];
         }
+        $sums = (clone $query)->reorder()->select([DB::raw('SUM(l.debit) AS d'), DB::raw('SUM(l.credit) AS c')])->first(); // the whole range, not the shown lines
+        $debits = Fils::fromDecimal((string) ($sums->d ?? 0));
+        $credits = Fils::fromDecimal((string) ($sums->c ?? 0));
         $rows[] = ['date' => '', 'journal' => '', 'source' => '', 'description' => '', 'account' => __('Total'), 'debit' => Fils::toDecimal($debits), 'credit' => Fils::toDecimal($credits), '_kind' => 'total'];
 
         return $rows;

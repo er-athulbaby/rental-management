@@ -1,5 +1,6 @@
 <?php
 
+use App\Ledger\Balances;
 use App\Livewire\Reports\BalanceSheetReport;
 use App\Livewire\Reports\GeneralLedgerReport;
 use App\Livewire\Reports\Index;
@@ -20,6 +21,7 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    Balances::$lineCap = 2000;
     LedgerSetting::query()->update(['start_date' => null, 'locked_until' => null]);
 });
 
@@ -69,7 +71,7 @@ test('the balance sheet puts the current-year loss inside equity and balances', 
         ['', 'Total liabilities', '870.000'],
         ['', 'Equity', ''],
         ['', "Earlier years' profit", '0.000'],
-        ['', 'Current-year profit', '-30.000'],
+        ['', 'Current-year profit (2026)', '-30.000'],
         ['', 'Total equity', '-30.000'],
         ['', 'Total liabilities and equity', '840.000'],
     ]);
@@ -79,7 +81,7 @@ test('on a date in a later year the loss moves to earlier years and the sheet st
     $rows = BalanceSheetReport::sheet($this->f['finance'], ['to' => '2027-03-01'])['rows'];
 
     expect($rows)->toContain(['', "Earlier years' profit", '-30.000'])
-        ->toContain(['', 'Current-year profit', '0.000'])
+        ->toContain(['', 'Current-year profit (2027)', '0.000'])
         ->toContain(['', 'Total assets', '840.000'])
         ->toContain(['', 'Total liabilities and equity', '840.000']);
 });
@@ -147,4 +149,42 @@ test('the ledger reports are for Finance and Admin only, and are listed with the
     Livewire::actingAs($f['admin'])->test(BalanceSheetReport::class)->assertSee('Balance sheet');
     Livewire::actingAs($f['finance'])->test(Index::class)->assertSee('Trial balance')->assertSee('Journal list');
     Livewire::actingAs($f['management'])->test(Index::class)->assertDontSee('Trial balance');
+});
+
+test('a screen capped at N lines says so, keeps the closing balance of the whole range, and Excel stays complete', function () {
+    $f = $this->f;
+    $account = (string) LedgerAccount::query()->where('code', '2100')->value('id'); // five lines in October, closing -348.000
+    Balances::$lineCap = 3;
+    $settings = ['from' => '2026-10-01', 'to' => '2026-10-20', 'account' => $account];
+
+    $component = Livewire::actingAs($f['finance'])->test(GeneralLedgerReport::class)->set('account', $account)->set('from', '2026-10-01')->set('to', '2026-10-20')
+        ->assertSee('Too many lines to show: narrow the filters or download Excel.')
+        ->assertSee('-348.000')->assertSee('-670.000')->assertDontSee('-370.000');
+    expect(substr_count($component->html(), 'font-semibold'))->toBe(2) // opening and closing only
+        ->and(count(GeneralLedgerReport::sheet($f['finance'], $settings)['rows']))->toBe(7)
+        ->and(GeneralLedgerReport::sheet($f['finance'], $settings)['rows'][6][5])->toBe('-348.000');
+
+    Balances::$lineCap = 2000;
+    Livewire::actingAs($f['finance'])->test(GeneralLedgerReport::class)->set('account', $account)->set('from', '2026-10-01')->set('to', '2026-10-20')
+        ->assertDontSee('Too many lines to show');
+
+    Balances::$lineCap = 3;
+    $journals = ['from' => '2026-10-01', 'to' => '2026-10-20', 'source' => 'all', 'account' => 'all'];
+    $full = JournalListReport::sheet($f['finance'], $journals)['rows'];
+    $lines = count($full) - 1;
+    expect($lines)->toBeGreaterThan(3);
+    Balances::$lineCap = $lines - 1;
+    Livewire::actingAs($f['finance'])->test(JournalListReport::class)->set('from', '2026-10-01')->set('to', '2026-10-20')
+        ->assertSee('Too many lines to show: narrow the filters or download Excel.')
+        ->assertSee(end($full)[5]);
+    expect(JournalListReport::sheet($f['finance'], $journals)['rows'])->toBe($full);
+    Balances::$lineCap = $lines;
+    Livewire::actingAs($f['finance'])->test(JournalListReport::class)->set('from', '2026-10-01')->set('to', '2026-10-20')->assertDontSee('Too many lines to show');
+});
+
+test('the sidebar lists the five ledger reports for Finance and not for Management', function () {
+    $f = $this->f;
+    $this->actingAs($f['finance'])->get(route('dashboard'))->assertOk()->assertSee(route('ledger.balance-sheet'), false)->assertSee(route('ledger.profit-and-loss'), false)
+        ->assertSee(route('ledger.trial-balance'), false);
+    $this->actingAs($f['management'])->get(route('dashboard'))->assertOk()->assertDontSee(route('ledger.balance-sheet'), false)->assertDontSee(route('ledger.profit-and-loss'), false);
 });

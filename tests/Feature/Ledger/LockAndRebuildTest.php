@@ -129,7 +129,7 @@ test('the nightly run posts head-lease rent on its due date, and runs at 00:30',
 });
 
 afterEach(function () {
-    LedgerSetting::query()->update(['start_date' => null, 'locked_until' => null, 'rebuild_status' => null, 'rebuild_from' => null, 'rebuild_to' => null,
+    LedgerSetting::query()->update(['start_date' => null, 'locked_until' => null, 'rebuild_run' => null, 'rebuild_status' => null, 'rebuild_from' => null, 'rebuild_to' => null,
         'rebuild_done' => 0, 'rebuild_total' => 0, 'rebuild_message' => null]);
 });
 
@@ -142,9 +142,9 @@ test('rebuilding the whole worked example leaves every balance as it was', funct
 
 test('a lock that lands mid-rebuild fails the job cleanly with the trigger message', function () {
     $f = $this->f;
-    LedgerSetting::query()->update(['locked_until' => '2026-10-10', 'rebuild_status' => 'queued']);
+    LedgerSetting::query()->update(['locked_until' => '2026-10-10', 'rebuild_status' => 'queued', 'rebuild_run' => 'run-1']);
 
-    (new RebuildLedgerJob('2026-10-01', '2026-10-20', $f['finance']->id))->handle(app(Poster::class));
+    (new RebuildLedgerJob('2026-10-01', '2026-10-20', $f['finance']->id, run: 'run-1'))->handle(app(Poster::class));
 
     $settings = LedgerSetting::current();
     expect($settings->rebuild_status)->toBe('failed')
@@ -181,9 +181,9 @@ test('a rebuild split into many short legs gives the same ledger as one leg and 
     $f = $this->f;
     $before = ledgerSnapshot();
     $old = Journal::query()->where('kind', 'auto')->count();
-    LedgerSetting::query()->update(['rebuild_status' => 'queued']);
+    LedgerSetting::query()->update(['rebuild_status' => 'queued', 'rebuild_run' => 'run-1']);
 
-    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $f['finance']->id, budget: -1); // every leg is over budget after one chunk
+    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $f['finance']->id, budget: -1, run: 'run-1'); // every leg is over budget after one chunk
 
     $settings = LedgerSetting::current();
     expect(ledgerSnapshot())->toBe($before)
@@ -194,9 +194,9 @@ test('a rebuild split into many short legs gives the same ledger as one leg and 
 });
 
 test('a job the queue fails leaves the rebuild failed, not running', function () {
-    LedgerSetting::query()->update(['rebuild_status' => 'running']);
+    LedgerSetting::query()->update(['rebuild_status' => 'running', 'rebuild_run' => 'run-1']);
 
-    (new RebuildLedgerJob('2026-10-01', '2026-10-20', $this->f['finance']->id))->failed(new RuntimeException('timed out'));
+    (new RebuildLedgerJob('2026-10-01', '2026-10-20', $this->f['finance']->id, run: 'run-1'))->failed(new RuntimeException('timed out'));
 
     $settings = LedgerSetting::current();
     expect($settings->rebuild_status)->toBe('failed')->and($settings->rebuild_message)->toBe('Rebuild failed. Details are in the application log.')->and($settings->rebuilding())->toBeFalse();
@@ -215,4 +215,15 @@ test('the nightly run reports what it really posted and fails while anything is 
     $utilities->update(['active' => true]);
     $this->artisan('rms:ledger:nightly')->expectsOutputToContain('Posted 1 pending ledger sources, 0 still unposted.')->assertExitCode(0);
     expect(journalFor('expense', $expense->id))->not->toBeNull();
+});
+
+test('a leg with no run token writes nothing, even while a rebuild is running', function () {
+    LedgerSetting::query()->update(['rebuild_status' => 'running', 'rebuild_run' => 'run-1', 'rebuild_done' => 0]);
+    $before = ledgerSnapshot();
+
+    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $this->f['finance']->id);
+
+    $settings = LedgerSetting::current();
+    expect(ledgerSnapshot())->toBe($before)->and($settings->rebuild_status)->toBe('running')->and($settings->rebuild_done)->toBe(0)
+        ->and(Activity::query()->where('event', 'ledger.rebuilt')->exists())->toBeFalse();
 });

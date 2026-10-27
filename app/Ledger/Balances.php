@@ -10,6 +10,9 @@ use stdClass;
 /** The ledger reports' two queries (plan ruling 9): balances per account, and lines in date order with what their source link needs. */
 final class Balances
 {
+    /** Most lines a line-by-line report shows on screen; Excel is never capped. A static so a test can lower it. */
+    public static int $lineCap = 2000;
+
     /** @return array<int, int> ledger account id => Σ debit − Σ credit in fils, journals dated $from..$to ($from null = from the beginning) */
     public static function net(?string $from, string $to): array
     {

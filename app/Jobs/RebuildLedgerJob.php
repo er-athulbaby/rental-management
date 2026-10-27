@@ -110,8 +110,7 @@ class RebuildLedgerJob implements ShouldQueue
 
     private function owns(LedgerSetting $settings): bool
     {
-        // a leg with no token was queued before tokens existed: it owns whichever rebuild is running
-        return $settings->rebuilding() && ($this->run === null || $settings->rebuild_run === $this->run);
+        return $this->run !== null && $settings->rebuilding() && $settings->rebuild_run === $this->run;
     }
 
     /**

@@ -14,7 +14,8 @@ use Livewire\Component;
 
 /**
  * General ledger spec §6: assets, liabilities and equity at a date. No year-end closing journals: equity shows the
- * profit of earlier years and of the current year, so the two sides always agree.
+ * profit of earlier years and of the current year, so the two sides always agree. "Current year" is the calendar year of the
+ * report date (January to December), named in the row's label.
  */
 class BalanceSheetReport extends Component implements PackageReport
 {
@@ -90,7 +91,7 @@ class BalanceSheetReport extends Component implements PackageReport
             }
             if ($type === LedgerAccountType::Equity) {
                 $rows[] = ['code' => '', 'account' => __("Earlier years' profit"), 'amount' => Fils::toDecimal($earlier)];
-                $rows[] = ['code' => '', 'account' => __('Current-year profit'), 'amount' => Fils::toDecimal($current)];
+                $rows[] = ['code' => '', 'account' => __('Current-year profit (:year)', ['year' => CarbonImmutable::parse($this->to)->year]), 'amount' => Fils::toDecimal($current)];
                 $sum += $earlier + $current;
             }
             $rows[] = ['code' => '', 'account' => $label, 'amount' => Fils::toDecimal($sum), '_kind' => 'total'];

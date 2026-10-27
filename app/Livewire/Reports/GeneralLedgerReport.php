@@ -66,7 +66,11 @@ class GeneralLedgerReport extends Component implements PackageReport
         $balance = Balances::net(null, CarbonImmutable::parse($this->from)->subDay()->toDateString())[$account] ?? 0;
         $rows = [['date' => '', 'source' => '', 'reference' => __('Opening balance'), 'debit' => '', 'credit' => '', 'balance' => Fils::toDecimal($balance), '_kind' => 'total']];
 
-        foreach (Balances::lines($this->from, $this->to)->where('l.ledger_account_id', $account)->get() as $line) {
+        $cap = $this->screenCap();
+        $lines = Balances::lines($this->from, $this->to)->where('l.ledger_account_id', $account)->when($cap !== null, fn ($q) => $q->limit($cap + 1))->get();
+        $capped = $cap !== null && $lines->count() > $cap;
+        $this->capped = $capped;
+        foreach ($capped ? $lines->take($cap) : $lines as $line) {
             $debit = Fils::fromDecimal((string) $line->debit);
             $credit = Fils::fromDecimal((string) $line->credit);
             $balance += $debit - $credit;
@@ -79,6 +83,9 @@ class GeneralLedgerReport extends Component implements PackageReport
                 'credit' => $credit > 0 ? Fils::toDecimal($credit) : '',
                 'balance' => Fils::toDecimal($balance),
             ];
+        }
+        if ($capped) {
+            $balance = Balances::net(null, $this->to)[$account] ?? 0; // closing is the whole range's, not the shown lines'
         }
         $rows[] = ['date' => '', 'source' => '', 'reference' => __('Closing balance'), 'debit' => '', 'credit' => '', 'balance' => Fils::toDecimal($balance), '_kind' => 'total'];
 

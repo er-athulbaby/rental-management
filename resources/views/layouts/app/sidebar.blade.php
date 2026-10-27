@@ -50,6 +50,8 @@
                         @can('ledger.view')
                             <flux:sidebar.item icon="book-open" :href="route('ledger.index')" :current="request()->routeIs('ledger.index')" wire:navigate>{{ __('Ledger health') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="scale" :href="route('ledger.trial-balance')" :current="request()->routeIs('ledger.trial-balance')" wire:navigate>{{ __('Trial balance') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="building-library" :href="route('ledger.balance-sheet')" :current="request()->routeIs('ledger.balance-sheet')" wire:navigate>{{ __('Balance sheet') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="chart-bar" :href="route('ledger.profit-and-loss')" :current="request()->routeIs('ledger.profit-and-loss')" wire:navigate>{{ __('Profit and loss') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="book-open" :href="route('ledger.general-ledger')" :current="request()->routeIs('ledger.general-ledger')" wire:navigate>{{ __('General ledger') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="queue-list" :href="route('ledger.journals')" :current="request()->routeIs('ledger.journals')" wire:navigate>{{ __('Journal list') }}</flux:sidebar.item>
                         @endcan
