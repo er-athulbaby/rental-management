@@ -36,7 +36,7 @@ class Home extends Component
 
     public function checkNow(): void
     {
-        abort_unless($this->actor()->can(PermissionName::LedgerManage), 403);
+        abort_unless($this->actor()->can(PermissionName::LedgerView), 403);
         LedgerHealth::store();
         Flux::toast(variant: 'success', text: __('Ledger health checked.'));
     }
@@ -79,6 +79,7 @@ class Home extends Component
                 'difference' => $show($r['ledger'] - $r['app'], $r['money']),
                 'ok' => $r['ledger'] === $r['app'],
             ], $settings->health ?? []),
+            'rebuildMessage' => __(in_array($settings->rebuild_message, [LedgerSetting::STALE_MESSAGE, LedgerSetting::FAILED_MESSAGE], true) ? $settings->rebuild_message : LedgerSetting::FAILED_MESSAGE),
             'canManage' => $user->can(PermissionName::LedgerManage),
             'canAdmin' => $user->can(PermissionName::LedgerAdmin),
         ])->title(__('Ledger'));

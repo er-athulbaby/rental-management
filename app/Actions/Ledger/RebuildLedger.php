@@ -11,6 +11,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -58,8 +59,9 @@ final class RebuildLedger
     /** Marks a rebuild queued and dispatches it after commit. Internal: the caller holds the settings lock and checked rebuilding(). */
     public static function queue(LedgerSetting $locked, string $from, string $to, User $actor): void
     {
-        $locked->forceFill(['rebuild_status' => 'queued', 'rebuild_from' => $from, 'rebuild_to' => $to, 'rebuild_done' => 0, 'rebuild_total' => 0, 'rebuild_message' => null])->save();
+        $run = (string) Str::uuid();
+        $locked->forceFill(['rebuild_status' => 'queued', 'rebuild_from' => $from, 'rebuild_to' => $to, 'rebuild_done' => 0, 'rebuild_total' => 0, 'rebuild_message' => null, 'rebuild_run' => $run])->save();
         $userId = $actor->id;
-        DB::afterCommit(fn () => RebuildLedgerJob::dispatch($from, $to, $userId));
+        DB::afterCommit(fn () => RebuildLedgerJob::dispatch($from, $to, $userId, run: $run));
     }
 }

@@ -148,7 +148,7 @@ test('a lock that lands mid-rebuild fails the job cleanly with the trigger messa
 
     $settings = LedgerSetting::current();
     expect($settings->rebuild_status)->toBe('failed')
-        ->and($settings->rebuild_message)->toContain('locked')
+        ->and($settings->rebuild_message)->toBe('Rebuild failed. Details are in the application log.')
         ->and(Activity::query()->where('event', 'ledger.rebuilt')->exists())->toBeFalse();
 });
 
@@ -199,7 +199,7 @@ test('a job the queue fails leaves the rebuild failed, not running', function ()
     (new RebuildLedgerJob('2026-10-01', '2026-10-20', $this->f['finance']->id))->failed(new RuntimeException('timed out'));
 
     $settings = LedgerSetting::current();
-    expect($settings->rebuild_status)->toBe('failed')->and($settings->rebuild_message)->toBe('timed out')->and($settings->rebuilding())->toBeFalse();
+    expect($settings->rebuild_status)->toBe('failed')->and($settings->rebuild_message)->toBe('Rebuild failed. Details are in the application log.')->and($settings->rebuilding())->toBeFalse();
 });
 
 test('the nightly run reports what it really posted and fails while anything is still unposted', function () {

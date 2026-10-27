@@ -183,6 +183,8 @@
     "Ledger health checked.": "تم فحص سلامة الدفاتر.",
     "Locked.": "تم الإقفال.",
     "Unlocked.": "تم الفتح.",
+    "Rebuild stopped: no progress for 10 minutes.": "توقفت إعادة البناء: لا تقدم منذ 10 دقائق.",
+    "Rebuild failed. Details are in the application log.": "فشلت إعادة البناء. التفاصيل في سجل التطبيق.",
     "New journal": "قيد جديد",
     "New manual journal": "قيد يدوي جديد",
     "Description": "الوصف",

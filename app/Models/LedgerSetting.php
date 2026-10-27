@@ -20,9 +20,15 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $rebuild_done
  * @property int $rebuild_total
  * @property string|null $rebuild_message
+ * @property string|null $rebuild_run uuid of the current rebuild; its legs carry it and exit when it differs
  */
 class LedgerSetting extends Model
 {
+    /** The only rebuild failure texts stored or shown; the raw exception goes to the log (translated through __()). */
+    public const string STALE_MESSAGE = 'Rebuild stopped: no progress for 10 minutes.';
+
+    public const string FAILED_MESSAGE = 'Rebuild failed. Details are in the application log.';
+
     protected function casts(): array
     {
         return [

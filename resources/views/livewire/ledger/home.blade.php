@@ -9,9 +9,7 @@
     <flux:card class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <flux:heading size="lg">{{ __('Ledger health') }}</flux:heading>
-            @if ($canManage)
-                <flux:button size="sm" wire:click="checkNow">{{ __('Check now') }}</flux:button>
-            @endif
+            <flux:button size="sm" wire:click="checkNow">{{ __('Check now') }}</flux:button>
         </div>
         <flux:text>{{ $settings->health_checked_at ? __('Last checked :when', ['when' => $settings->health_checked_at->format('d/m/Y H:i')]) : __('Not checked yet.') }}</flux:text>
         @if ($health !== [])
@@ -70,7 +68,7 @@
             @elseif ($settings->rebuild_status === 'done' && $settings->rebuild_from && $settings->rebuild_to)
                 <flux:text>{{ __('Rebuilt :from – :to.', ['from' => $settings->rebuild_from->format('d/m/Y'), 'to' => $settings->rebuild_to->format('d/m/Y')]) }}</flux:text>
             @elseif ($settings->rebuild_status === 'failed')
-                <flux:text class="text-red-600 dark:text-red-400">{{ __('The last rebuild failed: :message', ['message' => $settings->rebuild_message]) }}</flux:text>
+                <flux:text class="text-red-600 dark:text-red-400">{{ __('The last rebuild failed: :message', ['message' => $rebuildMessage]) }}</flux:text>
             @endif
         </form>
     @endif

@@ -1,11 +1,14 @@
 <?php
 
+use App\Actions\Ledger\RebuildLedger;
 use App\Actions\Ledger\SaveOpeningBalances;
 use App\Actions\Payments\RecordPayment;
+use App\Jobs\RebuildLedgerJob;
 use App\Ledger\LedgerHealth;
 use App\Ledger\Poster;
 use App\Livewire\Ledger\Home;
 use App\Models\Customer;
+use App\Models\Journal;
 use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
 use App\Models\Unit;
@@ -92,12 +95,7 @@ test('the Ledger page shows the health card to Finance and Admin only, and its f
 
 afterEach(function () {
     LedgerSetting::query()->update(['start_date' => null, 'locked_until' => null, 'health' => null, 'health_checked_at' => null, 'rebuild_status' => null, 'rebuild_from' => null,
-        'rebuild_to' => null, 'rebuild_done' => 0, 'rebuild_total' => 0, 'rebuild_message' => null]);
-});
-
-test('Check now needs ledger.manage: Admin sees the card but cannot run it', function () {
-    Livewire::actingAs($this->f['admin'])->test(Home::class)->assertDontSee('Check now')->call('checkNow')->assertForbidden();
-    expect(LedgerSetting::current()->health_checked_at)->toBeNull();
+        'rebuild_to' => null, 'rebuild_done' => 0, 'rebuild_total' => 0, 'rebuild_message' => null, 'rebuild_run' => null]);
 });
 
 test('tampered input on the Ledger page gives a message, never a 500', function () {
@@ -165,4 +163,47 @@ test('the nightly run fails a rebuild that has made no progress for 10 minutes, 
 
     expect($settings->rebuild_status)->toBe('failed')->and($settings->rebuild_message)->toBe('Rebuild stopped: no progress for 10 minutes.')
         ->and($settings->rebuilding())->toBeFalse();
+});
+
+test('Check now needs ledger.view: Admin can run it, Management cannot open the page', function () {
+    Livewire::actingAs($this->f['admin'])->test(Home::class)->assertSee('Check now')->call('checkNow')->assertHasNoErrors();
+    expect(LedgerSetting::current()->health_checked_at)->not->toBeNull();
+    Livewire::actingAs($this->f['management'])->test(Home::class)->assertForbidden();
+});
+
+test('a failed rebuild shows a fixed message, never the exception text', function () {
+    LedgerSetting::query()->update(['rebuild_status' => 'failed', 'rebuild_message' => 'SQLSTATE[23000]: secret table text']);
+
+    Livewire::actingAs($this->f['finance'])->test(Home::class)->assertSee('Rebuild failed. Details are in the application log.')->assertDontSee('SQLSTATE');
+});
+
+test('a leg of an old rebuild exits without writing once the rebuild was failed or replaced', function () {
+    $journals = Journal::query()->count();
+    LedgerSetting::query()->update(['rebuild_status' => 'queued', 'rebuild_run' => 'new-run', 'rebuild_done' => 0]);
+    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $this->f['finance']->id, run: 'old-run');
+    $settings = LedgerSetting::current();
+
+    expect($settings->rebuild_status)->toBe('queued')->and($settings->rebuild_done)->toBe(0)->and(Journal::query()->count())->toBe($journals);
+
+    LedgerSetting::query()->update(['rebuild_status' => 'failed', 'rebuild_message' => LedgerSetting::STALE_MESSAGE]);
+    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $this->f['finance']->id, run: 'new-run');
+    $settings = LedgerSetting::current();
+
+    expect($settings->rebuild_status)->toBe('failed')->and($settings->rebuild_message)->toBe(LedgerSetting::STALE_MESSAGE)->and(Journal::query()->count())->toBe($journals);
+});
+
+test('a rebuild with its token, split into legs, still completes and each request gets its own token', function () {
+    $journals = Journal::query()->count();
+    app(RebuildLedger::class)->handle($this->f['finance'], '2026-10', '2026-10');
+    $first = LedgerSetting::current();
+
+    expect($first->rebuild_status)->toBe('done')->and($first->rebuild_run)->not->toBeNull()->and(Journal::query()->count())->toBe($journals);
+
+    LedgerSetting::query()->update(['rebuild_status' => 'queued', 'rebuild_run' => 'r1']);
+    RebuildLedgerJob::dispatchSync('2026-10-01', '2026-10-20', $this->f['finance']->id, budget: -1, run: 'r1');
+
+    expect(LedgerSetting::current()->rebuild_status)->toBe('done')->and(Journal::query()->count())->toBe($journals);
+
+    app(RebuildLedger::class)->handle($this->f['finance'], '2026-10', '2026-10');
+    expect(LedgerSetting::current()->rebuild_run)->not->toBe($first->rebuild_run);
 });
