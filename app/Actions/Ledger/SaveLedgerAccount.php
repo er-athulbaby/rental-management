@@ -5,6 +5,7 @@ namespace App\Actions\Ledger;
 use App\Audit\Audit;
 use App\Enums\LedgerAccountType;
 use App\Enums\PermissionName;
+use App\Ledger\Rules;
 use App\Models\LedgerAccount;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -34,6 +35,13 @@ final class SaveLedgerAccount
             $old = $account->exists ? ['code' => $account->code, 'name_en' => $account->name_en, 'name_ar' => $account->name_ar, 'type' => $account->type->value] : [];
             if ($account->exists && $account->type->value !== $v['type'] && $account->lines()->exists()) {
                 throw ValidationException::withMessages(['type' => __('This account has postings, so its type cannot change.')]);
+            }
+            if ($account->exists && $account->type->value !== $v['type']) {
+                foreach (DB::table('ledger_rules')->where('ledger_account_id', $account->id)->pluck('key') as $key) {
+                    if (Rules::type((string) $key)->value !== $v['type']) {
+                        throw ValidationException::withMessages(['type' => __('A posting rule uses this account and needs type :type. Point the rule at another account first.', ['type' => Rules::type((string) $key)->label()])]);
+                    }
+                }
             }
             $new = ['code' => trim((string) $v['code']), 'name_en' => trim((string) $v['name_en']), 'name_ar' => trim((string) $v['name_ar']), 'type' => (string) $v['type']];
             $account->fill($new)->save();

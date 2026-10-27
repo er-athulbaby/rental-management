@@ -21,6 +21,10 @@ final class SetLedgerAccountActive
         if (! $active && DB::table('ledger_rules')->where('ledger_account_id', $account->id)->exists()) {
             throw ValidationException::withMessages(['accounts' => __('Posting rules use this account. Point them at another account first.')]);
         }
+        if (! $active && DB::table('journal_lines as l')->join('journals as j', 'j.id', '=', 'l.journal_id')
+            ->where('j.kind', 'opening')->where('l.ledger_account_id', $account->id)->exists()) {
+            throw ValidationException::withMessages(['accounts' => __('This account has an opening balance: set it to zero first.')]);
+        }
         $account->forceFill(['active' => $active])->save();
         Audit::log($active ? 'ledger.account_activated' : 'ledger.account_deactivated', $account, causer: $actor);
     }

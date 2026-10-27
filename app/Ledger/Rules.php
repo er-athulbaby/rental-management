@@ -3,6 +3,7 @@
 namespace App\Ledger;
 
 use App\Enums\ExpenseCategory;
+use App\Enums\LedgerAccountType;
 use App\Enums\PaymentMethod;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -68,6 +69,18 @@ final class Rules
             str_starts_with($key, 'method.') => __('Paid or received by :method', ['method' => __(PaymentMethod::from(substr($key, 7))->label())]),
             str_starts_with($key, 'category.') => __('Expense: :category', ['category' => __(str(substr($key, 9))->headline()->toString())]),
             default => __(self::EVENTS[$key] ?? $key),
+        };
+    }
+
+    /** The account type a rule's account must have: the reports read these accounts by type. */
+    public static function type(string $key): LedgerAccountType
+    {
+        return match (true) {
+            str_starts_with($key, 'method.'), $key === 'receivables' => LedgerAccountType::Asset,
+            in_array($key, ['deposits_held', 'owner_payable', 'vendor_payable', 'tenant_credit', 'vat_payable'], true) => LedgerAccountType::Liability,
+            in_array($key, ['rent_income', 'other_income', 'fee_income'], true) => LedgerAccountType::Income,
+            $key === 'opening_equity' => LedgerAccountType::Equity,
+            default => LedgerAccountType::Expense, // category.*, lease_rent, other_payments_out
         };
     }
 }

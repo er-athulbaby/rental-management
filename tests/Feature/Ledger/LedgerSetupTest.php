@@ -125,3 +125,37 @@ test('the setup pages are Admin only and shrug off tampered input', function () 
     Livewire::actingAs($f['admin'])->test(Setup::class)->set("balances.{$bank}.debit", '1.2345')->call('saveOpening')->assertHasErrors("balances.{$bank}.debit");
     Livewire::actingAs($f['admin'])->test(Setup::class)->set('startDate', ['x'])->call('setStart')->assertHasErrors('startDate');
 });
+
+test('an account with an opening balance cannot be deactivated until it is zeroed', function () {
+    $f = $this->f;
+    $petty = app(SaveLedgerAccount::class)->handle($f['admin'], null, ['code' => '1090', 'name_en' => 'Petty cash', 'name_ar' => 'نثرية', 'type' => 'asset']);
+    app(SaveOpeningBalances::class)->handle($f['admin'], [$petty->id => ['debit' => '25.000', 'credit' => '']]);
+
+    expect(fn () => app(SetLedgerAccountActive::class)->handle($f['admin'], $petty, false))->toThrow(ValidationException::class, 'opening balance');
+
+    app(SaveOpeningBalances::class)->handle($f['admin'], [$petty->id => ['debit' => '', 'credit' => '']]);
+    app(SetLedgerAccountActive::class)->handle($f['admin'], $petty, false);
+    expect($petty->fresh()->active)->toBeFalse();
+});
+
+test('a rule needs an account of its type, and a rule\'s account keeps a fitting type', function () {
+    $f = $this->f;
+    $income = LedgerAccount::query()->where('code', '4000')->firstOrFail();
+    $owner = array_search('owner_payable', Rules::keys(), true);
+    $card = array_search('method.card', Rules::keys(), true);
+    $terminal = app(SaveLedgerAccount::class)->handle($f['admin'], null, ['code' => '1030', 'name_en' => 'Card terminal', 'name_ar' => 'جهاز البطاقات', 'type' => 'asset']);
+
+    Livewire::actingAs($f['admin'])->test(Accounts::class)->set("ruleAccounts.{$owner}", (string) $income->id)->call('saveRules')->assertHasErrors('rules');
+    Livewire::actingAs($f['admin'])->test(Accounts::class)->set("ruleAccounts.{$card}", (string) $terminal->id)->call('saveRules')->assertHasNoErrors();
+
+    expect(fn () => app(SaveLedgerAccount::class)->handle($f['admin'], $terminal, ['code' => '1030', 'name_en' => 'Card terminal', 'name_ar' => 'جهاز البطاقات', 'type' => 'expense']))
+        ->toThrow(ValidationException::class, 'needs type');
+    app(SaveLedgerAccount::class)->handle($f['admin'], $terminal, ['code' => '1030', 'name_en' => 'Terminal', 'name_ar' => 'جهاز', 'type' => 'asset']);
+    expect($terminal->fresh()->name_en)->toBe('Terminal');
+});
+
+test('the start date cannot be in the future', function () {
+    expect(fn () => app(SetLedgerStart::class)->handle($this->f['admin'], '2026-10-21'))->toThrow(ValidationException::class, 'future');
+    app(SetLedgerStart::class)->handle($this->f['admin'], '2026-10-20');
+    expect(LedgerSetting::current()->start_date->toDateString())->toBe('2026-10-20');
+});

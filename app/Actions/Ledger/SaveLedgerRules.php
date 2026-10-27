@@ -21,12 +21,16 @@ final class SaveLedgerRules
             throw new AuthorizationException;
         }
         $active = LedgerAccount::query()->where('active', true)->pluck('id')->flip();
+        $types = LedgerAccount::query()->pluck('type', 'id');
         $chosen = [];
         foreach (Rules::keys() as $key) {
             $id = $map[$key] ?? null;
             $id = is_int($id) || (is_string($id) && ctype_digit($id) && strlen($id) < 19) ? (int) $id : 0;
             if (! $active->has($id)) {
                 throw ValidationException::withMessages(['rules' => __('Choose an active account for every rule.')]);
+            }
+            if ($types[$id] !== Rules::type($key)) {
+                throw ValidationException::withMessages(['rules' => __(':rule needs an account of type :type.', ['rule' => Rules::label($key), 'type' => Rules::type($key)->label()])]);
             }
             $chosen[$key] = $id;
         }

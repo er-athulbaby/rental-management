@@ -29,6 +29,9 @@ final class SetLedgerStart
         }
         Validator::make(['startDate' => $date], ['startDate' => ['required', 'string', 'date_format:Y-m-d']])->validate();
         $date = (string) $date;
+        if ($date > now('Asia/Bahrain')->toDateString()) {
+            throw ValidationException::withMessages(['startDate' => __('The start date cannot be in the future.')]);
+        }
 
         DB::transaction(function () use ($actor, $date) {
             $settings = LedgerSetting::query()->lockForUpdate()->firstOrFail();
