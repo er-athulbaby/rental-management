@@ -47,6 +47,9 @@
 
                 @canany(['ledger.view', 'ledger.admin'])
                     <flux:sidebar.group :heading="__('Ledger')" class="grid">
+                        @can('ledger.view')
+                            <flux:sidebar.item icon="book-open" :href="route('ledger.index')" :current="request()->routeIs('ledger.index')" wire:navigate>{{ __('Ledger health') }}</flux:sidebar.item>
+                        @endcan
                         @can('ledger.manage')
                             <flux:sidebar.item icon="pencil-square" :href="route('ledger.journals.create')" :current="request()->routeIs('ledger.journals.create')" wire:navigate>{{ __('New journal') }}</flux:sidebar.item>
                         @endcan

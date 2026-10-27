@@ -25,9 +25,12 @@ final class RebuildLedger
         if (! $actor->can(PermissionName::LedgerManage) && ! $actor->can(PermissionName::LedgerAdmin)) {
             throw new AuthorizationException;
         }
+        // Tampered input (an array) must fail 'required', not reach date rules that expect a string.
+        $fromMonth = is_string($fromMonth) ? $fromMonth : null;
+        $toMonth = is_string($toMonth) ? $toMonth : null;
         Validator::make(['fromMonth' => $fromMonth, 'toMonth' => $toMonth], [
-            'fromMonth' => ['required', 'string', 'date_format:Y-m'],
-            'toMonth' => ['required', 'string', 'date_format:Y-m', 'after_or_equal:fromMonth'],
+            'fromMonth' => ['bail', 'required', 'string', 'date_format:Y-m'],
+            'toMonth' => ['bail', 'required', 'string', 'date_format:Y-m', 'after_or_equal:fromMonth'],
         ])->validate();
 
         return DB::transaction(function () use ($actor, $fromMonth, $toMonth) {

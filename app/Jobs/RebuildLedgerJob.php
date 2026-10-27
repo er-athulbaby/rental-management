@@ -91,6 +91,6 @@ class RebuildLedgerJob implements ShouldQueue
     /** @param  array<string, mixed>  $values */
     private static function progress(array $values): void
     {
-        LedgerSetting::query()->whereKey(LedgerSetting::current()->id)->update($values);
+        LedgerSetting::query()->whereKey(LedgerSetting::current()->id)->update($values + ['updated_at' => now()]);
     }
 }
