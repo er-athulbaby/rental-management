@@ -49,6 +49,9 @@
                     <flux:sidebar.group :heading="__('Ledger')" class="grid">
                         @can('ledger.view')
                             <flux:sidebar.item icon="book-open" :href="route('ledger.index')" :current="request()->routeIs('ledger.index')" wire:navigate>{{ __('Ledger health') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="scale" :href="route('ledger.trial-balance')" :current="request()->routeIs('ledger.trial-balance')" wire:navigate>{{ __('Trial balance') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="book-open" :href="route('ledger.general-ledger')" :current="request()->routeIs('ledger.general-ledger')" wire:navigate>{{ __('General ledger') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="queue-list" :href="route('ledger.journals')" :current="request()->routeIs('ledger.journals')" wire:navigate>{{ __('Journal list') }}</flux:sidebar.item>
                         @endcan
                         @can('ledger.manage')
                             <flux:sidebar.item icon="pencil-square" :href="route('ledger.journals.create')" :current="request()->routeIs('ledger.journals.create')" wire:navigate>{{ __('New journal') }}</flux:sidebar.item>
