@@ -45,6 +45,15 @@
                     </flux:sidebar.group>
                 @endcan
 
+                @canany(['ledger.view', 'ledger.admin'])
+                    <flux:sidebar.group :heading="__('Ledger')" class="grid">
+                        @can('ledger.admin')
+                            <flux:sidebar.item icon="list-bullet" :href="route('ledger.accounts')" :current="request()->routeIs('ledger.accounts')" wire:navigate>{{ __('Accounts and rules') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="flag" :href="route('ledger.setup')" :current="request()->routeIs('ledger.setup')" wire:navigate>{{ __('Start date and opening balances') }}</flux:sidebar.item>
+                        @endcan
+                    </flux:sidebar.group>
+                @endcanany
+
                 @canany(['reports.operational', 'reports.financial'])
                     <flux:sidebar.group :heading="__('Reports')" class="grid">
                         <flux:sidebar.item icon="document-chart-bar" :href="route('reports.index')" :current="request()->routeIs('reports.index')" wire:navigate>{{ __('All reports') }}</flux:sidebar.item>
