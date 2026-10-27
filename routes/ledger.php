@@ -7,4 +7,6 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:web'])->prefix('ledger')->name('ledger.')->group(function () {
     Route::livewire('accounts', Ledger\Accounts::class)->middleware('can:ledger.admin')->name('accounts');
     Route::livewire('setup', Ledger\Setup::class)->middleware('can:ledger.admin')->name('setup');
+    Route::livewire('journals/new', Ledger\NewJournal::class)->middleware('can:ledger.manage')->name('journals.create');
+    Route::livewire('journals/{journal}', Ledger\JournalShow::class)->middleware('can:ledger.view')->whereNumber('journal')->name('journals.show');
 });

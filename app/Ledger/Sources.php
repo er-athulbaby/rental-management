@@ -100,6 +100,24 @@ final class Sources
         };
     }
 
+    /** Where a journal's source opens (plan ruling 9): the record's own page; manual, opening and the rest open the journal page. */
+    public static function url(string $kind, ?string $type, ?int $id, ?int $paymentId, int $journalId): string
+    {
+        if ($kind !== 'auto' || $type === null || $id === null) {
+            return route('ledger.journals.show', $journalId);
+        }
+
+        return match ($type) {
+            'invoice' => route('invoices.show', $id),
+            'payment', 'payment_reversal' => route('payments.show', $id),
+            'allocation' => $paymentId === null ? route('ledger.journals.show', $journalId) : route('payments.show', $paymentId),
+            'expense', 'expense_reversal' => route('expenses.show', $id),
+            'disbursement', 'disbursement_reversal' => route('disbursements.show', $id),
+            'owner_payable', 'owner_payable_cancel' => route('owner-payables.index'),
+            default => route('ledger.journals.show', $journalId),
+        };
+    }
+
     /**
      * Rows 1–6: per line, receivables against the owner (managed), company income (leased or no contract), the deposit's
      * holder, or opening equity; VAT separately. A credit note posts the opposite, each line mapped as the line it credits.
