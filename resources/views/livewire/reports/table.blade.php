@@ -30,6 +30,10 @@
         </div>
     @endif
 
+    @if ($capped)
+        <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Too many lines to show: narrow the filters or download Excel.')" />
+    @endif
+
     <div class="overflow-x-auto">
         <flux:table>
             <flux:table.columns>

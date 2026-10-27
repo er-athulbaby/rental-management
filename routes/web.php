@@ -20,4 +20,6 @@ require __DIR__.'/admin.php';
 
 require __DIR__.'/property.php';
 
+require __DIR__.'/ledger.php';
+
 require __DIR__.'/portal.php';

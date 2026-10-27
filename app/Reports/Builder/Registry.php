@@ -5,7 +5,7 @@ namespace App\Reports\Builder;
 use App\Models\User;
 use InvalidArgumentException;
 
-/** The 12 subjects (spec §4.2), in picker order. */
+/** The 13 subjects (spec §4.2, plus the general ledger's Journal lines), in picker order. */
 final class Registry
 {
     /** @var array<string, Subject>|null */
@@ -21,6 +21,7 @@ final class Registry
                 Subjects\Agreements::class, Subjects\Units::class, Subjects\Tenants::class,
                 Subjects\Owners::class, Subjects\OwnerContracts::class, Subjects\OwnerStatements::class,
                 Subjects\Expenses::class, Subjects\PaymentsOut::class, Subjects\DepositsHeld::class,
+                Subjects\JournalLines::class,
             ] as $class) {
                 $subject = new $class;
                 self::$subjects[$subject->key()] = $subject;

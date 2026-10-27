@@ -11,7 +11,7 @@ abstract class TestCase extends BaseTestCase
     protected array $connectionsToTruncate = ['migrator'];
 
     /** Reference rows the migrations insert; emptying them would break every later test that saves a unit or sends a reminder. */
-    protected array $exceptTables = ['unit_types', 'reminder_settings'];
+    protected array $exceptTables = ['unit_types', 'reminder_settings', 'ledger_accounts', 'ledger_rules', 'ledger_settings'];
 
     protected function setUp(): void
     {

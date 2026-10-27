@@ -44,14 +44,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 P::CustomersView, P::CustomersManage,
                 P::AgreementsView, P::AgreementsManage,
                 P::FinanceView, // invoices, payments, payments out, expenses: view only
-                P::MaintenanceView, P::MaintenanceManage,
+                P::MaintenanceView, P::MaintenanceManage, P::LedgerView, P::LedgerAdmin,
                 ...$reports,
             ],
             RoleName::Management->value => [
                 ...$view, P::BuildingsViewAll, P::ApprovalsDecide, P::AuditView, P::MaintenanceView, ...$reports,
             ],
             RoleName::Finance->value => [
-                ...$view, P::BuildingsViewAll, P::OwnersManage, ...P::financeManage(), ...$reports,
+                ...$view, P::BuildingsViewAll, P::OwnersManage, ...P::financeManage(), ...$reports, P::LedgerView, P::LedgerManage,
             ],
             RoleName::PropertyManager->value => [
                 P::BuildingsView, P::BuildingsManage, P::BuildingsViewAll, P::OwnersView,
@@ -64,7 +64,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             RoleName::VendorSupport->value => array_values(array_filter(
                 P::cases(),
-                fn (P $p) => ! in_array($p, [P::ApprovalsDecide, P::OwnersBankManage, ...P::financeManage()], true),
+                fn (P $p) => ! in_array($p, [P::ApprovalsDecide, P::OwnersBankManage, ...P::financeManage(), P::LedgerView, P::LedgerManage, P::LedgerAdmin], true),
             )), // includes import.run, which no other role gets
         ];
     }

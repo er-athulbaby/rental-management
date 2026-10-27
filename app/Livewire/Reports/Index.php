@@ -41,6 +41,13 @@ class Index extends Component
                 ['route' => 'reports.deposits', 'label' => __('Deposits held'), 'icon' => 'lock-closed', 'about' => __('Security deposits held per agreement unit.')],
                 ['route' => 'reports.vat', 'label' => __('VAT summary'), 'icon' => 'receipt-percent', 'about' => __('Output VAT by rate, for the return.')],
             ],
+            'ledger' => [
+                ['route' => 'ledger.trial-balance', 'label' => __('Trial balance'), 'icon' => 'scale', 'about' => __('Every account\'s balance at a date; debits equal credits.')],
+                ['route' => 'ledger.balance-sheet', 'label' => __('Balance sheet'), 'icon' => 'building-library', 'about' => __('Assets, liabilities and equity at a date, with this year\'s profit.')],
+                ['route' => 'ledger.profit-and-loss', 'label' => __('Profit and loss'), 'icon' => 'presentation-chart-line', 'about' => __('Income and expenses from the ledger for a period.')],
+                ['route' => 'ledger.general-ledger', 'label' => __('General ledger'), 'icon' => 'book-open', 'about' => __('One account\'s postings for a period, with a running balance.')],
+                ['route' => 'ledger.journals', 'label' => __('Journal list'), 'icon' => 'queue-list', 'about' => __('Every journal and its lines, by date, source or account.')],
+            ],
         ];
     }
 
@@ -54,6 +61,7 @@ class Index extends Component
         $groups = array_filter([
             __('Operational') => $user->can('reports.operational') ? $operational : [],
             __('Financial') => $user->can('reports.financial') ? self::catalogue()['financial'] : [],
+            __('Ledger') => $user->can('ledger.view') ? self::catalogue()['ledger'] : [],
         ]);
 
         return view('livewire.reports.index', [

@@ -17,6 +17,7 @@ beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-15 10:00', 'Asia/Bahrain'));
     $this->building = Building::factory()->create();
     $this->admin = matrixUser(RoleName::Management, $this->building);
+    $this->admin->givePermissionTo('ledger.view'); // the Journal lines subject needs it; Management has no ledger access by default
     activeAgreement(['customer_id' => Customer::factory()->create()->id, 'start_date' => '2026-09-01', 'end_date' => '2027-08-31'], [Unit::factory()->for($this->building)->create()]);
 });
 

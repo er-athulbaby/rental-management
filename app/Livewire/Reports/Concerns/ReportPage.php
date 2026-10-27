@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports\Concerns;
 
 use App\Audit\Audit;
+use App\Ledger\Balances;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
 use App\Models\User;
@@ -34,6 +35,11 @@ trait ReportPage
     #[Url]
     public string $to = '';
 
+    /** Set by rows() when the screen cut a line-by-line report short; the table then shows a notice. */
+    protected bool $capped = false;
+
+    private bool $exporting = false;
+
     abstract protected function title(): string;
 
     abstract protected function permission(): bool;
@@ -43,6 +49,12 @@ trait ReportPage
 
     /** @return list<array<string, string|int|null>> */
     abstract protected function rows(): array;
+
+    /** Lines to show: null for an export, which is always complete. */
+    protected function screenCap(): ?int
+    {
+        return $this->exporting ? null : Balances::$lineCap;
+    }
 
     protected function dateMode(): string
     {
@@ -240,7 +252,12 @@ trait ReportPage
     private function sheetData(): array
     {
         $columns = $this->columns();
-        $rows = $this->rows();
+        $this->exporting = true;
+        try {
+            $rows = $this->rows();
+        } finally {
+            $this->exporting = false;
+        }
         $headline = null;
         foreach (array_reverse($rows) as $row) {
             if (($row['_kind'] ?? null) !== 'total') {
@@ -270,6 +287,7 @@ trait ReportPage
             'columns' => $this->columns(),
             'rows' => $rows = $this->filtersValid() ? $this->rows() : [],
             'charts' => $rows === [] ? [] : $this->charts($rows),
+            'capped' => $this->capped,
             'numeric' => $this->numeric(),
             'options' => $this->options(),
             'dateMode' => $this->dateMode(),
