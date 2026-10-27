@@ -151,3 +151,27 @@ test('tampered input on the pages gives errors, never a 500, and long text is es
     Livewire::actingAs($f['finance'])->test(JournalShow::class, ['journal' => 'abc'])->assertNotFound();
     Livewire::actingAs($f['management'])->test(JournalShow::class, ['journal' => (string) $journal->id])->assertForbidden();
 });
+
+test('an account deactivated after posting, or during posting, gives a message and writes nothing', function () {
+    $f = $this->f;
+    $journal = app(PostManualJournal::class)->handle($f['finance'], ['date' => '2026-10-19', 'description' => 'Bank charges',
+        'lines' => [manualLine('5190', '2.500'), manualLine('1010', '', '2.500')]]);
+    LedgerAccount::query()->where('code', '5190')->update(['active' => false]);
+    $count = Journal::query()->count();
+
+    expect(fn () => app(ReverseManualJournal::class)->handle($f['finance'], $journal, '2026-10-20'))->toThrow(ValidationException::class, 'no longer active')
+        ->and(Journal::query()->count())->toBe($count);
+
+    // The race: the account goes inactive after the first check, once the settings row is read under its lock.
+    LedgerAccount::query()->where('code', '5190')->update(['active' => true]);
+    $fired = false;
+    LedgerSetting::retrieved(function () use (&$fired) {
+        if (! $fired) {
+            $fired = true;
+            LedgerAccount::query()->where('code', '5190')->update(['active' => false]);
+        }
+    });
+    expect(fn () => app(PostManualJournal::class)->handle($f['finance'], ['date' => '2026-10-19', 'description' => 'Race',
+        'lines' => [manualLine('5190', '1.000'), manualLine('1010', '', '1.000')]]))->toThrow(ValidationException::class, 'no longer active')
+        ->and(Journal::query()->count())->toBe($count);
+});

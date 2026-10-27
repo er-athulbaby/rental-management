@@ -41,6 +41,7 @@ final class ReverseManualJournal
                 throw ValidationException::withMessages(['reverseDate' => __('This journal is already reversed.')]);
             }
             PostManualJournal::openDate($settings, $date, 'reverseDate');
+            PostManualJournal::activeAccounts($journal->lines->pluck('ledger_account_id')->all(), 'reverseDate');
 
             $lines = array_values($journal->lines->map(fn (JournalLine $l) => ['account' => $l->ledger_account_id, 'amount' => Fils::fromDecimal($l->credit) - Fils::fromDecimal($l->debit),
                 'customer_id' => $l->customer_id, 'owner_id' => $l->owner_id, 'building_id' => $l->building_id, 'unit_id' => $l->unit_id, 'memo' => $l->memo])->all());

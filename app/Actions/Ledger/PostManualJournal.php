@@ -6,6 +6,7 @@ use App\Audit\Audit;
 use App\Enums\PermissionName;
 use App\Ledger\Poster;
 use App\Models\Journal;
+use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
 use App\Models\User;
 use App\Support\Fils;
@@ -63,11 +64,21 @@ final class PostManualJournal
         return DB::transaction(function () use ($actor, $v, $lines, $debits) {
             $settings = LedgerSetting::query()->lockForUpdate()->firstOrFail();
             self::openDate($settings, (string) $v['date'], 'date');
+            self::activeAccounts(array_column($lines, 'account'), 'lines');
             $journal = Poster::write('manual', (string) $v['date'], trim((string) $v['description']), $lines, createdBy: $actor->id);
             Audit::log('ledger.journal_posted', $journal, properties: ['date' => $v['date'], 'total' => Fils::toDecimal($debits)], causer: $actor);
 
             return $journal;
         });
+    }
+
+    /** Throws unless every account is still active: a deactivation can land after the first check. The caller holds the settings lock. @param list<int> $ids */
+    public static function activeAccounts(array $ids, string $field): void
+    {
+        $inactive = LedgerAccount::query()->whereKey(array_unique($ids))->where('active', false)->orderBy('code')->first();
+        if ($inactive !== null) {
+            throw ValidationException::withMessages([$field => __('Account :account is no longer active.', ['account' => $inactive->label()])]);
+        }
     }
 
     /** Throws unless $date is on or after the start date and after the lock (plan ruling 5). The caller holds the settings lock. */

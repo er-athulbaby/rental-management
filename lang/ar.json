@@ -176,6 +176,7 @@
     "The journal does not balance: debits :debits, credits :credits.": "القيد غير متوازن: المدين :debits، الدائن :credits.",
     "Choose a date on or after :date: earlier days are locked or before the start date.": "اختر تاريخاً في :date أو بعده: الأيام السابقة مقفلة أو قبل تاريخ البدء.",
     "Only a manual journal that is not itself a reversal can be reversed.": "لا يُعكس إلا قيد يدوي ليس هو نفسه قيد عكس.",
+    "Account :account is no longer active.": "الحساب :account لم يعد نشطاً.",
     "This journal is already reversed.": "هذا القيد معكوس بالفعل.",
     "Ledger": "الدفاتر",
     "Accounts and rules": "الحسابات والقواعد",
