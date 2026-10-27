@@ -72,7 +72,11 @@ final class PostManualJournal
         });
     }
 
-    /** Throws unless every account is still active: a deactivation can land after the first check. The caller holds the settings lock. @param list<int> $ids */
+    /**
+     * Throws unless every account is still active: a deactivation can land after the first check. The caller holds the settings lock.
+     *
+     * @param  array<array-key, int>  $ids
+     */
     public static function activeAccounts(array $ids, string $field): void
     {
         $inactive = LedgerAccount::query()->whereKey(array_unique($ids))->where('active', false)->orderBy('code')->first();
