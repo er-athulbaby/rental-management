@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -21,6 +22,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $id
  * @property int $building_id
  * @property int|null $unit_id
+ * @property string $description
  * @property ExpenseCategory $category
  * @property CarbonImmutable $expense_date
  * @property string $net
@@ -95,6 +97,32 @@ class Expense extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    /** @return BelongsToMany<Disbursement, $this> ledger money screens plan ruling 2: the vendor bills it was ever on */
+    public function disbursements(): BelongsToMany
+    {
+        return $this->belongsToMany(Disbursement::class, 'disbursement_expenses');
+    }
+
+    /** Ledger money screens plan ruling 3: the one vendor bill waiting, approved or paid that holds it, if any. */
+    public function activePayment(): ?Disbursement
+    {
+        return $this->disbursements()->whereIn('disbursements.status', Disbursement::ACTIVE)->first();
+    }
+
+    /**
+     * Ledger money screens plan ruling 2: recorded and on no vendor bill that is waiting, approved or paid; what a new
+     * vendor bill may pay.
+     *
+     * @param  Builder<Expense>  $query
+     */
+    #[Scope]
+    protected function unpaid(Builder $query): void
+    {
+        $query->where('expenses.status', ExpenseStatus::Recorded->value)
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('disbursement_expenses as de')->join('disbursements as d', 'd.id', '=', 'de.disbursement_id')
+                ->whereColumn('de.expense_id', 'expenses.id')->whereIn('d.status', Disbursement::ACTIVE));
     }
 
     /** @param  Builder<Expense>  $query */

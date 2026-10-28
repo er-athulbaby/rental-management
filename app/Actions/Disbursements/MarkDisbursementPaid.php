@@ -41,6 +41,7 @@ final class MarkDisbursementPaid
                 'direction' => ChequeDirection::Issued,
                 'customer_id' => $locked->payee_type === PayeeType::Customer ? $locked->payee_id : null,
                 'owner_id' => $locked->payee_type === PayeeType::Owner ? $locked->payee_id : null,
+                'vendor_id' => $locked->payee_type === PayeeType::Vendor ? $locked->payee_id : null, // ledger money screens plan ruling 1
                 'cheque_no' => (string) $data['cheque_no'],
                 'bank_name' => (string) $data['bank_name'],
                 'cheque_date' => (string) $data['cheque_date'],

@@ -9,6 +9,7 @@ use App\Enums\DepositSettlementStatus;
 use App\Enums\DisbursementMethod;
 use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
+use App\Enums\ExpenseStatus;
 use App\Enums\OwnerPayableStatus;
 use App\Enums\OwnerStatementStatus;
 use App\Enums\PayeeType;
@@ -17,22 +18,25 @@ use App\Models\Bank;
 use App\Models\Customer;
 use App\Models\DepositSettlement;
 use App\Models\Disbursement;
+use App\Models\Expense;
 use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\OwnerPayable;
 use App\Models\OwnerStatement;
 use App\Models\Payment;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Support\Fils;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Spec §7.5. With a source (a payment holding credit; a deposit settlement; a head-lease payable): paid at once, within the
- * source's limit. Without one (purpose other): pending → Management (§8.3 item 9) → approved → PayDisbursement.
+ * source's limit. Without one (purpose other) and for a vendor bill (ledger money screens plan ruling 1): pending → Management (§8.3 item 9) → approved → PayDisbursement.
  */
 final class RecordDisbursement
 {
@@ -46,29 +50,32 @@ final class RecordDisbursement
         }
 
         $today = now('Asia/Bahrain')->toDateString();
-        // A source-less payment out (purpose other) gets its cheque details when Finance pays it, not now.
+        $vendorBill = ($data['purpose'] ?? null) === DisbursementPurpose::VendorBill->value;
+        // A source-less payment out (purpose other) and a vendor bill get its cheque details when Finance pays it, not now.
         $chequeNow = ($data['method'] ?? null) === DisbursementMethod::Cheque->value
             && in_array($data['purpose'] ?? null, [DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::OwnerRemittance->value], true);
         $v = Validator::make($data, [
-            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::OwnerRemittance->value, DisbursementPurpose::Other->value])],
-            'amount' => ['required', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
+            'purpose' => ['required', Rule::in([DisbursementPurpose::CreditRefund->value, DisbursementPurpose::DepositRefund->value, DisbursementPurpose::HeadLease->value, DisbursementPurpose::OwnerRemittance->value, DisbursementPurpose::Other->value, DisbursementPurpose::VendorBill->value])],
+            'amount' => [Rule::requiredIf(! $vendorBill), 'nullable', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
             'method' => ['required', Rule::enum(DisbursementMethod::class)],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'paid_on' => ['required_unless:purpose,other', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.$today],
+            'paid_on' => ['required_unless:purpose,other,vendor_bill', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.$today],
             'payment_id' => ['required_if:purpose,credit_refund', 'nullable', 'integer', Rule::exists('payments', 'id')],
             'deposit_settlement_id' => ['required_if:purpose,deposit_refund', 'nullable', 'integer', Rule::exists('deposit_settlements', 'id')],
             'owner_payable_id' => ['required_if:purpose,head_lease', 'nullable', 'integer', Rule::exists('owner_payables', 'id')],
             'owner_statement_id' => ['required_if:purpose,owner_remittance', 'nullable', 'integer', Rule::exists('owner_statements', 'id')],
-            'payee_type' => ['required_if:purpose,other', 'nullable', Rule::enum(PayeeType::class)],
-            'payee_id' => ['required_if:purpose,other', 'nullable', 'integer'],
+            'payee_type' => ['required_if:purpose,other,vendor_bill', 'nullable', Rule::in($vendorBill ? [PayeeType::Vendor->value] : [PayeeType::Owner->value, PayeeType::Customer->value])],
+            'payee_id' => ['required_if:purpose,other,vendor_bill', 'nullable', 'integer'],
+            'expense_ids' => ['required_if:purpose,vendor_bill', 'nullable', 'array', 'max:200'],
+            'expense_ids.*' => ['integer'],
             'cheque_no' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:30'],
             'bank_name' => [Rule::requiredIf($chequeNow), 'nullable', 'string', 'max:100', Bank::rule()],
             'cheque_date' => [Rule::requiredIf($chequeNow), 'nullable', 'date_format:Y-m-d'],
             'reason' => ['required_if:purpose,other', 'nullable', 'string', 'max:2000'],
-        ])->validate();
+        ], ['expense_ids.required_if' => __('Tick at least one expense.')])->validate();
 
-        $amount = Fils::fromDecimal((string) $v['amount']);
+        $amount = filled($v['amount'] ?? null) ? Fils::fromDecimal((string) $v['amount']) : 0;
 
         // The first-lock row's id (spec §7.2: the customer, or the owner contract) is read before the transaction, so
         // the first read inside it is that locking read. A plain read first would fix the InnoDB snapshot and hide later
@@ -88,6 +95,7 @@ final class RecordDisbursement
                 DisbursementPurpose::DepositRefund->value => $this->depositRefund($actor, $v, $amount, $lockId),
                 DisbursementPurpose::HeadLease->value => $this->headLease($actor, $v, $amount, $lockId),
                 DisbursementPurpose::OwnerRemittance->value => $this->remittance($actor, $v, $amount, $lockId),
+                DisbursementPurpose::VendorBill->value => $this->vendorBill($actor, $v),
                 default => $this->other($actor, $v, $amount),
             };
         }, attempts: 3);
@@ -252,6 +260,58 @@ final class RecordDisbursement
         $this->paid->handle($out, [...array_intersect_key($v, array_flip(['cheque_no', 'bank_name', 'cheque_date'])), 'method' => $v['method'], 'paid_on' => $v['paid_on'], 'reference' => $v['reference'] ?? null], $actor);
 
         return $out->refresh();
+    }
+
+    /**
+     * Ledger money screens spec §2 (plan rulings 1–2): the full totals of the ticked expenses, sent to Management. The
+     * expense rows are locked in id order before their links are read with a locking read, so two bills never take the
+     * same expense; ReverseExpense takes the same row lock.
+     *
+     * @param  array<string, mixed>  $v
+     */
+    private function vendorBill(User $actor, array $v): Disbursement
+    {
+        $vendor = Vendor::query()->find((int) $v['payee_id']);
+        if ($vendor === null) {
+            throw ValidationException::withMessages(['payee_id' => __('Choose the vendor.')]);
+        }
+        $ids = array_values(array_unique(array_map('intval', $v['expense_ids'])));
+        sort($ids);
+        $expenses = Expense::query()->visibleTo($actor)->whereKey($ids)->orderBy('id')->lockForUpdate()->get();
+        if ($expenses->count() !== count($ids)) {
+            throw ValidationException::withMessages(['expense_ids' => __('Choose expenses from the list.')]);
+        }
+        $reversed = $expenses->first(fn (Expense $e) => $e->status === ExpenseStatus::Reversed);
+        if ($reversed !== null) {
+            throw ValidationException::withMessages(['expense_ids' => __('Expense :description is reversed.', ['description' => $reversed->description])]);
+        }
+        $taken = DB::table('disbursement_expenses as de')->join('disbursements as d', 'd.id', '=', 'de.disbursement_id')
+            ->whereIn('de.expense_id', $ids)->whereIn('d.status', Disbursement::ACTIVE)->orderBy('de.expense_id')->lockForUpdate()
+            ->first(['de.expense_id', 'd.id']);
+        if ($taken !== null) {
+            throw ValidationException::withMessages(['expense_ids' => __('Expense :description is already on payment out :n.', [
+                'description' => $expenses->firstWhere('id', (int) $taken->expense_id)?->description, 'n' => Disbursement::query()->findOrFail((int) $taken->id)->label(),
+            ])]);
+        }
+
+        $out = (new Disbursement)->forceFill([
+            'payee_type' => PayeeType::Vendor,
+            'payee_id' => $vendor->id,
+            'purpose' => DisbursementPurpose::VendorBill,
+            'amount' => Fils::toDecimal((int) $expenses->sum(fn (Expense $e) => Fils::fromDecimal($e->total))),
+            'method' => $v['method'],
+            'reference' => $v['reference'] ?? null,
+            'status' => DisbursementStatus::PendingApproval,
+            'reason' => Str::limit(__('Vendor bill for :vendor: :list', ['vendor' => $vendor->name,
+                'list' => $expenses->map(fn (Expense $e) => $e->description.' ('.$e->total.')')->implode('; ')]), 2000),
+            'notes' => $v['notes'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+        $out->save();
+        $out->expenses()->attach($ids);
+        $this->request->handle($actor, $out, ApprovalAction::PaymentOut, (string) $out->reason);
+
+        return $out;
     }
 
     /** @param  array<string, mixed>  $v */

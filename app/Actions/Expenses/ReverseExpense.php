@@ -3,6 +3,7 @@
 namespace App\Actions\Expenses;
 
 use App\Enums\ExpenseStatus;
+use App\Models\Disbursement;
 use App\Models\Expense;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -27,6 +28,15 @@ final class ReverseExpense
 
             if ($expense->status === ExpenseStatus::Reversed) {
                 throw ValidationException::withMessages(['reason' => __('This expense is already reversed.')]);
+            }
+
+            // Ledger money screens plan ruling 2: a vendor bill holding it would pay a reversed expense.
+            $on = DB::table('disbursement_expenses as de')->join('disbursements as d', 'd.id', '=', 'de.disbursement_id')
+                ->where('de.expense_id', $expense->id)->whereIn('d.status', Disbursement::ACTIVE)->lockForUpdate()->value('d.id');
+            if ($on !== null) {
+                throw ValidationException::withMessages(['reason' => __('This expense is on payment out :n. Reject or reverse that payment out first.', [
+                    'n' => Disbursement::query()->findOrFail((int) $on)->label(),
+                ])]);
             }
 
             $expense->forceFill([

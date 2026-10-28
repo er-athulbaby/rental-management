@@ -101,7 +101,7 @@ final class PaymentOutReversal implements ApprovalHandler
         $out = Disbursement::query()->findOrFail($approval->approvable_id);
 
         return __('Reverse payment out :n: :amount BHD to :payee (:purpose). Reason: :reason', [
-            'n' => $out->number, 'amount' => $out->amount, 'payee' => $out->payee()->name_en,
+            'n' => $out->number, 'amount' => $out->amount, 'payee' => $out->payeeName(),
             'purpose' => $out->purpose->label(), 'reason' => $approval->reason,
         ]);
     }

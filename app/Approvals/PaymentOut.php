@@ -40,7 +40,7 @@ final class PaymentOut implements ApprovalHandler
         $out = Disbursement::query()->findOrFail($approval->approvable_id);
 
         return __('Pay :amount BHD to :payee by :method. Reason: :reason', [
-            'amount' => $out->amount, 'payee' => $out->payee()->name_en, 'method' => $out->method->label(), 'reason' => $out->reason,
+            'amount' => $out->amount, 'payee' => $out->payeeName(), 'method' => $out->method->label(), 'reason' => $out->reason,
         ]);
     }
 

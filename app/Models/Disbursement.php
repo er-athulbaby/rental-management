@@ -9,8 +9,10 @@ use App\Enums\PayeeType;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -34,6 +36,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $created_by
  * @property int|null $recorded_by
  * @property CarbonImmutable|null $reversed_at
+ * @property-read Collection<int, Expense> $expenses
  */
 class Disbursement extends Model
 {
@@ -46,6 +49,9 @@ class Disbursement extends Model
     public const string SOURCE_PAYABLE = 'owner_payable';
 
     public const string SOURCE_STATEMENT = 'owner_statement';
+
+    /** Ledger money screens plan ruling 2: the statuses in which a vendor bill holds its expenses. */
+    public const array ACTIVE = ['pending_approval', 'approved', 'paid'];
 
     protected $guarded = ['id'];
 
@@ -68,11 +74,27 @@ class Disbursement extends Model
         return LogOptions::defaults()->logOnly(['number', 'status', 'amount', 'method', 'paid_on', 'reference', 'reversed_at'])->logOnlyDirty()->dontLogEmptyChanges();
     }
 
-    public function payee(): Customer|Owner
+    public function payee(): Customer|Owner|Vendor
     {
-        return $this->payee_type === PayeeType::Customer
-            ? Customer::withTrashed()->findOrFail($this->payee_id)
-            : Owner::withTrashed()->findOrFail($this->payee_id);
+        return match ($this->payee_type) {
+            PayeeType::Customer => Customer::withTrashed()->findOrFail($this->payee_id),
+            PayeeType::Owner => Owner::withTrashed()->findOrFail($this->payee_id),
+            PayeeType::Vendor => Vendor::withTrashed()->findOrFail($this->payee_id),
+        };
+    }
+
+    /** The payee's name: a tenant's or owner's English name, or a vendor's name. */
+    public function payeeName(): string
+    {
+        $payee = $this->payee();
+
+        return $payee instanceof Vendor ? $payee->name : $payee->name_en;
+    }
+
+    /** @return BelongsToMany<Expense, $this> ledger money screens plan ruling 2: what a vendor bill pays */
+    public function expenses(): BelongsToMany
+    {
+        return $this->belongsToMany(Expense::class, 'disbursement_expenses');
     }
 
     public function source(): ?Model

@@ -9,6 +9,7 @@ enum DisbursementPurpose: string
     case DepositRefund = 'deposit_refund';
     case CreditRefund = 'credit_refund';
     case Other = 'other';
+    case VendorBill = 'vendor_bill'; // ledger money screens: pays recorded expenses in full
 
     public function label(): string
     {

@@ -38,8 +38,8 @@ final class PaymentsOut extends Subject
 
     public function query(User $user, ?int $buildingId, CarbonImmutable $asAt): Builder
     {
-        return Disbursement::query()->where(fn ($q) => $q->where('disbursements.payee_type', 'owner')
-            ->orWhereIn('disbursements.payee_id', Customer::query()->visibleTo($user)->select('id')))
+        return Disbursement::query()->where(fn ($q) => $q->whereIn('disbursements.payee_type', ['owner', 'vendor'])
+            ->orWhere(fn ($c) => $c->where('disbursements.payee_type', 'customer')->whereIn('disbursements.payee_id', Customer::query()->visibleTo($user)->select('id'))))
             ->when($buildingId, fn ($q, $b) => $q->inBuilding($b))->toBase();
     }
 
@@ -52,8 +52,9 @@ final class PaymentsOut extends Subject
 
         return [
             Field::text('number', __('Number'), __('Payment out'), "COALESCE(disbursements.number, CONCAT('#', disbursements.id))", groupable: false),
-            Field::enum('payee_type', __('Payee type'), __('Payee'), 'disbursements.payee_type', ['owner' => __('Owner'), 'customer' => __('Tenant')]),
+            Field::enum('payee_type', __('Payee type'), __('Payee'), 'disbursements.payee_type', ['owner' => __('Owner'), 'customer' => __('Tenant'), 'vendor' => __('Vendor')]),
             Field::text('payee', __('Payee'), __('Payee'), "(CASE disbursements.payee_type WHEN 'owner' THEN (SELECT po.name_en FROM owners po WHERE po.id = disbursements.payee_id)
+                WHEN 'vendor' THEN (SELECT pv.name FROM vendors pv WHERE pv.id = disbursements.payee_id)
                 ELSE (SELECT pc.name_en FROM customers pc WHERE pc.id = disbursements.payee_id) END)"),
             Field::enum('purpose', __('Purpose'), __('Payment out'), 'disbursements.purpose', Field::optionsFrom(DisbursementPurpose::class)),
             Field::text('building', __('Building'), __('Property'), "COALESCE({$building}, '—')", filterable: false),

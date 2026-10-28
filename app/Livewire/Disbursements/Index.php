@@ -31,8 +31,8 @@ class Index extends Component
     public function render(): View
     {
         $rows = Disbursement::query()
-            ->where(fn ($q) => $q->where('payee_type', 'owner')
-                ->orWhereIn('payee_id', Customer::query()->visibleTo($this->actor())->select('id')))
+            ->where(fn ($q) => $q->whereIn('payee_type', ['owner', 'vendor'])
+                ->orWhere(fn ($c) => $c->where('payee_type', 'customer')->whereIn('payee_id', Customer::query()->visibleTo($this->actor())->select('id'))))
             ->when($this->status !== 'all', fn ($q) => $q->where('status', $this->status))
             ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->latest('id')

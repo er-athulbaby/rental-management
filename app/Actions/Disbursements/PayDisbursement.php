@@ -3,12 +3,14 @@
 namespace App\Actions\Disbursements;
 
 use App\Enums\DisbursementMethod;
+use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\OwnerPayableStatus;
 use App\Models\Bank;
 use App\Models\Disbursement;
 use App\Models\OwnerPayable;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -48,6 +50,11 @@ final class PayDisbursement
             if ($locked->source_type === Disbursement::SOURCE_PAYABLE
                 && OwnerPayable::query()->whereKey($locked->source_id)->lockForUpdate()->value('status') === OwnerPayableStatus::Cancelled) {
                 throw ValidationException::withMessages(['paid_on' => __('This head-lease period was re-cut and its payable cancelled. Reject or reverse this payment out instead of paying it.')]);
+            }
+            // Ledger money screens plan ruling 2: a vendor bill is never paid before the last expense it pays.
+            $latest = $locked->purpose === DisbursementPurpose::VendorBill ? $locked->expenses()->max('expenses.expense_date') : null;
+            if (is_string($latest) && (string) $v['paid_on'] < $latest) {
+                throw ValidationException::withMessages(['paid_on' => __('The payment cannot be dated before its latest expense (:d).', ['d' => CarbonImmutable::parse($latest)->format('d/m/Y')])]);
             }
             $this->paid->handle($locked, $v, $actor);
 

@@ -244,7 +244,7 @@ final class Sources
 
     /**
      * Rows 16–20: what the payment out settles (the owner, the tenant's credit, the deposit's holder per refunded unit, or
-     * Other payments out) against the payout method's account.
+     * Other payments out; Vendor payable for a vendor bill) against the payout method's account.
      *
      * @return Built
      */
@@ -265,6 +265,7 @@ final class Sources
         $lines = match ($d->purpose) {
             'owner_remittance', 'head_lease' => [self::line($rules->account('owner_payable'), $amount, null, $owner, $building)],
             'credit_refund' => [self::line($rules->account('tenant_credit'), $amount, $customer)],
+            'vendor_bill' => [self::line($rules->account('vendor_payable'), $amount)], // ledger money screens plan ruling 4
             'deposit_refund' => DB::table('deposit_movements as m')
                 ->join('agreement_units as au', 'au.id', '=', 'm.agreement_unit_id')
                 ->join('units as u', 'u.id', '=', 'au.unit_id')

@@ -19,6 +19,7 @@ use Spatie\Activitylog\Support\LogOptions;
  *
  * @property int $id
  * @property ChequeDirection $direction
+ * @property int|null $vendor_id
  * @property int|null $customer_id
  * @property int|null $agreement_id
  * @property int|null $invoice_id
@@ -113,7 +114,7 @@ class Cheque extends Model
             return;
         }
 
-        $query->where(fn ($q) => $q->whereIn('customer_id', Customer::query()->visibleTo($user)->select('id'))->orWhereNotNull('owner_id'));
+        $query->where(fn ($q) => $q->whereIn('customer_id', Customer::query()->visibleTo($user)->select('id'))->orWhereNotNull('owner_id')->orWhereNotNull('vendor_id'));
     }
 
     /** @param  Builder<Cheque>  $query */

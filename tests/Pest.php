@@ -584,3 +584,20 @@ function ledgerFixture(): array
         'omarRent' => $omarRent, 'saraPayment' => $saraPayment, 'companyExpense' => $companyExpense, 'ownerExpense' => $ownerExpense, 'payable' => $payable,
         'headLease' => $headLease, 'statement' => $statement, 'fee' => $fee, 'refund' => $refund];
 }
+
+/**
+ * The general ledger worked example plus a vendor (ledger money screens plan rulings 2 and 5): "Fix-It Co" did the "Lobby
+ * lights" job (the fixture's company expense, 50.000) as a work order on T1, completed 08/10. "T1 tap" (30.000) has no
+ * work order. Seed RolesAndPermissionsSeeder and fake the local disk first. Ends on 20/10/2026 10:00.
+ *
+ * @return array<string, mixed>
+ */
+function vendorBillFixture(): array
+{
+    $f = ledgerFixture();
+    $vendor = maintenanceVendor();
+    $workOrder = workOrderFor($f['admin'], maintenanceRequest($f['admin'], $f['t1']), $vendor);
+    $workOrder->forceFill(['status' => 'completed', 'completed_on' => '2026-10-08', 'expense_id' => $f['companyExpense']->id])->save();
+
+    return [...$f, 'vendor' => $vendor, 'workOrder' => $workOrder];
+}
