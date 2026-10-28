@@ -171,6 +171,11 @@ return new class extends Migration
     {
         // Rolls back to the M3a-era shapes (the vendors migration needs cheques.vendor_id gone before it can drop vendors). Vendor
         // rows on disbursements or cheques make this fail, which is right. The accounts and rules inserted by up() stay: they are additive.
+        if (DB::table('disbursements')->where('payee_type', 'vendor')->orWhere('purpose', 'vendor_bill')->exists()
+            || DB::table('cheques')->whereNotNull('vendor_id')->exists()
+            || DB::table('cash_movements')->exists() || DB::table('vat_returns')->exists()) {
+            throw new RuntimeException('Cannot roll back: vendor bills, vendor cheques, cash movements or VAT returns exist. Nothing was changed.');
+        }
         foreach (self::TRIGGERS as $trigger) {
             DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
         }

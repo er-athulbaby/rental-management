@@ -145,3 +145,43 @@ test('a custom-field document makes the custom fields down() fail, keeping the c
 
     $document->forceDelete();
 });
+
+test('the money migration down() refuses, changing nothing, while vendor bills, vendor cheques, cash movements or VAT returns exist', function () {
+    DB::setDefaultConnection('migrator');
+    $user = User::factory()->create();
+    $stamp = ['created_by' => $user->id, 'created_at' => now(), 'updated_at' => now()];
+    $bank = DB::table('ledger_accounts')->where('code', '1010')->value('id');
+    $vendor = DB::table('vendors')->insertGetId(['name' => 'V', 'type' => 'company', 'trades' => '[]', 'mobile' => '1', 'created_at' => now(), 'updated_at' => now()]);
+    $wipe = function (string ...$tables) {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        array_map(fn ($x) => DB::table($x)->truncate(), $tables);
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+    }; // TRUNCATE skips the write-once triggers
+    $unchanged = fn () => expect((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(73)
+        ->and(Schema::hasTable('cash_movements') && Schema::hasTable('vat_returns') && Schema::hasTable('disbursement_expenses'))->toBeTrue()
+        ->and(Schema::hasColumn('cheques', 'vendor_id'))->toBeTrue()
+        ->and(DB::select("SHOW TRIGGERS WHERE `Trigger` = 'cheques_guard'"))->toHaveCount(1);
+
+    $out = DB::table('disbursements')->insertGetId(['payee_type' => 'vendor', 'payee_id' => $vendor, 'purpose' => 'vendor_bill', 'amount' => '5.000', 'method' => 'cash',
+        'status' => 'pending_approval', ...$stamp]);
+    expect(fn () => $this->moneyTables->down())->toThrow(RuntimeException::class, 'Nothing was changed');
+    $unchanged();
+    $wipe('disbursements');
+
+    DB::table('cheques')->insertGetId(['direction' => 'issued', 'vendor_id' => $vendor, 'cheque_no' => 'C1', 'bank_name' => 'B', 'cheque_date' => '2026-10-20',
+        'amount' => '5.000', 'status' => 'issued', ...$stamp]);
+    expect(fn () => $this->moneyTables->down())->toThrow(RuntimeException::class, 'Nothing was changed');
+    $unchanged();
+    $wipe('cheques');
+
+    DB::table('cash_movements')->insertGetId(['kind' => 'bank_charge', 'from_account_id' => $bank, 'amount' => '1.000', 'date' => '2026-10-20', 'reference' => 'R', ...$stamp]);
+    expect(fn () => $this->moneyTables->down())->toThrow(RuntimeException::class, 'Nothing was changed');
+    $unchanged();
+
+    $wipe('cash_movements');
+    DB::table('vat_returns')->insertGetId(['period_from' => '2026-07-01', 'period_to' => '2026-09-30', 'direction' => 'payment', 'method' => 'cash',
+        'amount' => '1.000', 'date' => '2026-10-20', 'reference' => 'N', ...$stamp]);
+    expect(fn () => $this->moneyTables->down())->toThrow(RuntimeException::class, 'Nothing was changed');
+    $unchanged();
+    $wipe('vat_returns', 'vendors');
+});
