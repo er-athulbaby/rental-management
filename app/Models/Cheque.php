@@ -70,6 +70,17 @@ class Cheque extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    /** The party's name: the tenant, owner or vendor the cheque is from or to (an issued cheque has exactly one). */
+    public function partyName(): string
+    {
+        return match (true) {
+            $this->customer_id !== null => (string) $this->customer?->name_en,
+            $this->owner_id !== null => Owner::withTrashed()->findOrFail($this->owner_id)->name_en,
+            $this->vendor_id !== null => Vendor::withTrashed()->findOrFail($this->vendor_id)->name,
+            default => '—',
+        };
+    }
+
     /** @return BelongsTo<Agreement, $this> */
     public function agreement(): BelongsTo
     {

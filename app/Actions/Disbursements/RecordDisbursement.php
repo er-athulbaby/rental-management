@@ -272,6 +272,9 @@ final class RecordDisbursement
     private function vendorBill(User $actor, array $v): Disbursement
     {
         $vendor = Vendor::query()->find((int) $v['payee_id']);
+        if ($vendor !== null && ! $vendor->active) {
+            throw ValidationException::withMessages(['payee_id' => __('Choose an active vendor.')]);
+        }
         if ($vendor === null) {
             throw ValidationException::withMessages(['payee_id' => __('Choose the vendor.')]);
         }
@@ -290,7 +293,7 @@ final class RecordDisbursement
             ->first(['de.expense_id', 'd.id']);
         if ($taken !== null) {
             throw ValidationException::withMessages(['expense_ids' => __('Expense :description is already on payment out :n.', [
-                'description' => $expenses->firstWhere('id', (int) $taken->expense_id)?->description, 'n' => Disbursement::query()->findOrFail((int) $taken->id)->label(),
+                'description' => $expenses->firstWhere('id', (int) $taken->expense_id)?->description, 'n' => Disbursement::query()->lockForUpdate()->findOrFail((int) $taken->id)->label(), // a locking read: a plain one cannot see a bill committed after this transaction's snapshot
             ])]);
         }
 

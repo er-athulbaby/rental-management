@@ -95,3 +95,39 @@ test('wrong or tampered input gives a message, never a 500', function () {
 
     expect(fn () => ($this->bill)([$f['ownerExpense']->id]))->toThrow(ValidationException::class, 'T1 tap is reversed');
 });
+
+test('an inactive vendor is refused', function () {
+    $f = $this->f;
+    $f['vendor']->forceFill(['active' => false])->save();
+
+    expect(fn () => ($this->bill)([$f['companyExpense']->id]))->toThrow(ValidationException::class, 'Choose an active vendor');
+});
+
+test('the refusal for an expense already on a bill reads the bill with a locking query', function () {
+    $f = $this->f;
+    ($this->bill)([$f['companyExpense']->id]);
+    $queries = [];
+    DB::listen(function ($q) use (&$queries) {
+        $queries[] = $q->sql;
+    });
+
+    expect(fn () => ($this->bill)([$f['companyExpense']->id]))->toThrow(ValidationException::class, 'already on payment out');
+    $reads = array_filter($queries, fn ($s) => str_contains($s, 'from `disbursements`') && str_contains($s, '`id` = ?'));
+
+    expect($reads)->not->toBeEmpty()
+        ->and(array_filter($reads, fn ($s) => ! str_contains($s, 'for update')))->toBeEmpty();
+});
+
+test('the cheque page opens for an issued owner cheque and a vendor cheque', function () {
+    $f = $this->f;
+    $out = ($this->bill)([$f['companyExpense']->id]);
+    ($this->decide)(true);
+    $paid = app(PayDisbursement::class)->handle($f['finance'], $out->fresh(), ['method' => 'cheque', 'paid_on' => '2026-10-20', 'cheque_no' => '000778',
+        'bank_name' => 'NBB', 'cheque_date' => '2026-10-20']);
+    $ownerCheque = $paid->cheque->replicate()->forceFill(['vendor_id' => null, 'owner_id' => $f['managed']->owner_id ?? Owner::query()->value('id'), 'disbursement_id' => null, 'cheque_no' => '000779']);
+    $ownerCheque->save();
+
+    $this->actingAs($f['finance']);
+    $this->get(route('cheques.show', $paid->cheque))->assertOk()->assertSee('Fix-It Co');
+    $this->get(route('cheques.show', $ownerCheque))->assertOk();
+});

@@ -35,7 +35,7 @@ final class ReverseExpense
                 ->where('de.expense_id', $expense->id)->whereIn('d.status', Disbursement::ACTIVE)->lockForUpdate()->value('d.id');
             if ($on !== null) {
                 throw ValidationException::withMessages(['reason' => __('This expense is on payment out :n. Reject or reverse that payment out first.', [
-                    'n' => Disbursement::query()->findOrFail((int) $on)->label(),
+                    'n' => Disbursement::query()->lockForUpdate()->findOrFail((int) $on)->label(),
                 ])]);
             }
 

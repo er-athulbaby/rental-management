@@ -155,6 +155,7 @@
     "Credit refund reversal": "عكس استرداد رصيد",
     "Vendor bill for :vendor: :list": "فاتورة مورد لـ :vendor: :list",
     "Choose the vendor.": "اختر المورد.",
+    "Choose an active vendor.": "اختر مورداً نشطاً.",
     "Tick at least one expense.": "حدد مصروفاً واحداً على الأقل.",
     "Choose expenses from the list.": "اختر المصروفات من القائمة.",
     "Expense :description is reversed.": "المصروف :description معكوس.",
