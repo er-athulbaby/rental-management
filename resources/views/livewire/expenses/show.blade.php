@@ -14,6 +14,15 @@
         @endif
         <div><dt class="text-sm text-zinc-500">{{ __('Net / VAT / total (BHD)') }}</dt><dd class="tabular-nums">{{ $expense->net }} / {{ $expense->tax_amount }} / {{ $expense->total }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Recorded by') }}</dt><dd>{{ $expense->recorder->name }}</dd></div>
+        <div><dt class="text-sm text-zinc-500">{{ __('Payment') }}</dt><dd>
+            @if ($payment)
+                <flux:link :href="route('disbursements.show', $payment)" wire:navigate>{{ $payment->status->value === 'paid' ? __('Paid') : __('In payment') }} · {{ $payment->label() }}</flux:link>
+            @elseif ($expense->status->value === 'recorded')
+                {{ __('Unpaid') }}
+            @else
+                —
+            @endif
+        </dd></div>
         @if ($expense->owner_approval_note)
             <div class="sm:col-span-2"><dt class="text-sm text-zinc-500">{{ __('Owner approval') }}</dt><dd>{{ $expense->owner_approval_note }}</dd></div>
         @endif

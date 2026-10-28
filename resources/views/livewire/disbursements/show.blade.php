@@ -28,6 +28,27 @@
         @if ($out->reversed_at)<div><dt class="text-sm text-zinc-500">{{ __('Reversed') }}</dt><dd>{{ $out->reversed_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</dd></div>@endif
     </dl>
 
+    @if ($out->purpose->value === 'vendor_bill')
+        <div class="overflow-x-auto">
+            <flux:table>
+                <flux:table.columns>
+                    <flux:table.column>{{ __('Date') }}</flux:table.column>
+                    <flux:table.column>{{ __('Expense') }}</flux:table.column>
+                    <flux:table.column align="end">{{ __('Total (BHD)') }}</flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @foreach ($out->expenses->sortBy('id') as $expense)
+                        <flux:table.row :key="'e-'.$expense->id">
+                            <flux:table.cell class="whitespace-nowrap">{{ $expense->expense_date->format('d/m/Y') }}</flux:table.cell>
+                            <flux:table.cell><flux:link :href="route('expenses.show', $expense)" wire:navigate>{{ $expense->description }}</flux:link></flux:table.cell>
+                            <flux:table.cell class="text-end tabular-nums">{{ $expense->total }}</flux:table.cell>
+                        </flux:table.row>
+                    @endforeach
+                </flux:table.rows>
+            </flux:table>
+        </div>
+    @endif
+
     @if ($out->cheque)
         <flux:card class="flex flex-wrap items-end justify-between gap-3">
             <div>{{ __('Cheque :n on :b, dated :d', ['n' => $out->cheque->cheque_no, 'b' => $out->cheque->bank_name, 'd' => $out->cheque->cheque_date->format('d/m/Y')]) }} · <x-status-badge :status="$out->cheque->status" /></div>

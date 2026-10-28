@@ -4,6 +4,7 @@ namespace App\Livewire\Expenses;
 
 use App\Livewire\Concerns\WithActor;
 use App\Models\Building;
+use App\Models\Disbursement;
 use App\Models\Expense;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Title;
@@ -31,7 +32,8 @@ class Index extends Component
     {
         $expenses = Expense::query()
             ->visibleTo($this->actor())
-            ->with(['building:id,code', 'unit:id,code', 'ownerContract:id,number'])
+            ->with(['building:id,code', 'unit:id,code', 'ownerContract:id,number',
+                'disbursements' => fn ($q) => $q->whereIn('disbursements.status', Disbursement::ACTIVE)]) // ledger money screens plan ruling 3
             ->when($this->buildingId, fn ($q) => $q->where('building_id', $this->buildingId))
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->latest('expense_date')->latest('id')

@@ -42,7 +42,7 @@ class Show extends Component
 
     protected function disbursement(): Disbursement
     {
-        return Disbursement::with(['creator:id,name', 'recorder:id,name', 'cheque'])->findOrFail($this->disbursementId);
+        return Disbursement::with(['creator:id,name', 'recorder:id,name', 'cheque', 'expenses'])->findOrFail($this->disbursementId);
     }
 
     public function payNow(PayDisbursement $pay): void

@@ -46,6 +46,7 @@ class Show extends Component
         return view('livewire.expenses.show', [
             'expense' => $expense,
             'canReverse' => $expense->status === ExpenseStatus::Recorded && $this->actor()->can('reverse', $expense),
+            'payment' => $expense->activePayment(), // ledger money screens plan ruling 3
         ])->title(__('Expense #:id', ['id' => $expense->id]));
     }
 }

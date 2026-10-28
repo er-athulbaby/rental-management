@@ -27,6 +27,7 @@
                 <flux:table.column>{{ __('Charged to') }}</flux:table.column>
                 <flux:table.column align="end">{{ __('Total (BHD)') }}</flux:table.column>
                 <flux:table.column>{{ __('Status') }}</flux:table.column>
+                <flux:table.column>{{ __('Payment') }}</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach ($expenses as $expense)
@@ -37,6 +38,15 @@
                         <flux:table.cell>{{ str($expense->charge_to->value)->headline() }}{{ $expense->ownerContract ? ' ('.$expense->ownerContract->number.')' : '' }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $expense->total }}</flux:table.cell>
                         <flux:table.cell><flux:badge size="sm" :color="$expense->status->value === 'reversed' ? 'zinc' : 'green'">{{ str($expense->status->value)->headline() }}</flux:badge></flux:table.cell>
+                        <flux:table.cell>
+                            @if ($expense->status->value === 'reversed')
+                                —
+                            @elseif ($pay = $expense->disbursements->first())
+                                <flux:link :href="route('disbursements.show', $pay)" wire:navigate>{{ $pay->status->value === 'paid' ? __('Paid') : __('In payment') }} · {{ $pay->label() }}</flux:link>
+                            @else
+                                {{ __('Unpaid') }}
+                            @endif
+                        </flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>
