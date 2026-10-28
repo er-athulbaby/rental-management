@@ -34,8 +34,8 @@ afterEach(function () {
 
 test('Admin adds and renames accounts; an account with postings keeps its type; codes are unique; Finance cannot', function () {
     $f = $this->f;
-    $parking = app(SaveLedgerAccount::class)->handle($f['admin'], null, ['code' => '4300', 'name_en' => 'Parking income', 'name_ar' => 'إيرادات المواقف', 'type' => 'income']);
-    app(SaveLedgerAccount::class)->handle($f['admin'], $parking, ['code' => '4300', 'name_en' => 'Car park income', 'name_ar' => 'إيرادات المواقف', 'type' => 'expense']);
+    $parking = app(SaveLedgerAccount::class)->handle($f['admin'], null, ['code' => '4350', 'name_en' => 'Parking income', 'name_ar' => 'إيرادات المواقف', 'type' => 'income']);
+    app(SaveLedgerAccount::class)->handle($f['admin'], $parking, ['code' => '4350', 'name_en' => 'Car park income', 'name_ar' => 'إيرادات المواقف', 'type' => 'expense']);
     $cash = LedgerAccount::query()->where('code', '1000')->firstOrFail();
 
     expect($parking->fresh()->name_en)->toBe('Car park income')

@@ -21,19 +21,19 @@ function storageJournal(string $kind, string $date, ?string $sourceType = null, 
 test('the default chart, its posting rules and the one settings row are there', function () {
     $owner = LedgerAccount::query()->where('code', '2100')->firstOrFail();
 
-    expect(LedgerAccount::query()->count())->toBe(24)
+    expect(LedgerAccount::query()->count())->toBe(26)
         ->and(LedgerAccount::query()->where('code', '1100')->value('system_key'))->toBe('receivables')
         ->and($owner->name_ar)->toBe('مستحقات الملاك')
         ->and($owner->type->value)->toBe('liability')
         ->and($owner->label())->toBe('2100 Owner payable')
-        ->and(DB::table('ledger_rules')->count())->toBe(25)
+        ->and(DB::table('ledger_rules')->count())->toBe(27)
         ->and(DB::table('ledger_rules')->where('key', 'method.cheque')->value('ledger_account_id'))->toBe(LedgerAccount::query()->where('code', '1010')->value('id'))
         ->and(DB::table('ledger_rules')->where('key', 'other_payments_out')->value('ledger_account_id'))->toBe(LedgerAccount::query()->where('code', '5190')->value('id'))
         ->and(LedgerSetting::query()->count())->toBe(1)
         ->and(LedgerSetting::current()->start_date)->toBeNull()
         ->and(LedgerSetting::current()->firstOpenDay())->toBeNull()
-        ->and(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(67)
-        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(67);
+        ->and(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(73)
+        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(73);
 });
 
 test('manual journals never change; automatic ones are removable only while their date is open', function () {

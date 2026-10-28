@@ -3,7 +3,7 @@
 
     <div class="space-y-4">
         <flux:heading size="lg">{{ __('Chart of accounts') }}</flux:heading>
-        <form wire:submit="save" class="grid gap-3 sm:grid-cols-5">
+        <form wire:submit="save" class="grid gap-3 sm:grid-cols-6">
             <flux:input wire:model="code" :label="__('Code')" />
             <flux:input wire:model="name_en" :label="__('Name (English)')" />
             <flux:input wire:model="name_ar" :label="__('Name (Arabic)')" dir="rtl" />
@@ -12,6 +12,7 @@
                     <flux:select.option :value="$t->value">{{ $t->label() }}</flux:select.option>
                 @endforeach
             </flux:select>
+            <div class="flex items-end"><flux:checkbox wire:model="is_money" :label="__('Money account')" /></div>
             <div class="flex items-end gap-2">
                 <flux:button type="submit" variant="primary">{{ $editingId ? __('Save') : __('Add account') }}</flux:button>
                 @if ($editingId)
@@ -23,6 +24,7 @@
         <flux:error name="name_en" />
         <flux:error name="name_ar" />
         <flux:error name="type" />
+        <flux:error name="is_money" />
         <flux:error name="accounts" />
 
         <div class="overflow-x-auto">
@@ -39,7 +41,7 @@
                         <flux:table.row :key="'a-'.$account->id">
                             <flux:table.cell>{{ $account->code }}</flux:table.cell>
                             <flux:table.cell>{{ $account->name_en }} · <span dir="rtl">{{ $account->name_ar }}</span></flux:table.cell>
-                            <flux:table.cell>{{ $account->type->label() }}</flux:table.cell>
+                            <flux:table.cell>{{ $account->type->label() }}{{ $account->is_money ? ' · '.__('Money account') : '' }}</flux:table.cell>
                             <flux:table.cell>
                                 <flux:badge size="sm" :color="$account->active ? 'green' : 'zinc'">{{ $account->active ? __('Active') : __('Inactive') }}</flux:badge>
                             </flux:table.cell>

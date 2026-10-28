@@ -16,15 +16,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name_ar
  * @property LedgerAccountType $type
  * @property string|null $system_key
+ * @property bool $is_money
  * @property bool $active
  */
 class LedgerAccount extends Model
 {
-    protected $fillable = ['code', 'name_en', 'name_ar', 'type'];
+    protected $fillable = ['code', 'name_en', 'name_ar', 'type', 'is_money'];
 
     protected function casts(): array
     {
-        return ['type' => LedgerAccountType::class, 'active' => 'boolean'];
+        return ['type' => LedgerAccountType::class, 'active' => 'boolean', 'is_money' => 'boolean'];
     }
 
     /** @return HasMany<JournalLine, $this> */

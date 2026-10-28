@@ -22,6 +22,7 @@ beforeEach(function () {
     $this->portal = require database_path('migrations/2026_12_22_000100_create_portal_tables.php');
     $this->ownerPortal = require database_path('migrations/2026_12_24_000100_add_owner_portal.php');
     $this->customFields = require database_path('migrations/2026_12_25_000100_create_custom_fields_tables.php');
+    $this->moneyTables = require database_path('migrations/2026_12_28_000100_create_ledger_money_tables.php');
 });
 
 // Whatever happened in the test, leave the schema migrated: the vendors table back (roles are emptied first, so
@@ -44,6 +45,9 @@ afterEach(function () {
     if (! Schema::hasTable('custom_fields')) { // the custom fields migration last, in up order
         $this->customFields->up();
     }
+    if (! Schema::hasTable('disbursement_expenses')) { // the money migration after that, in up order
+        $this->moneyTables->up();
+    }
 });
 
 test('on an installed system the migration grants the maintenance permissions additively, once, and down() removes them', function () {
@@ -56,6 +60,9 @@ test('on an installed system the migration grants the maintenance permissions ad
     Permission::whereIn('name', $names)->delete();
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     Role::findByName('admin')->givePermissionTo('users.manage'); // an Admin role edit that must survive
+    if (Schema::hasTable('disbursement_expenses')) {
+        $this->moneyTables->down(); // real rollback order: the money migration is the latest, and its cheques.vendor_id references vendors
+    }
     if (Schema::hasTable('custom_fields')) {
         $this->customFields->down(); // real rollback order: the custom fields migration rewrites documents_category_chk, as the maintenance one does, so it goes back first
     }
@@ -82,6 +89,9 @@ test('on an installed system the migration grants the maintenance permissions ad
     expect(matrixUser(R::Leasing, $this->building)->can('maintenance.view'))->toBeTrue() // the cache was cleared
         ->and(Role::findByName('admin')->hasPermissionTo('users.manage'))->toBeTrue();
 
+    if (Schema::hasTable('disbursement_expenses')) {
+        $this->moneyTables->down(); // real rollback order: the money migration is the latest, and its cheques.vendor_id references vendors
+    }
     if (Schema::hasTable('custom_fields')) {
         $this->customFields->down(); // real rollback order: the custom fields migration rewrites documents_category_chk, as the maintenance one does, so it goes back first
     }
@@ -115,6 +125,8 @@ test('on an installed system the migration grants the maintenance permissions ad
     expect(Schema::hasColumn('portal_accounts', 'owner_id'))->toBeTrue();
     $this->customFields->up();
     expect(Schema::hasTable('custom_fields'))->toBeTrue();
+    $this->moneyTables->up();
+    expect(Schema::hasTable('disbursement_expenses'))->toBeTrue();
 });
 
 test('a custom-field document makes the custom fields down() fail, keeping the category check and every table', function () {

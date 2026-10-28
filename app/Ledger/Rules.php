@@ -28,6 +28,8 @@ final class Rules
         'lease_rent' => 'Lease rent to owners',
         'opening_equity' => 'Opening balance equity',
         'other_payments_out' => 'Other payments out',
+        'bank_charges' => 'Bank charges',          // ledger money screens plan ruling 7
+        'bank_interest' => 'Bank interest income',
     ];
 
     /** The methods that move money. deposit_applied and split never reach a rule (plan ruling 3, rows 8–9). */
@@ -78,9 +80,9 @@ final class Rules
         return match (true) {
             str_starts_with($key, 'method.'), $key === 'receivables' => LedgerAccountType::Asset,
             in_array($key, ['deposits_held', 'owner_payable', 'vendor_payable', 'tenant_credit', 'vat_payable'], true) => LedgerAccountType::Liability,
-            in_array($key, ['rent_income', 'other_income', 'fee_income'], true) => LedgerAccountType::Income,
+            in_array($key, ['rent_income', 'other_income', 'fee_income', 'bank_interest'], true) => LedgerAccountType::Income,
             $key === 'opening_equity' => LedgerAccountType::Equity,
-            default => LedgerAccountType::Expense, // category.*, lease_rent, other_payments_out
+            default => LedgerAccountType::Expense, // category.*, lease_rent, other_payments_out, bank_charges
         };
     }
 }

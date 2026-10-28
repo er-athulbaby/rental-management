@@ -36,6 +36,8 @@ class Accounts extends Component
 
     public mixed $type = 'expense';
 
+    public mixed $is_money = false;
+
     /** @var mixed account ids in Rules::keys() order (rule keys contain dots, which Livewire would read as nesting) */
     public mixed $ruleAccounts = [];
 
@@ -56,18 +58,19 @@ class Accounts extends Component
         $this->name_en = $account->name_en;
         $this->name_ar = $account->name_ar;
         $this->type = $account->type->value;
+        $this->is_money = $account->is_money;
     }
 
     public function cancel(): void
     {
         $this->resetErrorBag();
-        $this->reset('editingId', 'code', 'name_en', 'name_ar', 'type');
+        $this->reset('editingId', 'code', 'name_en', 'name_ar', 'type', 'is_money');
     }
 
     public function save(): void
     {
         $account = $this->editingId === null ? null : LedgerAccount::query()->findOrFail($this->editingId);
-        app(SaveLedgerAccount::class)->handle($this->actor(), $account, ['code' => $this->code, 'name_en' => $this->name_en, 'name_ar' => $this->name_ar, 'type' => $this->type]);
+        app(SaveLedgerAccount::class)->handle($this->actor(), $account, ['code' => $this->code, 'name_en' => $this->name_en, 'name_ar' => $this->name_ar, 'type' => $this->type, 'is_money' => $this->is_money]);
         $this->cancel();
         Flux::toast(variant: 'success', text: __('Account saved.'));
     }
