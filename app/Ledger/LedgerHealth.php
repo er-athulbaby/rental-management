@@ -99,18 +99,36 @@ final class LedgerHealth
         return $owed + $billed - $credited - $collected + $ownerDeposits + $leaseDue - $leasePaid;
     }
 
-    /** What expenses credited to Vendor payable (manual vendor payments left out, plan ruling 11). */
+    /**
+     * Ledger money screens plan ruling 5: Vendor payable from what expenses and vendor bills posted. Opening and manual
+     * journals are left out: no expense stands behind them.
+     */
     private static function vendorLedger(Rules $rules): int
     {
         return -self::fils(DB::table('journal_lines as l')->join('journals as j', 'j.id', '=', 'l.journal_id')
-            ->where('l.ledger_account_id', $rules->account('vendor_payable'))->whereIn('j.source_type', ['expense', 'expense_reversal'])
+            ->where('l.ledger_account_id', $rules->account('vendor_payable'))
+            ->whereIn('j.source_type', ['expense', 'expense_reversal', 'disbursement', 'disbursement_reversal'])
             ->sum(DB::raw('l.debit - l.credit')));
     }
 
+    /**
+     * Ledger money screens plan ruling 5: the unpaid bills. Expenses dated from the start date that are recorded and on no
+     * paid vendor bill; then, for bills from before the start date (in the opening balances), only what happened to them
+     * from the start date: reversed (−), paid on a bill (−), that bill reversed (+).
+     */
     private static function vendorApp(string $start, string $today): int
     {
-        return self::fils(DB::table('expenses')->whereBetween('expense_date', [$start, $today])->sum('total'))
-            - self::fils(DB::table('expenses')->where('status', 'reversed')->whereBetween(DB::raw('DATE(reversed_at)'), [$start, $today])->sum('total'));
+        $unpaid = self::fils(DB::table('expenses as e')->where('e.status', 'recorded')->whereBetween('e.expense_date', [$start, $today])
+            ->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('disbursement_expenses as de')->join('disbursements as d', 'd.id', '=', 'de.disbursement_id')
+                ->whereColumn('de.expense_id', 'e.id')->where('d.status', 'paid'))
+            ->sum('e.total'));
+        $earlier = fn () => DB::table('expenses as e')->where('e.expense_date', '<', $start);
+        $onBills = fn () => $earlier()->join('disbursement_expenses as de', 'de.expense_id', '=', 'e.id')->join('disbursements as d', 'd.id', '=', 'de.disbursement_id');
+        $reversed = self::fils($earlier()->where('e.status', 'reversed')->whereBetween(DB::raw('DATE(e.reversed_at)'), [$start, $today])->sum('e.total'));
+        $paid = self::fils($onBills()->whereIn('d.status', ['paid', 'reversed'])->whereBetween('d.paid_on', [$start, $today])->sum('e.total'));
+        $paidBack = self::fils($onBills()->where('d.status', 'reversed')->whereBetween(DB::raw('DATE(d.reversed_at)'), [$start, $today])->sum('e.total'));
+
+        return $unpaid - $reversed - $paid + $paidBack;
     }
 
     /** Plan ruling 2: issued lines on a unit that had no owner contract on their date, posted to company income. */

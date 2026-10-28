@@ -111,7 +111,7 @@
      - billed net − credited net − collected net (allocation amount − allocation tax) of managed non-deposit lines, because the ledger accrues at issue (spec §4);
      - the unpaid balance of owner-held deposit lines;
      - Σ payables due by today and not cancelled, − Σ paid head-lease payouts.
-   - **Vendor payable:** the vendor_payable account's Cr − Dr on journals from `expense` and `expense_reversal` only, against Σ expense totals dated from the start date to today − Σ totals of those reversed in that window. Ruling 11 explains why only those.
+   - **Vendor payable:** the vendor_payable account's Cr − Dr on journals from `expense` and `expense_reversal` only, against Σ expense totals dated from the start date to today − Σ totals of those reversed in that window. Superseded by the ledger money screens plan, ruling 5.
    - **Invoice lines with no owner contract:** a count (ruling 2), against 0.
    - `LedgerHealth::store()` writes the rows to `ledger_settings.health` with `health_checked_at`. It runs nightly after the catch-up, and on "Check now". The "Ledger health" card on the Ledger page shows each row and its difference, red when not 0.
 9. **Reports.** Five `ReportPage` pages, so each has the filters, Excel through `SafeCells`, an audit on export, and the headless package entry points:
@@ -170,7 +170,7 @@
     | 5190 | Other expenses | expense | expense_other | category.other, other_payments_out |
 
     24 accounts and 25 rules: 12 event keys, 4 `method.*` and 9 `category.*`. `deposit_applied` and `split` never reach a method rule (rows 8–9).
-11. **Vendor payments have no source.** Expenses have no paid state, no vendor link and no payment record in the app, so the spec's "Vendor paid" has nothing to post from. Finance records vendor payments as manual journals (Dr Vendor payable, Cr Bank). The vendor health row therefore checks that expenses were posted completely, not what is unpaid. A vendor-payment feature would add a source type here.
+11. **Vendor payments** *(superseded on 28/10/2026 by `2026-10-28-ledger-money-screens.md`, rulings 4–5)*. Vendor bills are paid through Payments out (purpose `vendor_bill`) and post as `disbursement` / `disbursement_reversal`: Dr Vendor payable, Cr the method's account. The vendor health row now compares Vendor payable on expense and payment-out journals with the unpaid bills. Manual vendor journals are no longer the way to pay a vendor; one already posted stays and is left out of the row.
 12. **Permissions.** Three new permissions, granted by `RolesAndPermissionsSeeder` and, on an installed system, by the migration (additively, like the maintenance permissions):
     - `ledger.view` (Finance, Admin): pages, reports, health, the builder subject;
     - `ledger.manage` (Finance): manual journals, lock, rebuild;
