@@ -14,6 +14,7 @@ use App\Models\OwnerCharge;
 use App\Models\OwnerPayable;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
+use App\Models\VatReturn;
 use App\Support\Fils;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,7 @@ final class Poster
         OwnerCharge::class => ['owner_charge'],
         OwnerPayable::class => ['owner_payable', 'owner_payable_cancel'],
         CashMovement::class => ['cash_movement', 'cash_movement_reversal'],
+        VatReturn::class => ['vat_return', 'vat_return_reversal'],
     ];
 
     /** Called once from AppServiceProvider::boot(). */

@@ -78,6 +78,7 @@ class CashMovements extends Component
 
     public function startReverse(mixed $id): void
     {
+        abort_unless($this->actor()->can(PermissionName::LedgerManage), 403);
         abort_unless(is_int($id) || (is_string($id) && ctype_digit($id) && strlen($id) < 19), 404);
         $this->reversingId = CashMovement::query()->findOrFail((int) $id)->id;
         $this->reverseReason = '';

@@ -26,6 +26,21 @@ final class Balances
         return $net;
     }
 
+    /**
+     * Ledger money screens spec §4 (plan ruling 9): VAT payable for a period, in fils: credits − debits on the account the
+     * vat_payable rule points at, in journals dated $from..$to, with VAT return journals and the opening journal left
+     * out. + = owed to NBR; − = refundable.
+     */
+    public static function vatDue(string $from, string $to): int
+    {
+        $account = (int) DB::table('ledger_rules')->where('key', 'vat_payable')->value('ledger_account_id');
+
+        return -Fils::fromDecimal((string) (DB::table('journal_lines as l')->join('journals as j', 'j.id', '=', 'l.journal_id')
+            ->where('l.ledger_account_id', $account)->whereBetween('j.date', [$from, $to])->where('j.kind', '<>', 'opening')
+            ->where(fn (Builder $q) => $q->whereNull('j.source_type')->orWhereNotIn('j.source_type', ['vat_return', 'vat_return_reversal']))
+            ->sum(DB::raw('l.debit - l.credit')) ?: '0'));
+    }
+
     /** Journal lines dated $from..$to with their journal and account, oldest first. */
     public static function lines(string $from, string $to): Builder
     {

@@ -40,6 +40,8 @@ final class Sources
         // Ledger money screens plan rulings 8–9: a reversal is its own row (reverses_id), dated by its own date.
         'cash_movement' => ['cash_movements', 't.date', 't.reverses_id IS NULL', false],
         'cash_movement_reversal' => ['cash_movements', 't.date', 't.reverses_id IS NOT NULL', false],
+        'vat_return' => ['vat_returns', 't.date', 't.reverses_id IS NULL', false],
+        'vat_return_reversal' => ['vat_returns', 't.date', 't.reverses_id IS NOT NULL', false],
     ];
 
     /** reversal type => the type whose lines it negates */
@@ -53,6 +55,7 @@ final class Sources
     /** reversal type => [its table, the type whose lines it negates]: the original is the row's reverses_id */
     private const array REVERSAL_ROWS = [
         'cash_movement_reversal' => ['cash_movements', 'cash_movement'],
+        'vat_return_reversal' => ['vat_returns', 'vat_return'],
     ];
 
     /** The type's records due a journal that have none: own date from $start to $today. Selects id and own_date. */
@@ -94,6 +97,7 @@ final class Sources
             'owner_charge' => self::ownerCharge($id, $rules),
             'owner_payable' => self::ownerPayable($id, $rules),
             'cash_movement' => self::cashMovement($id, $rules),
+            'vat_return' => self::vatReturn($id, $rules),
             default => throw new LogicException("Unknown ledger source [{$type}]."),
         };
     }
@@ -115,6 +119,8 @@ final class Sources
             'owner_payable_cancel' => __('Head-lease rent cancelled'),
             'cash_movement' => __('Cash and bank movement'),
             'cash_movement_reversal' => __('Cash and bank movement reversal'),
+            'vat_return' => __('VAT return'),
+            'vat_return_reversal' => __('VAT return reversal'),
             'manual' => __('Manual journal'),
             'opening' => __('Opening balances'),
             default => $kindOrType,
@@ -136,6 +142,7 @@ final class Sources
             'disbursement', 'disbursement_reversal' => route('disbursements.show', $id),
             'owner_payable', 'owner_payable_cancel' => route('owner-payables.index'),
             'cash_movement', 'cash_movement_reversal' => route('ledger.cash-movements'),
+            'vat_return', 'vat_return_reversal' => route('ledger.vat-returns'),
             default => route('ledger.journals.show', $journalId),
         };
     }
@@ -381,6 +388,25 @@ final class Sources
         $credit = $m->kind === 'bank_interest' ? $rules->account('bank_interest') : (int) $m->from_account_id;
 
         return ['description' => (string) $m->reference, 'lines' => [self::line($debit, $amount), self::line($credit, -$amount)]];
+    }
+
+    /**
+     * Ledger money screens spec §4 (plan ruling 9): a payment to NBR settles VAT payable from the method's account; a
+     * refund is the opposite.
+     *
+     * @return Built
+     */
+    private static function vatReturn(int $id, Rules $rules): array
+    {
+        $r = DB::table('vat_returns')->where('id', $id)->first(['direction', 'method', 'amount', 'reference', 'period_from', 'period_to'])
+            ?? throw new LogicException("VAT return {$id} is missing.");
+        $amount = ($r->direction === 'refund' ? -1 : 1) * self::fils($r->amount);
+        $period = CarbonImmutable::parse((string) $r->period_from)->format('d/m/Y').'–'.CarbonImmutable::parse((string) $r->period_to)->format('d/m/Y');
+
+        return ['description' => trim($r->reference.' '.$period), 'lines' => [
+            self::line($rules->account('vat_payable'), $amount),
+            self::line($rules->account('method.'.$r->method), -$amount),
+        ]];
     }
 
     /** Plan ruling 3: a deposit sits with the owner only on a managed contract whose owner holds deposits. */

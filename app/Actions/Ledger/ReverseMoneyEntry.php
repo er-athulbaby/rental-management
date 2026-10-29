@@ -8,18 +8,19 @@ use App\Ledger\Sources;
 use App\Models\CashMovement;
 use App\Models\LedgerSetting;
 use App\Models\User;
+use App\Models\VatReturn;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Ledger money screens spec §3 (plan rulings 8 and 10): a movement is reversed once, by a row of its own that posts the
- * exact opposite, on an open date on or after the original's. A reversal is never itself reversed.
+ * Ledger money screens spec §3–§4 (plan rulings 8–10): a cash or bank movement or a VAT return is reversed once, by a row
+ * of its own that posts the exact opposite, on an open date on or after the original's. A reversal is never itself reversed.
  */
 final class ReverseMoneyEntry
 {
-    public function handle(User $actor, CashMovement $entry, mixed $date, mixed $reason): CashMovement
+    public function handle(User $actor, CashMovement|VatReturn $entry, mixed $date, mixed $reason): CashMovement|VatReturn
     {
         if (! $actor->can(PermissionName::LedgerManage)) {
             throw new AuthorizationException;
@@ -32,7 +33,9 @@ final class ReverseMoneyEntry
 
         return DB::transaction(function () use ($actor, $entry, $date, $reason) {
             $settings = LedgerSetting::query()->lockForUpdate()->firstOrFail();
-            $original = CashMovement::query()->lockForUpdate()->findOrFail($entry->id);
+            $original = $entry instanceof CashMovement
+                ? CashMovement::query()->lockForUpdate()->findOrFail($entry->id)
+                : VatReturn::query()->lockForUpdate()->findOrFail($entry->id);
             if ($original->reverses_id !== null) {
                 throw ValidationException::withMessages(['reverseDate' => __('A reversal cannot be reversed.')]);
             }
@@ -46,7 +49,7 @@ final class ReverseMoneyEntry
 
             $reversal = $original->replicate();
             $reversal->forceFill(['date' => $date, 'note' => trim((string) $reason), 'reverses_id' => $original->id, 'created_by' => $actor->id])->save();
-            Sources::assertPostable('cash_movement_reversal', $reversal->id, 'reverseDate');
+            Sources::assertPostable($original instanceof CashMovement ? 'cash_movement_reversal' : 'vat_return_reversal', $reversal->id, 'reverseDate');
             Audit::log('ledger.money_entry_reversed', $original, properties: ['reversal' => $reversal->id, 'date' => $date], causer: $actor);
 
             return $reversal;
