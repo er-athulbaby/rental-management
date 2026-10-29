@@ -16,4 +16,5 @@ Route::middleware(['auth:web'])->prefix('ledger')->name('ledger.')->group(functi
     Route::livewire('profit-and-loss', Reports\ProfitAndLossReport::class)->middleware('can:ledger.view')->name('profit-and-loss');
     Route::livewire('general-ledger', Reports\GeneralLedgerReport::class)->middleware('can:ledger.view')->name('general-ledger');
     Route::livewire('journals', Reports\JournalListReport::class)->middleware('can:ledger.view')->name('journals');
+    Route::livewire('cash-movements', Ledger\CashMovements::class)->middleware('can:ledger.view')->name('cash-movements');
 });

@@ -2,10 +2,12 @@
 
 namespace App\Ledger;
 
+use App\Actions\Ledger\PostManualJournal;
 use App\Support\Fils;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 use stdClass;
 
@@ -35,6 +37,9 @@ final class Sources
         // so updated_at is its cancellation time.
         'owner_payable' => ['owner_payables', 't.due_date', "(t.status <> 'cancelled' OR DATE(t.updated_at) >= t.due_date)", false],
         'owner_payable_cancel' => ['owner_payables', 'DATE(t.updated_at)', "t.status = 'cancelled' AND DATE(t.updated_at) >= t.due_date", false],
+        // Ledger money screens plan rulings 8–9: a reversal is its own row (reverses_id), dated by its own date.
+        'cash_movement' => ['cash_movements', 't.date', 't.reverses_id IS NULL', false],
+        'cash_movement_reversal' => ['cash_movements', 't.date', 't.reverses_id IS NOT NULL', false],
     ];
 
     /** reversal type => the type whose lines it negates */
@@ -43,6 +48,11 @@ final class Sources
         'expense_reversal' => 'expense',
         'disbursement_reversal' => 'disbursement',
         'owner_payable_cancel' => 'owner_payable',
+    ];
+
+    /** reversal type => [its table, the type whose lines it negates]: the original is the row's reverses_id */
+    private const array REVERSAL_ROWS = [
+        'cash_movement_reversal' => ['cash_movements', 'cash_movement'],
     ];
 
     /** The type's records due a journal that have none: own date from $start to $today. Selects id and own_date. */
@@ -67,6 +77,14 @@ final class Sources
             return ['description' => $base['description'], 'lines' => array_map(fn (array $l) => [...$l, 'amount' => -$l['amount']], $base['lines'])];
         }
 
+        if (isset(self::REVERSAL_ROWS[$type])) {
+            [$table, $baseType] = self::REVERSAL_ROWS[$type];
+            $original = DB::table($table)->where('id', $id)->value('reverses_id') ?? throw new LogicException("Reversal {$id} in {$table} is missing.");
+            $base = self::build($baseType, (int) $original, $rules);
+
+            return ['description' => $base['description'], 'lines' => array_map(fn (array $l) => [...$l, 'amount' => -$l['amount']], $base['lines'])];
+        }
+
         return match ($type) {
             'invoice' => self::invoice($id, $rules),
             'payment' => self::payment($id, $rules),
@@ -75,6 +93,7 @@ final class Sources
             'disbursement' => self::disbursement($id, $rules),
             'owner_charge' => self::ownerCharge($id, $rules),
             'owner_payable' => self::ownerPayable($id, $rules),
+            'cash_movement' => self::cashMovement($id, $rules),
             default => throw new LogicException("Unknown ledger source [{$type}]."),
         };
     }
@@ -94,6 +113,8 @@ final class Sources
             'owner_charge' => __('Owner charge'),
             'owner_payable' => __('Head-lease rent due'),
             'owner_payable_cancel' => __('Head-lease rent cancelled'),
+            'cash_movement' => __('Cash and bank movement'),
+            'cash_movement_reversal' => __('Cash and bank movement reversal'),
             'manual' => __('Manual journal'),
             'opening' => __('Opening balances'),
             default => $kindOrType,
@@ -114,8 +135,24 @@ final class Sources
             'expense', 'expense_reversal' => route('expenses.show', $id),
             'disbursement', 'disbursement_reversal' => route('disbursements.show', $id),
             'owner_payable', 'owner_payable_cancel' => route('owner-payables.index'),
+            'cash_movement', 'cash_movement_reversal' => route('ledger.cash-movements'),
             default => route('ledger.journals.show', $journalId),
         };
+    }
+
+    /**
+     * Ledger money screens plan ruling 10: refuses, on $field, a record whose journal cannot be written now (a rule it needs
+     * has no active account, or an account it uses is inactive). Called inside the recording transaction after the row is
+     * saved, so a refusal undoes the row; Poster still posts it after commit.
+     */
+    public static function assertPostable(string $type, int $id, string $field): void
+    {
+        try {
+            $lines = self::build($type, $id, Rules::load())['lines'];
+        } catch (LogicException) {
+            throw ValidationException::withMessages([$field => __('A posting rule this needs has no active account. Ask Admin to fix the posting rules.')]);
+        }
+        PostManualJournal::activeAccounts(array_column($lines, 'account'), $field);
     }
 
     /**
@@ -327,6 +364,23 @@ final class Sources
             self::line($rules->account('lease_rent'), $amount, ...$dims),
             self::line($rules->account('owner_payable'), -$amount, ...$dims),
         ]];
+    }
+
+    /**
+     * Ledger money screens spec §3 (plan ruling 8): a transfer moves money from one money account to another; a bank charge
+     * is an expense paid from one; bank interest is income received into one.
+     *
+     * @return Built
+     */
+    private static function cashMovement(int $id, Rules $rules): array
+    {
+        $m = DB::table('cash_movements')->where('id', $id)->first(['kind', 'from_account_id', 'to_account_id', 'amount', 'reference'])
+            ?? throw new LogicException("Cash movement {$id} is missing.");
+        $amount = self::fils($m->amount);
+        $debit = $m->kind === 'bank_charge' ? $rules->account('bank_charges') : (int) $m->to_account_id;
+        $credit = $m->kind === 'bank_interest' ? $rules->account('bank_interest') : (int) $m->from_account_id;
+
+        return ['description' => (string) $m->reference, 'lines' => [self::line($debit, $amount), self::line($credit, -$amount)]];
     }
 
     /** Plan ruling 3: a deposit sits with the owner only on a managed contract whose owner holds deposits. */

@@ -54,6 +54,7 @@
                             <flux:sidebar.item icon="chart-bar" :href="route('ledger.profit-and-loss')" :current="request()->routeIs('ledger.profit-and-loss')" wire:navigate>{{ __('Profit and loss') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="book-open" :href="route('ledger.general-ledger')" :current="request()->routeIs('ledger.general-ledger')" wire:navigate>{{ __('General ledger') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="queue-list" :href="route('ledger.journals')" :current="request()->routeIs('ledger.journals')" wire:navigate>{{ __('Journal list') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="arrows-right-left" :href="route('ledger.cash-movements')" :current="request()->routeIs('ledger.cash-movements')" wire:navigate>{{ __('Cash and bank movements') }}</flux:sidebar.item>
                         @endcan
                         @can('ledger.manage')
                             <flux:sidebar.item icon="pencil-square" :href="route('ledger.journals.create')" :current="request()->routeIs('ledger.journals.create')" wire:navigate>{{ __('New journal') }}</flux:sidebar.item>

@@ -2,6 +2,7 @@
 
 namespace App\Ledger;
 
+use App\Models\CashMovement;
 use App\Models\Disbursement;
 use App\Models\Expense;
 use App\Models\Invoice;
@@ -36,6 +37,7 @@ final class Poster
         Disbursement::class => ['disbursement', 'disbursement_reversal'],
         OwnerCharge::class => ['owner_charge'],
         OwnerPayable::class => ['owner_payable', 'owner_payable_cancel'],
+        CashMovement::class => ['cash_movement', 'cash_movement_reversal'],
     ];
 
     /** Called once from AppServiceProvider::boot(). */
