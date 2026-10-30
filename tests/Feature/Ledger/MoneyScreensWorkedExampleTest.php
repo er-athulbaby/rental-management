@@ -3,10 +3,13 @@
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\Disbursements\PayDisbursement;
 use App\Actions\Disbursements\RecordDisbursement;
+use App\Actions\Ledger\RebuildLedger;
 use App\Actions\Ledger\RecordCashMovement;
 use App\Actions\Ledger\RecordVatReturn;
 use App\Ledger\LedgerHealth;
 use App\Ledger\Poster;
+use App\Livewire\Reports\BalanceSheetReport;
+use App\Livewire\Reports\ProfitAndLossReport;
 use App\Livewire\Reports\TrialBalanceReport;
 use App\Models\Approval;
 use App\Models\LedgerAccount;
@@ -58,9 +61,34 @@ test('the money screens worked example: a vendor bill, a transfer, a bank charge
             ['', 'Total', '1069.200', '1069.200'],
         ]);
 
+    expect(ProfitAndLossReport::sheet($f['finance'], ['from' => '2026-10-01', 'to' => '2026-10-20'])['rows'])->toBe([
+        ['', 'Income', ''],
+        ['4000', 'Rent income', '300.000'],
+        ['4200', 'Management fee income', '20.000'],
+        ['4300', 'Bank interest income', '1.200'],
+        ['', 'Total income', '321.200'],
+        ['', 'Expenses', ''],
+        ['5000', 'Lease rent to owners', '300.000'],
+        ['5100', 'Maintenance and repairs', '50.000'],
+        ['5180', 'Bank charges', '2.500'],
+        ['', 'Total expenses', '352.500'],
+        ['', 'Profit for the period', '-31.300'],
+    ]);
+    expect(BalanceSheetReport::sheet($f['finance'], ['to' => '2026-10-20'])['rows'])
+        ->toContain(['', 'Total assets', '716.700'])
+        ->toContain(['', 'Total liabilities', '748.000'])
+        ->toContain(['', 'Total equity', '-31.300'])
+        ->toContain(['', 'Total liabilities and equity', '716.700']);
+
+    $before = ledgerBalances();
+    app(RebuildLedger::class)->handle($f['finance'], '2026-10', '2026-10');
+    expect(ledgerBalances())->toBe($before)->and(Poster::pendingCount())->toBe(0);
+
     LedgerHealth::store();
     $health = collect(LedgerSetting::current()->health)->keyBy('check');
 
-    expect($health->every(fn (array $r) => $r['ledger'] === $r['app']))->toBeTrue()
-        ->and([$health['Vendor payable']['ledger'], $health['Vendor payable']['app']])->toBe([0, 0]);
+    foreach ($health as $name => $r) {
+        expect([$name, $r['ledger']])->toBe([$name, $r['app']]);
+    }
+    expect([$health['Vendor payable']['ledger'], $health['Vendor payable']['app']])->toBe([0, 0]);
 });

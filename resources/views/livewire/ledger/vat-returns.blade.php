@@ -12,6 +12,12 @@
                     ? __('VAT refundable for the period: :a BHD. Record the refund from NBR.', ['a' => $figureAmount])
                     : __('VAT payable for the period: :a BHD. Record the payment to NBR.', ['a' => $figureAmount]) }}</flux:text>
             @endif
+            @if ($figure === 0)
+                <flux:select wire:model="direction" :label="__('Direction')">
+                    <flux:select.option value="payment">{{ __('Payment') }}</flux:select.option>
+                    <flux:select.option value="refund">{{ __('Refund') }}</flux:select.option>
+                </flux:select>
+            @endif
             <div class="grid gap-3 sm:grid-cols-4">
                 <x-date-input wire:model="date" :label="__('Date')" />
                 <flux:select wire:model="method" :label="__('Method')">
@@ -23,7 +29,7 @@
                 <flux:input wire:model="amount" inputmode="decimal" :label="__('Amount')" />
             </div>
             <flux:input wire:model="note" :label="__('Note')" />
-            @foreach (['period_from', 'period_to', 'date', 'method', 'reference', 'amount', 'note'] as $field)
+            @foreach (['period_from', 'period_to', 'date', 'method', 'reference', 'amount', 'note', 'direction'] as $field)
                 <flux:error name="{{ $field }}" />
             @endforeach
             <flux:button type="submit" variant="primary">{{ __('Record return') }}</flux:button>

@@ -32,6 +32,9 @@ final class SaveLedgerRules
             if ($types[$id] !== Rules::type($key)) {
                 throw ValidationException::withMessages(['rules' => __(':rule needs an account of type :type.', ['rule' => Rules::label($key), 'type' => Rules::type($key)->label()])]);
             }
+            if (! str_starts_with($key, 'method.') && LedgerAccount::query()->whereKey($id)->where('is_money', true)->exists()) {
+                throw ValidationException::withMessages(['rules' => __(":rule can't use a money account.", ['rule' => Rules::label($key)])]);
+            }
             $chosen[$key] = $id;
         }
 

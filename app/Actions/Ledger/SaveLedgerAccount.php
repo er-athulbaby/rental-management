@@ -52,6 +52,9 @@ final class SaveLedgerAccount
             if ($isMoney && $v['type'] !== LedgerAccountType::Asset->value) {
                 throw ValidationException::withMessages(['is_money' => __('Only an asset account can be a money account.')]);
             }
+            if ($isMoney && DB::table('ledger_rules')->where('ledger_account_id', $account->id)->where('key', 'not like', 'method.%')->exists()) {
+                throw ValidationException::withMessages(['is_money' => __("This account is used by a posting rule for something else: it can't be a money account.")]);
+            }
             $new = ['code' => trim((string) $v['code']), 'name_en' => trim((string) $v['name_en']), 'name_ar' => trim((string) $v['name_ar']), 'type' => (string) $v['type'],
                 'is_money' => $isMoney];
             $account->fill($new)->save();

@@ -36,6 +36,9 @@ class VatReturns extends Component
 
     public mixed $note = '';
 
+    /** Only used when the period figure is 0. */
+    public mixed $direction = 'payment';
+
     #[Locked]
     public ?int $reversingId = null;
 
@@ -61,7 +64,7 @@ class VatReturns extends Component
     public function save(): void
     {
         app(RecordVatReturn::class)->handle($this->actor(), ['period_from' => $this->period_from, 'period_to' => $this->period_to, 'date' => $this->date,
-            'method' => $this->method, 'reference' => $this->reference, 'amount' => $this->amount, 'note' => $this->note]);
+            'method' => $this->method, 'reference' => $this->reference, 'amount' => $this->amount, 'note' => $this->note, 'direction' => $this->direction]);
         $this->reset('period_from', 'period_to', 'reference', 'amount', 'note');
         Flux::toast(variant: 'success', text: __('Return recorded.'));
     }

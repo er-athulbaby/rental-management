@@ -39,6 +39,7 @@ final class RecordVatReturn
             'reference' => ['required', 'string', 'max:100'],
             'amount' => ['required', 'string', Fils::rule(), 'not_regex:/^0+(\.0+)?$/'],
             'note' => ['nullable', 'string', 'max:1000'],
+            'direction' => ['nullable', 'string', Rule::in(['payment', 'refund'])],
         ])->validate();
         $from = (string) $v['period_from'];
         $to = (string) $v['period_to'];
@@ -58,7 +59,7 @@ final class RecordVatReturn
             $return = (new VatReturn)->forceFill([
                 'period_from' => $from,
                 'period_to' => $to,
-                'direction' => $figure < 0 ? 'refund' : 'payment',
+                'direction' => $figure === 0 ? ($v['direction'] ?? 'payment') : ($figure < 0 ? 'refund' : 'payment'),
                 'method' => (string) $v['method'],
                 'amount' => Fils::toDecimal(Fils::fromDecimal((string) $v['amount'])),
                 'date' => (string) $v['date'],

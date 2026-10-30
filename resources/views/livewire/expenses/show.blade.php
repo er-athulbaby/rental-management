@@ -16,7 +16,11 @@
         <div><dt class="text-sm text-zinc-500">{{ __('Recorded by') }}</dt><dd>{{ $expense->recorder->name }}</dd></div>
         <div><dt class="text-sm text-zinc-500">{{ __('Payment') }}</dt><dd>
             @if ($payment)
+                @can('view', $payment)
                 <flux:link :href="route('disbursements.show', $payment)" wire:navigate>{{ $payment->status->value === 'paid' ? __('Paid') : __('In payment') }} · {{ $payment->label() }}</flux:link>
+                @else
+                    {{ $payment->status->value === 'paid' ? __('Paid') : __('In payment') }} · {{ $payment->label() }}
+                @endcan
             @elseif ($expense->status->value === 'recorded')
                 {{ __('Unpaid') }}
             @else

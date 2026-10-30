@@ -3,6 +3,7 @@
 use App\Actions\Approvals\DecideApproval;
 use App\Actions\Disbursements\PayDisbursement;
 use App\Actions\Disbursements\RecordDisbursement;
+use App\Enums\RoleName;
 use App\Livewire\Disbursements\Create;
 use App\Livewire\Disbursements\Show;
 use App\Livewire\Expenses\Index as ExpenseIndex;
@@ -79,4 +80,25 @@ test('tampered input on the vendor form gives a message, never a 500', function 
         ->set('form.payee_id', ['x'])->call('save')->assertHasErrors('form.payee_id');
 
     expect(Disbursement::query()->where('purpose', 'vendor_bill')->count())->toBe(0);
+});
+
+test('the payment link shows only to those who may view the payment; others see plain text', function () {
+    $f = $this->f;
+    $out = app(RecordDisbursement::class)->handle($f['finance'], ['purpose' => 'vendor_bill', 'payee_type' => 'vendor', 'payee_id' => $f['vendor']->id,
+        'expense_ids' => [$f['companyExpense']->id], 'method' => 'bank_transfer']);
+    $href = route('disbursements.show', $out);
+    $pm = matrixUser(RoleName::PropertyManager, $f['companyExpense']->building);
+
+    Livewire::actingAs($pm)->test(ExpenseShow::class, ['expense' => $f['companyExpense']])->assertSee('In payment · '.$out->label())->assertDontSeeHtml($href);
+    Livewire::actingAs($pm)->test(ExpenseIndex::class)->assertSee('In payment · '.$out->label())->assertDontSeeHtml($href);
+    Livewire::actingAs($f['finance'])->test(ExpenseShow::class, ['expense' => $f['companyExpense']])->assertSeeHtml($href);
+    Livewire::actingAs($f['finance'])->test(ExpenseIndex::class)->assertSeeHtml($href);
+});
+
+test('the vendor list offers only active vendors', function () {
+    $f = $this->f;
+    maintenanceVendor(['name' => 'Gone Plumbing', 'active' => false]);
+
+    Livewire::actingAs($f['finance'])->test(Create::class)->set('form.payee_type', 'vendor')
+        ->assertViewHas('payees', fn ($p) => $p->pluck('name_en')->all() === ['Fix-It Co']);
 });

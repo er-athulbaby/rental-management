@@ -42,7 +42,11 @@
                             @if ($expense->status->value === 'reversed')
                                 —
                             @elseif ($pay = $expense->disbursements->first())
+                                @can('view', $pay)
                                 <flux:link :href="route('disbursements.show', $pay)" wire:navigate>{{ $pay->status->value === 'paid' ? __('Paid') : __('In payment') }} · {{ $pay->label() }}</flux:link>
+                                @else
+                                    {{ $pay->status->value === 'paid' ? __('Paid') : __('In payment') }} · {{ $pay->label() }}
+                                @endcan
                             @else
                                 {{ __('Unpaid') }}
                             @endif

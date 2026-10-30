@@ -3,6 +3,7 @@
 use App\Actions\Ledger\DeleteLedgerAccount;
 use App\Actions\Ledger\LockLedger;
 use App\Actions\Ledger\SaveLedgerAccount;
+use App\Actions\Ledger\SaveLedgerRules;
 use App\Actions\Ledger\SaveOpeningBalances;
 use App\Actions\Ledger\SetLedgerAccountActive;
 use App\Actions\Ledger\SetLedgerStart;
@@ -16,6 +17,7 @@ use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -158,4 +160,20 @@ test('the start date cannot be in the future', function () {
     expect(fn () => app(SetLedgerStart::class)->handle($this->f['admin'], '2026-10-21'))->toThrow(ValidationException::class, 'future');
     app(SetLedgerStart::class)->handle($this->f['admin'], '2026-10-20');
     expect(LedgerSetting::current()->start_date->toDateString())->toBe('2026-10-20');
+});
+
+test('an account used by a non-method rule cannot be a money account, and such a rule cannot point at a money account', function () {
+    $f = $this->f;
+    $key = 'receivables';
+    $account = LedgerAccount::query()->findOrFail(DB::table('ledger_rules')->where('key', $key)->value('ledger_account_id'));
+
+    expect(fn () => app(SaveLedgerAccount::class)->handle($f['admin'], $account, ['code' => $account->code, 'name_en' => $account->name_en, 'name_ar' => $account->name_ar,
+        'type' => 'asset', 'is_money' => true]))->toThrow(ValidationException::class, 'used by a posting rule for something else');
+
+    $bank = LedgerAccount::query()->where('code', '1010')->firstOrFail();
+    $bank->forceFill(['is_money' => true])->save();
+    $map = DB::table('ledger_rules')->pluck('ledger_account_id', 'key')->all();
+    $map[$key] = $bank->id;
+
+    expect(fn () => app(SaveLedgerRules::class)->handle($f['admin'], $map))->toThrow(ValidationException::class, "can't use a money account");
 });

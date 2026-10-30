@@ -94,7 +94,7 @@ test('the page prefills the figure, records, lists the difference and reverses; 
         ->set('period_from', '2026-10-01')->set('period_to', '2026-10-20')
         ->assertSet('amount', '42.000')->assertSee('VAT payable for the period: 42.000 BHD')
         ->set('reference', 'NBR-Q4')->call('save')->assertHasNoErrors()
-        ->assertSee('01/10/2026 – 20/10/2026')->assertSee('Paid to NBR')->assertSee('0.000')->assertSee('NBR-Q4')
+        ->assertSee('01/10/2026 – 20/10/2026')->assertSeeHtmlInOrder(['01/10/2026 – 20/10/2026', '42.000', 'Paid to NBR', '42.000', '0.000'])->assertSee('NBR-Q4')
         ->call('startReverse', (string) VatReturn::query()->value('id'))->set('reverseReason', 'Wrong period')->call('reverse')->assertHasNoErrors()
         ->assertSee('Reversed')
         ->set('period_from', ['x'])->call('save')->assertHasErrors('period_from')
@@ -102,4 +102,27 @@ test('the page prefills the figure, records, lists the difference and reverses; 
 
     Livewire::actingAs($f['admin'])->test(VatReturns::class)->assertOk()->assertDontSee('Record return')->call('save')->assertForbidden();
     Livewire::actingAs($f['management'])->test(VatReturns::class)->assertForbidden();
+});
+
+test('when the period figure is 0 the chosen direction decides; otherwise the sign does', function () {
+    $f = $this->f;
+    $zero = ['period_from' => '2026-09-01', 'period_to' => '2026-09-10', 'amount' => '5'];
+    $refund = ($this->vat)([...$zero, 'direction' => 'refund']);
+
+    expect(Balances::vatDue('2026-09-01', '2026-09-10'))->toBe(0)
+        ->and($refund->direction)->toBe('refund')
+        ->and(postedLines('vat_return', $refund->id))->toBe(['2400 0.000 5.000', '1010 5.000 0.000']);
+
+    $payment = ($this->vat)(['period_from' => '2026-09-11', 'period_to' => '2026-09-20', 'amount' => '5']);
+    expect($payment->direction)->toBe('payment')
+        ->and(postedLines('vat_return', $payment->id))->toBe(['2400 5.000 0.000', '1010 0.000 5.000']);
+
+    $ignored = ($this->vat)(['period_from' => '2026-10-01', 'period_to' => '2026-10-20', 'amount' => '42', 'direction' => 'refund']);
+    expect($ignored->direction)->toBe('payment')
+        ->and(fn () => ($this->vat)(['period_from' => '2026-08-01', 'period_to' => '2026-08-10', 'amount' => '5', 'direction' => 'sideways']))->toThrow(ValidationException::class);
+
+    Livewire::actingAs($f['finance'])->test(VatReturns::class)
+        ->set('period_from', '2026-08-01')->set('period_to', '2026-08-10')->assertSee('Direction')
+        ->set('direction', 'sideways')->set('reference', 'X')->call('save')->assertHasErrors('direction')
+        ->set('period_from', '2026-10-01')->set('period_to', '2026-10-20')->assertDontSee('Direction');
 });

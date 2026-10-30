@@ -112,7 +112,7 @@ class Create extends Component
         return view('livewire.disbursements.create', [
             'payees' => match ($this->form['payee_type'] ?? 'owner') {
                 'customer' => Customer::query()->visibleTo($this->actor())->orderBy('name_en')->get(['id', 'name_en']),
-                'vendor' => Vendor::query()->orderBy('name')->get(['id', 'name as name_en']),
+                'vendor' => Vendor::query()->where('active', true)->orderBy('name')->get(['id', 'name as name_en']),
                 default => Owner::query()->orderBy('name_en')->get(['id', 'name_en']),
             },
             'methods' => DisbursementMethod::cases(),

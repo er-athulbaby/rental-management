@@ -562,5 +562,14 @@
     "The test email was not sent: :error": "لم تُرسل رسالة الاختبار: :error",
     "Test email sent to :address": "تم إرسال رسالة الاختبار إلى :address",
     "Test email": "رسالة اختبار",
-    "This is a test email from the rental system. If you can read it, your email settings work.": "هذه رسالة اختبار من نظام الإيجارات. إذا وصلتك فإعدادات البريد الإلكتروني تعمل."
+    "This is a test email from the rental system. If you can read it, your email settings work.": "هذه رسالة اختبار من نظام الإيجارات. إذا وصلتك فإعدادات البريد الإلكتروني تعمل.",
+    "tenant": "مستأجر",
+    "owner": "مالك",
+    "Payee": "المستفيد",
+    "Pay to": "الدفع إلى",
+    "Amount (BHD)": "المبلغ (دينار بحريني)",
+    "Direction": "الاتجاه",
+    "Refund": "استرداد",
+    "This account is used by a posting rule for something else: it can't be a money account.": "هذا الحساب تستخدمه قاعدة ترحيل لغرض آخر، فلا يمكن أن يكون حساباً نقدياً.",
+    ":rule can't use a money account.": "لا يمكن أن تستخدم :rule حساباً نقدياً."
 }
