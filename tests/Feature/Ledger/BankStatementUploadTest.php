@@ -192,3 +192,47 @@ test('a statement with no rows is refused, saving nothing', function () {
         ->and(fn () => bankStatement($this->finance, '1010', [['05/10/2026', 'A', '', '5']], ['header_row' => 50]))->toThrow(ValidationException::class, 'The statement has no rows.')
         ->and(BankUpload::query()->count() + BankMapping::query()->count())->toBe(0);
 });
+
+test('rows dated before the ledger start date are reported, not imported; later and equal ones import', function () {
+    DB::table('ledger_settings')->update(['start_date' => '2026-10-01']);
+    $out = bankStatement($this->finance, '1010', [['30/09/2026', 'EARLY', '', '5'], ['01/10/2026', 'ON START', '', '6'], ['02/10/2026', 'LATER', '', '7']]);
+    DB::table('ledger_settings')->update(['start_date' => null]);
+
+    expect($out['failures'])->toBe([['row' => 2, 'reason' => 'Dated before the ledger start date (01/10/2026); not imported.']])
+        ->and(BankStatementLine::query()->orderBy('id')->pluck('description')->all())->toBe(['ON START', 'LATER'])
+        ->and($out['upload']->failed)->toBe(1);
+});
+
+test('an invalid UTF-8 file name is scrubbed before it is stored', function () {
+    $path = bankCsv([['05/10/2026', 'A', '', '5']]);
+    $out = app(ImportBankStatement::class)->handle($this->finance, $this->bank, $path, 'csv', "caf\xE9.csv", bankMapping());
+    unlink($path);
+
+    expect(mb_check_encoding($out['upload']->file_name, 'UTF-8'))->toBeTrue()
+        ->and(BankUpload::query()->sole()->file_name)->toStartWith('caf');
+});
+
+test('a file of more than 50000 raw rows, blank ones included, is refused', function () {
+    $path = sys_get_temp_dir().'/bank-'.Str::uuid().'.csv';
+    file_put_contents($path, "Date,Description,Reference,Amount\n05/10/2026,A,,5\n".str_repeat(",,,\n", 50_000));
+    expect(fn () => app(ImportBankStatement::class)->handle($this->finance, $this->bank, $path, 'csv', 'big.csv', bankMapping()))
+        ->toThrow(ValidationException::class, 'The statement has more than 5000 rows.');
+    unlink($path);
+
+    expect(BankUpload::query()->count() + BankStatementLine::query()->count())->toBe(0);
+});
+
+test('an XLSX float with binary noise imports as 3 decimals; a float with more decimals is still refused', function () {
+    $xlsx = sys_get_temp_dir().'/bank-'.Str::uuid().'.xlsx';
+    $writer = SimpleExcelWriter::create($xlsx);
+    $writer->addRow(new Row([Cell::fromValue('Date'), Cell::fromValue('Description'), Cell::fromValue('Reference'), Cell::fromValue('Amount')]));
+    foreach ([['NOISE', 0.1 + 0.2], ['NEGATIVE', -(0.1 + 0.2)], ['FOUR', 1.2345]] as [$d, $a]) {
+        $writer->addRow(new Row([Cell::fromValue('05/10/2026'), Cell::fromValue($d), Cell::fromValue(''), Cell::fromValue($a)]));
+    }
+    $writer->close();
+    $out = app(ImportBankStatement::class)->handle($this->finance, $this->bank, $xlsx, 'xlsx', 'x.xlsx', bankMapping());
+    @unlink($xlsx);
+
+    expect(bankLine('NOISE')->amount)->toBe('0.300')->and(bankLine('NEGATIVE')->amount)->toBe('-0.300')
+        ->and($out['failures'])->toBe([['row' => 4, 'reason' => 'The amount is not a number with up to 3 decimals.']]);
+});

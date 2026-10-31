@@ -7,8 +7,10 @@ use App\Enums\PermissionName;
 use App\Models\BankMapping;
 use App\Models\BankUpload;
 use App\Models\LedgerAccount;
+use App\Models\LedgerSetting;
 use App\Models\User;
 use App\Support\Fils;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -35,6 +37,9 @@ final class ImportBankStatement
 
     /** PHP format => what the page shows. "d/m/Y" reads 05/10/2026 and 5/10/2026 alike (plan ruling 7). */
     public const array DATE_FORMATS = ['d/m/Y' => 'dd/mm/yyyy', 'Y-m-d' => 'yyyy-mm-dd', 'd-M-Y' => 'dd-Mon-yyyy'];
+
+    /** Raw rows read, blank ones included, before the file is refused. */
+    private const int MAX_RAW_ROWS = 50_000;
 
     /** The largest |amount| decimal(13,3) holds, in fils. */
     private const int MAX_FILS = 9_999_999_999_999;
@@ -65,9 +70,14 @@ final class ImportBankStatement
         }
         $parsed = [];
         $failures = [];
+        $start = LedgerSetting::current()->start_date?->toDateString(); // read before the account lock: not a locked check
         foreach ($rows as $row => $cells) {
             try {
-                $parsed[] = ['row' => $row, ...self::parse($cells, $map)];
+                $one = self::parse($cells, $map);
+                if ($start !== null && $one['date'] < $start) {
+                    throw new InvalidArgumentException(__('Dated before the ledger start date (:date); not imported.', ['date' => CarbonImmutable::parse($start)->format('d/m/Y')]));
+                }
+                $parsed[] = ['row' => $row, ...$one];
             } catch (InvalidArgumentException $e) {
                 $failures[] = ['row' => $row, 'reason' => $e->getMessage()];
             }
@@ -76,7 +86,7 @@ final class ImportBankStatement
         return DB::transaction(function () use ($actor, $account, $map, $fileName, $parsed, $failures) {
             LedgerAccount::query()->lockForUpdate()->findOrFail($account->id); // plan ruling 10: duplicate checks of two uploads see each other
             BankMapping::query()->firstOrNew(['ledger_account_id' => $account->id])->forceFill([...$map, 'updated_by' => $actor->id])->save();
-            $upload = (new BankUpload)->forceFill(['ledger_account_id' => $account->id, 'file_name' => mb_substr($fileName, 0, 255), 'imported' => 0, 'skipped' => 0,
+            $upload = (new BankUpload)->forceFill(['ledger_account_id' => $account->id, 'file_name' => mb_substr(mb_scrub($fileName, 'UTF-8'), 0, 255), 'imported' => 0, 'skipped' => 0,
                 'failed' => count($failures), 'uploaded_by' => $actor->id]);
             $upload->save();
 
@@ -148,6 +158,7 @@ final class ImportBankStatement
     {
         $rows = [];
         $tooMany = false;
+        $raw = 0;
         try {
             $reader = SimpleExcelReader::create($path, $type)->noHeaderRow()->preserveEmptyRows();
             if ($type === 'csv') {
@@ -155,6 +166,10 @@ final class ImportBankStatement
             }
             foreach ($reader->getRows() as $index => $cells) {
                 $line = (int) $index + 1;
+                if (++$raw > self::MAX_RAW_ROWS) {
+                    $tooMany = true;
+                    break;
+                }
                 $filled = array_filter($cells, fn (mixed $c) => ! ($c === null || (is_string($c) && trim($c) === '')));
                 if ($line <= $headerRow || $filled === []) {
                     continue;
@@ -241,7 +256,11 @@ final class ImportBankStatement
             return null;
         }
         if (is_int($value) || is_float($value)) {
-            $text = (string) $value;
+            // A float with binary noise (0.1 + 0.2) is accepted when within 1e-9 of its 3-decimal rounding; an exponent or huge value stays refused.
+            if (is_float($value) && (! is_finite($value) || abs($value) > $max / 1000 + 1 || abs(round($value, 3) - $value) > 1e-9 * max(1, abs($value)))) {
+                throw new InvalidArgumentException($reason);
+            }
+            $text = is_float($value) ? number_format(round($value, 3), 3, '.', '') : (string) $value;
             $negative = false;
         } elseif (is_string($value)) {
             $text = str_replace([',', ' ', "\u{00A0}"], '', trim($value));

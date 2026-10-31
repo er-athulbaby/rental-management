@@ -172,3 +172,38 @@ test('Finance and Admin reach the bank reconciliation pages; nobody else; a bad 
     $this->actingAs($f['admin'])->get(route('ledger.bank-reconciliation', ['account' => (string) $f['bank']]))->assertOk()->assertDontSee('Upload a statement');
     $this->actingAs($f['finance'])->get(route('ledger.index'))->assertSee('Bank reconciliation');
 });
+
+test('a failing unmatch shows its message on the page even when no line is picked', function () {
+    $rec = bankRec($this->f['finance'], '2026-10-20', '1198.700', '1000');
+
+    Livewire::actingAs($this->f['finance'])->test(BankReconciliationShow::class, ['reconciliation' => (string) $rec->id])
+        ->call('unmatch', (string) bankLine('CREDIT INTEREST')->id)
+        ->assertSee('This statement line has no match in this reconciliation.');
+});
+
+test('another account\'s upload cannot be deleted from the selected account', function () {
+    $f = $this->f;
+    $cashUpload = bankStatement($f['finance'], '1000', [['18/10/2026', 'CASH ONLY', '', '9']])['upload'];
+
+    Livewire::actingAs($f['finance'])->test(BankReconciliations::class)->set('account', (string) $f['bank'])
+        ->call('deleteUpload', (string) $cashUpload->id)->assertNotFound();
+
+    expect(BankUpload::query()->whereKey($cashUpload->id)->exists())->toBeTrue();
+});
+
+test('Record and match asks first when a ledger entry with the same amount already exists', function () {
+    $rec = bankRec($this->f['finance'], '2026-10-20', '1198.700', '1000');
+    $warning = 'An entry with this amount already exists. Record a new one anyway?';
+
+    Livewire::actingAs($this->f['finance'])->test(BankReconciliationShow::class, ['reconciliation' => (string) $rec->id])
+        ->call('pick', bankLine('TRANSFER '.$this->f['headLease']->number)->id)->assertSeeHtml($warning)
+        ->call('pick', bankLine('CREDIT INTEREST')->id)->assertDontSeeHtml($warning);
+});
+
+test('the unmatched list shows 200 lines and says how many there are', function () {
+    $rec = bankRec($this->f['finance'], '2026-10-20', '1198.700', '1000');
+    bankStatement($this->f['finance'], '1010', array_map(fn (int $i) => ['10/10/2026', "BULK {$i}", '', '1'], range(1, 201)));
+
+    Livewire::actingAs($this->f['finance'])->test(BankReconciliationShow::class, ['reconciliation' => (string) $rec->id])
+        ->assertSee('Showing 200 of 205')->assertSee('BULK 1')->assertDontSee('BULK 201');
+});

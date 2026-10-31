@@ -23,7 +23,7 @@
         @endif
         <flux:button wire:click="download">{{ __('Download report') }}</flux:button>
     </div>
-    @foreach (['finish', 'discard', 'reopen'] as $field)
+    @foreach (['finish', 'discard', 'reopen', 'line', 'picked'] as $field)
         @foreach ($errors->get($field) as $message)
             <p class="text-sm text-red-600">{{ $message }}</p>
         @endforeach
@@ -55,17 +55,19 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
+        @if ($unmatchedCount > $unmatched->count())
+            <p class="text-sm">{{ __('Showing :shown of :total', ['shown' => $unmatched->count(), 'total' => $unmatchedCount]) }}</p>
+        @endif
     </div>
 
     @if ($line !== null)
         <div class="space-y-4 rounded-lg border border-zinc-300 p-4 dark:border-zinc-600">
             <flux:heading size="lg">{{ $line->date->format('d/m/Y') }} · {{ $line->description }} · {{ $line->amount }}</flux:heading>
-            <flux:error name="line" />
 
             <flux:heading>{{ __('Suggested entries') }}</flux:heading>
             @forelse ($suggestions as $e)
                 <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" wire:model.live="picked" value="{{ $e['key'] }}" />
+                    <input type="checkbox" wire:model.live.debounce.300ms="picked" value="{{ $e['key'] }}" />
                     {{ $e['date'] }} · {{ $e['source'] }} · {{ $e['description'] }} · <span class="tabular-nums">{{ $e['amount'] }}</span>
                 </label>
             @empty
@@ -75,13 +77,12 @@
             <flux:input wire:model.live.debounce.400ms="search" :label="__('Find other entries (description or amount)')" />
             @foreach ($others as $e)
                 <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" wire:model.live="picked" value="{{ $e['key'] }}" />
+                    <input type="checkbox" wire:model.live.debounce.300ms="picked" value="{{ $e['key'] }}" />
                     {{ $e['date'] }} · {{ $e['source'] }} · {{ $e['description'] }} · <span class="tabular-nums">{{ $e['amount'] }}</span>
                 </label>
             @endforeach
 
             <p class="text-sm tabular-nums">{{ __('Chosen: :total of :amount', ['total' => $chosen, 'amount' => $line->amount]) }}</p>
-            <flux:error name="picked" />
             <div class="flex gap-2">
                 <flux:button variant="primary" wire:click="match">{{ __('Match') }}</flux:button>
                 <flux:button wire:click="cancelPick">{{ __('Cancel') }}</flux:button>
@@ -106,7 +107,7 @@
             @foreach (['kind', 'from_account_id', 'to_account_id', 'date', 'amount', 'reference'] as $field)
                 <flux:error name="{{ $field }}" />
             @endforeach
-            <flux:button wire:click="bankOnly">{{ __('Record and match') }}</flux:button>
+            <flux:button wire:click="bankOnly" :wire:confirm="$duplicateWarning ? __('An entry with this amount already exists. Record a new one anyway?') : null">{{ __('Record and match') }}</flux:button>
         </div>
     @endif
 

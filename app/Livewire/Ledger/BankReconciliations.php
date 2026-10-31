@@ -107,7 +107,7 @@ class BankReconciliations extends Component
     {
         abort_unless(is_int($id) || (is_string($id) && ctype_digit($id) && strlen($id) < 19), 404);
         $this->resetErrorBag();
-        app(DeleteBankUpload::class)->handle($this->actor(), BankUpload::query()->findOrFail((int) $id));
+        app(DeleteBankUpload::class)->handle($this->actor(), BankUpload::query()->where('ledger_account_id', $this->accountId())->findOrFail((int) $id));
         Flux::toast(variant: 'success', text: __('Upload deleted.'));
     }
 

@@ -29,6 +29,7 @@ use Livewire\Component;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 use stdClass;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 /**
  * Bank reconciliation spec §3–§4: one reconciliation. Finance matches statement lines to ledger entries (suggestions first),
@@ -54,6 +55,9 @@ class BankReconciliationShow extends Component
     public mixed $kind = 'bank_charge';
 
     public mixed $otherAccount = '';
+
+    /** Loaded once per request (not a public property, so never serialised); finish and reopen drop it because they change the row. */
+    private ?BankReconciliation $loaded = null;
 
     public function mount(string $reconciliation): void
     {
@@ -107,6 +111,7 @@ class BankReconciliationShow extends Component
     {
         $this->resetErrorBag();
         app(FinishBankReconciliation::class)->handle($this->actor(), $this->rec());
+        $this->loaded = null;
         $this->cancelPick();
         Flux::toast(variant: 'success', text: __('Reconciliation finished.'));
     }
@@ -115,6 +120,7 @@ class BankReconciliationShow extends Component
     {
         $this->resetErrorBag();
         app(ReopenBankReconciliation::class)->handle($this->actor(), $this->rec());
+        $this->loaded = null;
         Flux::toast(variant: 'success', text: __('Reconciliation reopened.'));
     }
 
@@ -132,20 +138,26 @@ class BankReconciliationShow extends Component
     {
         abort_unless($this->actor()->can(PermissionName::LedgerView), 403);
         $rec = $this->rec();
+        $file = self::reportFile($rec);
         Audit::log('report.exported', properties: ['report' => 'bank_reconciliation', 'reconciliation' => $rec->id], causer: $this->actor());
 
-        return response()->download(self::reportFile($rec), 'bank-reconciliation-'.$rec->account->code.'-'.$rec->end_date->toDateString().'.xlsx')->deleteFileAfterSend();
+        return response()->download($file, 'bank-reconciliation-'.$rec->account->code.'-'.$rec->end_date->toDateString().'.xlsx')->deleteFileAfterSend();
     }
 
     /** Spec §4: the reconciliation report as a temporary .xlsx, every row through SafeCells. Returns its path. */
     public static function reportFile(BankReconciliation $rec): string
     {
         $path = sys_get_temp_dir().'/rms-bank-rec-'.Str::uuid().'.xlsx';
-        $writer = SimpleExcelWriter::create($path);
-        foreach (self::reportRows($rec) as $row) {
-            $writer->addRow(SafeCells::row($row));
+        try {
+            $writer = SimpleExcelWriter::create($path);
+            foreach (self::reportRows($rec) as $row) {
+                $writer->addRow(SafeCells::row($row));
+            }
+            $writer->close();
+        } catch (Throwable $e) {
+            @unlink($path); // no partial file left behind
+            throw $e;
         }
-        $writer->close();
 
         return $path;
     }
@@ -209,7 +221,7 @@ class BankReconciliationShow extends Component
 
     private function rec(): BankReconciliation
     {
-        return BankReconciliation::query()->with(['account', 'finisher'])->findOrFail($this->reconciliationId);
+        return $this->loaded ??= BankReconciliation::query()->with(['account', 'finisher'])->findOrFail($this->reconciliationId);
     }
 
     /** @return list<stdClass> up to 100 other unmatched entries by the end date, nearest the line's date first; the search is a description or an amount */
@@ -232,14 +244,17 @@ class BankReconciliationShow extends Component
         $end = $rec->end_date->toDateString();
         $open = $rec->status === 'open';
         $f = BankEntries::figures($rec);
+        $base = BankStatementLine::query()->where('ledger_account_id', $rec->ledger_account_id)->where('date', '<=', $end)->whereDoesntHave('matches');
+        $unmatchedCount = $base->count();
         $line = $this->lineId === null || ! $open ? null : BankStatementLine::query()->find($this->lineId);
 
         return view('livewire.ledger.bank-reconciliation-show', [
             'rec' => $rec,
             'open' => $open,
             'figures' => self::figureRows($f),
-            'unmatched' => BankStatementLine::query()->where('ledger_account_id', $rec->ledger_account_id)->where('date', '<=', $end)->whereDoesntHave('matches')
-                ->orderBy('date')->orderBy('id')->get(),
+            'duplicateWarning' => $line !== null && BankEntries::suggestions($rec, $line) !== [],
+            'unmatched' => $base->orderBy('date')->orderBy('id')->limit(200)->get(),
+            'unmatchedCount' => $unmatchedCount,
             'matched' => BankStatementLine::query()->whereHas('matches', fn (EloquentBuilder $q) => $q->where('bank_reconciliation_id', $rec->id))
                 ->with('matches')->orderBy('date')->orderBy('id')->get(),
             'line' => $line,
