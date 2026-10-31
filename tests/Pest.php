@@ -4,6 +4,7 @@ use App\Actions\Billing\IssueInvoice;
 use App\Actions\Disbursements\RecordDisbursement;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Expenses\RecordExpense;
+use App\Actions\Ledger\ImportBankStatement;
 use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
@@ -14,6 +15,7 @@ use App\Enums\RoleName;
 use App\Mail\PortalSignInCode;
 use App\Models\Agreement;
 use App\Models\Bank;
+use App\Models\BankStatementLine;
 use App\Models\Building;
 use App\Models\Cheque;
 use App\Models\CompanySetting;
@@ -25,6 +27,7 @@ use App\Models\Document;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Journal;
+use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
 use App\Models\MaintenanceRequest;
 use App\Models\Owner;
@@ -600,4 +603,42 @@ function vendorBillFixture(): array
     $workOrder->forceFill(['status' => 'completed', 'completed_on' => '2026-10-08', 'expense_id' => $f['companyExpense']->id])->save();
 
     return [...$f, 'vendor' => $vendor, 'workOrder' => $workOrder];
+}
+
+/** The statement layout the bank reconciliation tests upload: Date (dd/mm/yyyy), Description, Reference, signed Amount; header on row 1. */
+function bankMapping(array $overrides = []): array
+{
+    return ['header_row' => 1, 'date_column' => 1, 'date_format' => 'd/m/Y', 'description_column' => 2, 'reference_column' => 3, 'amount_mode' => 'signed',
+        'amount_column' => 4, 'debit_column' => null, 'credit_column' => null, 'balance_column' => null, ...$overrides];
+}
+
+/** A temporary CSV of $header and $rows. */
+function bankCsv(array $rows, array $header = ['Date', 'Description', 'Reference', 'Amount']): string
+{
+    $path = sys_get_temp_dir().'/bank-'.Str::uuid().'.csv';
+    $handle = fopen($path, 'w');
+    foreach ([$header, ...$rows] as $row) {
+        fputcsv($handle, $row, ',', '"', '');
+    }
+    fclose($handle);
+
+    return $path;
+}
+
+/** Uploads $rows ([dd/mm/yyyy, description, reference, signed amount]) for the account with code $code through ImportBankStatement. */
+function bankStatement(User $by, string $code, array $rows, array $mapping = []): array
+{
+    $path = bankCsv($rows);
+    try {
+        return app(ImportBankStatement::class)->handle($by, (string) LedgerAccount::query()->where('code', $code)->value('id'), $path, 'csv', 'statement.csv',
+            bankMapping($mapping));
+    } finally {
+        unlink($path);
+    }
+}
+
+/** The one statement line with this description (bank reconciliation tests). */
+function bankLine(string $description): BankStatementLine
+{
+    return BankStatementLine::query()->where('description', $description)->sole();
 }
