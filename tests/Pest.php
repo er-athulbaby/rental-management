@@ -85,7 +85,13 @@ pest()->extend(TestCase::class)
 // so truncate after too, or committed rows leak into RefreshDatabase tests.
 pest()->extend(TestCase::class)
     ->use(DatabaseTruncation::class)
-    ->afterEach(fn () => $this->truncateTablesForAllConnections())
+    ->afterEach(function () {
+        $this->truncateTablesForAllConnections();
+        // ledger_settings is kept by truncation (TestCase::$exceptTables): put its one row back to fresh.
+        DB::table('ledger_settings')->update(['start_date' => null, 'locked_until' => null, 'health' => null, 'health_checked_at' => null,
+            'rebuild_status' => null, 'rebuild_from' => null, 'rebuild_to' => null, 'rebuild_done' => 0, 'rebuild_total' => 0,
+            'rebuild_message' => null, 'rebuild_run' => null]);
+    })
     ->in('Concurrency');
 
 /*
