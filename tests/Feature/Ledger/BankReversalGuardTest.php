@@ -9,6 +9,7 @@ use App\Actions\Ledger\FinishBankReconciliation;
 use App\Actions\Ledger\MatchBankLine;
 use App\Actions\Ledger\RecordBankOnlyLine;
 use App\Actions\Ledger\RecordVatReturn;
+use App\Actions\Ledger\ReopenBankReconciliation;
 use App\Actions\Ledger\ReverseManualJournal;
 use App\Actions\Ledger\ReverseMoneyEntry;
 use App\Actions\Ledger\StartBankReconciliation;
@@ -113,4 +114,15 @@ test('a credit note does not reverse a reconciled receipt: no money-account entr
         ->and($omarCard->fresh()->status)->not->toBe(PaymentStatus::Reversed)
         ->and(BankEntries::figures($rec->fresh()))->toEqual($before)
         ->and($before['difference'])->toBe(0);
+});
+
+test('after Admin reopens, a formerly reconciled entry can be reversed again within the period', function () {
+    $f = $this->f;
+    $rec = finishedBankRec($f, '1198.700', []);
+    expect(fn () => app(ReverseMoneyEntry::class)->handle($f['finance'], $f['dep1'], '2026-10-20', 'Typo'))->toThrow(ValidationException::class);
+
+    app(ReopenBankReconciliation::class)->handle($f['admin'], $rec);
+    app(ReverseMoneyEntry::class)->handle($f['finance'], $f['dep1'], '2026-10-20', 'Typo');
+
+    expect($f['dep1']->reversal()->count())->toBe(1);
 });

@@ -60,5 +60,16 @@ test('the trigger count is 77 and the migration will not roll back over rows', f
     expect(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(77)
         ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(77)
         ->and(fn () => $migration->down())->toThrow(RuntimeException::class, 'Nothing was changed')
-        ->and(Schema::hasTable('bank_uploads') && Schema::hasTable('bank_matches'))->toBeTrue();
+        ->and(Schema::hasTable('bank_uploads') && Schema::hasTable('bank_matches'))->toBeTrue()
+        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(77); // the refused down() dropped nothing
+});
+
+test('a match of 0.000 and a mapping with an unknown date format are refused by their check constraints', function () {
+    $rec = ($this->rec)('2026-10-20', 'open');
+    $line = ($this->line)('A');
+
+    expect(fn () => DB::table('bank_matches')->insert(['bank_reconciliation_id' => $rec, 'bank_statement_line_id' => $line, 'ledger_account_id' => $this->bank,
+        'entry_type' => 'manual', 'entry_id' => 1, 'amount' => '0.000', 'created_by' => $this->user->id]))->toThrow(QueryException::class, 'bank_matches_amount_chk')
+        ->and(fn () => DB::table('bank_mappings')->insert(['ledger_account_id' => $this->bank, 'header_row' => 1, 'date_column' => 1, 'date_format' => 'm/d/Y',
+            'description_column' => 2, 'amount_mode' => 'signed', 'amount_column' => 3, 'updated_by' => $this->user->id]))->toThrow(QueryException::class, 'bank_mappings_format_chk');
 });

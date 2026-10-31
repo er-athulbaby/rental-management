@@ -10,6 +10,7 @@ use App\Actions\Ledger\UnmatchBankLine;
 use App\Ledger\BankEntries;
 use App\Models\BankMatch;
 use App\Models\BankReconciliation;
+use App\Models\CashMovement;
 use App\Models\LedgerSetting;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -154,4 +155,37 @@ test('matches survive a ledger rebuild; finishing waits while a rebuild runs', f
     expect(journalFor('cash_movement', $f['dep1']->id)?->id)->not->toBe($before)
         ->and(BankMatch::query()->count())->toBe(5)
         ->and(($this->figures)())->toBe($this->done);
+});
+
+test('a bank-only line the cash movement refuses leaves no movement and no match', function () {
+    bankStatement($this->f['finance'], '1010', [['18/10/2026', 'LOCKED FEE', '', '-5']]);
+    DB::table('ledger_settings')->update(['locked_until' => '2026-10-19']);
+    $movements = CashMovement::query()->count();
+
+    expect(fn () => ($this->only)('LOCKED FEE', 'bank_charge'))->toThrow(ValidationException::class)
+        ->and(CashMovement::query()->count())->toBe($movements)
+        ->and(BankMatch::query()->count())->toBe(0);
+});
+
+test('a money-in bank-only line can be a transfer from another money account', function () {
+    $f = $this->f;
+    bankStatement($f['finance'], '1010', [['18/10/2026', 'FROM PETTY CASH', 'TR-IN', '30']]);
+    $transfer = ($this->only)('FROM PETTY CASH', 'transfer', (string) $f['cash']);
+
+    expect([$transfer->from_account_id, $transfer->to_account_id, $transfer->amount, $transfer->reference])->toBe([$f['cash'], $f['bank'], '30.000', 'TR-IN'])
+        ->and(BankMatch::query()->sole()->only(['entry_type', 'entry_id', 'amount']))->toBe(['entry_type' => 'cash_movement', 'entry_id' => $transfer->id, 'amount' => '30.000']);
+});
+
+test('a bank-only transfer without the other money account names the missing field', function () {
+    bankStatement($this->f['finance'], '1010', [['18/10/2026', 'TO SOMEWHERE', '', '-25'], ['18/10/2026', 'FROM SOMEWHERE', '', '25']]);
+    $errors = function (string $line) {
+        try {
+            ($this->only)($line, 'transfer');
+        } catch (ValidationException $e) {
+            return array_keys($e->errors());
+        }
+    };
+
+    expect($errors('TO SOMEWHERE'))->toBe(['to_account_id'])->and($errors('FROM SOMEWHERE'))->toBe(['from_account_id'])
+        ->and(BankMatch::query()->count())->toBe(0);
 });
