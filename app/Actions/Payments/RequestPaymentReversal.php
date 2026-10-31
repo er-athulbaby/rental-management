@@ -6,6 +6,7 @@ use App\Actions\Approvals\RequestApproval;
 use App\Enums\ApprovalAction;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Ledger\BankEntries;
 use App\Models\Approval;
 use App\Models\Payment;
 use App\Models\User;
@@ -42,6 +43,9 @@ final class RequestPaymentReversal
             if ($payment->method === PaymentMethod::Cheque && ! isset($payload['bounced_on'])) {
                 throw ValidationException::withMessages(['reversalReason' => __('This payment came from a cheque: mark the cheque as bounced instead.')]);
             }
+
+            // Bank reconciliation plan ruling 5: payment_reversal posts on the day Management approves; today is the earliest.
+            BankEntries::assertReversible('payment', $payment->id, now('Asia/Bahrain')->toDateString(), 'reversalReason');
 
             return $this->request->handle($actor, $payment, ApprovalAction::PaymentReversal, trim($reason), $payload);
         }, attempts: 3);

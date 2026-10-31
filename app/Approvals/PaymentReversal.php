@@ -6,6 +6,7 @@ use App\Actions\Payments\ReverseAllocations;
 use App\Billing\CustomerCredit;
 use App\Enums\ChequeStatus;
 use App\Enums\PaymentStatus;
+use App\Ledger\BankEntries;
 use App\Models\Approval;
 use App\Models\Cheque;
 use App\Models\Customer;
@@ -33,6 +34,9 @@ final class PaymentReversal implements ApprovalHandler
         if ($payment->status === PaymentStatus::Reversed) {
             throw ValidationException::withMessages(['approval' => __('This payment is already reversed.')]);
         }
+
+        // Bank reconciliation plan ruling 5: the reversal posts today (DATE(reversed_at)).
+        BankEntries::assertReversible('payment', $payment->id, now('Asia/Bahrain')->toDateString(), 'approval');
 
         // Spec §7.2: a payment whose credit was refunded cannot be reversed while the refund stands.
         if ($payment->creditRefundedFils() > 0) {

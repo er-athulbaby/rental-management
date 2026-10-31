@@ -5,9 +5,11 @@ namespace App\Ledger;
 use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
 use App\Support\Fils;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use stdClass;
 
 /**
@@ -187,5 +189,20 @@ final class BankEntries
     private static function hit(string $column): string
     {
         return "(CHAR_LENGTH({$column}) >= 3 AND INSTR(?, {$column}) > 0)";
+    }
+
+    /**
+     * Plan ruling 5 (spec §4 "Protection"): refuses, on $field, a reversal dated $date of the entry ($type, $id) when a finished
+     * reconciliation ending on or after $date has matched it. A reversal dated after every such end date is fine. Called by
+     * every reversal path with the date its reversal posts on.
+     */
+    public static function assertReversible(string $type, int $id, string $date, string $field): void
+    {
+        $end = DB::table('bank_matches as m')->join('bank_reconciliations as r', 'r.id', '=', 'm.bank_reconciliation_id')
+            ->where('m.entry_type', $type)->where('m.entry_id', $id)->where('r.status', 'finished')->where('r.end_date', '>=', $date)->max('r.end_date');
+        if ($end !== null) {
+            throw ValidationException::withMessages([$field => __('This entry is reconciled with the bank statement up to :date, so it cannot be reversed on or before that day.',
+                ['date' => CarbonImmutable::parse((string) $end)->format('d/m/Y')])]);
+        }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Actions\Expenses;
 
 use App\Enums\ExpenseStatus;
+use App\Ledger\BankEntries;
 use App\Models\Disbursement;
 use App\Models\Expense;
 use App\Models\User;
@@ -29,6 +30,8 @@ final class ReverseExpense
             if ($expense->status === ExpenseStatus::Reversed) {
                 throw ValidationException::withMessages(['reason' => __('This expense is already reversed.')]);
             }
+            // Bank reconciliation plan ruling 5: an expense never posts to a money account, so this never refuses; it keeps the rule one rule.
+            BankEntries::assertReversible('expense', $expense->id, now('Asia/Bahrain')->toDateString(), 'reason');
 
             // Ledger money screens plan ruling 2: a vendor bill holding it would pay a reversed expense.
             $on = DB::table('disbursement_expenses as de')->join('disbursements as d', 'd.id', '=', 'de.disbursement_id')

@@ -4,6 +4,7 @@ namespace App\Actions\Ledger;
 
 use App\Audit\Audit;
 use App\Enums\PermissionName;
+use App\Ledger\BankEntries;
 use App\Ledger\Sources;
 use App\Models\CashMovement;
 use App\Models\LedgerSetting;
@@ -46,6 +47,7 @@ final class ReverseMoneyEntry
                 throw ValidationException::withMessages(['reverseDate' => __('The reversal cannot be dated before the original (:d).', ['d' => $original->date->format('d/m/Y')])]);
             }
             PostManualJournal::openDate($settings, $date, 'reverseDate');
+            BankEntries::assertReversible($original instanceof CashMovement ? 'cash_movement' : 'vat_return', $original->id, $date, 'reverseDate'); // bank reconciliation plan ruling 5
 
             $reversal = $original->replicate();
             $reversal->forceFill(['date' => $date, 'note' => trim((string) $reason), 'reverses_id' => $original->id, 'created_by' => $actor->id])->save();

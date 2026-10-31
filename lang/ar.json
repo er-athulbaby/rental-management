@@ -153,6 +153,7 @@
     "Payment reversal": "عكس دفعة",
     "Credit refund": "استرداد رصيد",
     "Credit refund reversal": "عكس استرداد رصيد",
+    "This entry is reconciled with the bank statement up to :date, so it cannot be reversed on or before that day.": "هذا القيد مسوّى مع كشف البنك حتى :date، لذا لا يمكن عكسه في ذلك اليوم أو قبله.",
     "Choose what this line is.": "اختر نوع هذا السطر.",
     "A bank charge is money out; bank interest is money in.": "الرسوم المصرفية مبلغ خارج، والفوائد البنكية مبلغ داخل.",
     "Statement lines up to the end date not matched: :n.": "أسطر الكشف غير المطابَقة حتى تاريخ النهاية: :n.",

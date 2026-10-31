@@ -5,6 +5,7 @@ namespace App\Actions\Disbursements;
 use App\Actions\Approvals\RequestApproval;
 use App\Enums\ApprovalAction;
 use App\Enums\DisbursementStatus;
+use App\Ledger\BankEntries;
 use App\Models\Approval;
 use App\Models\Disbursement;
 use App\Models\User;
@@ -31,6 +32,9 @@ final class RequestDisbursementReversal
             if ($locked->status !== DisbursementStatus::Paid) {
                 throw ValidationException::withMessages(['reversalReason' => __('Only a paid payment out can be reversed.')]);
             }
+
+            // Bank reconciliation plan ruling 5: disbursement_reversal posts on the day Management approves; today is the earliest.
+            BankEntries::assertReversible('disbursement', $locked->id, now('Asia/Bahrain')->toDateString(), 'reversalReason');
 
             return $this->request->handle($actor, $locked, ApprovalAction::PaymentOutReversal, trim($reason));
         }, attempts: 3);

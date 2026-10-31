@@ -4,6 +4,7 @@ namespace App\Actions\Ledger;
 
 use App\Audit\Audit;
 use App\Enums\PermissionName;
+use App\Ledger\BankEntries;
 use App\Ledger\Poster;
 use App\Models\Journal;
 use App\Models\JournalLine;
@@ -41,6 +42,7 @@ final class ReverseManualJournal
                 throw ValidationException::withMessages(['reverseDate' => __('This journal is already reversed.')]);
             }
             PostManualJournal::openDate($settings, $date, 'reverseDate');
+            BankEntries::assertReversible('manual', $journal->id, $date, 'reverseDate'); // bank reconciliation plan ruling 5
             PostManualJournal::activeAccounts($journal->lines->pluck('ledger_account_id')->all(), 'reverseDate');
 
             $lines = array_values($journal->lines->map(fn (JournalLine $l) => ['account' => $l->ledger_account_id, 'amount' => Fils::fromDecimal($l->credit) - Fils::fromDecimal($l->debit),

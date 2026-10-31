@@ -11,6 +11,7 @@ use App\Enums\DisbursementPurpose;
 use App\Enums\DisbursementStatus;
 use App\Enums\OwnerPayableStatus;
 use App\Enums\PayeeType;
+use App\Ledger\BankEntries;
 use App\Models\Approval;
 use App\Models\Cheque;
 use App\Models\Customer;
@@ -43,6 +44,7 @@ final class PaymentOutReversal implements ApprovalHandler
         }
         $contract = $this->ownerSource->handle($out);
         $cheque = $out->cheque_id !== null ? Cheque::query()->lockForUpdate()->findOrFail($out->cheque_id) : null;
+        BankEntries::assertReversible('disbursement', $out->id, now('Asia/Bahrain')->toDateString(), 'approval'); // bank reconciliation plan ruling 5, after the locks
 
         $this->reopen($out, $approver, $contract); // Task 6: deposit refunds write the opposite movement and reopen the settlement
 
