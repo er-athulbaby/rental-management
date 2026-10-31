@@ -151,3 +151,25 @@ test('only Finance starts, matches, unmatches and discards', function () {
         ->and(fn () => app(UnmatchBankLine::class)->handle($f['admin'], $rec, $line))->toThrow(AuthorizationException::class)
         ->and(fn () => app(DiscardBankReconciliation::class)->handle($f['admin'], $rec))->toThrow(AuthorizationException::class);
 });
+
+test('keys are deduplicated by their number, so payment:01 and payment:1 are one entry', function () {
+    expect(BankEntries::parseKeys(['payment:01', 'payment:1', 'manual:7']))->toBe([['payment', 1], ['manual', 7]]);
+
+    $f = $this->f;
+    $rec = bankRec($f['finance'], '2026-10-20', '0', '0');
+    expect(fn () => ($this->match)($rec, 'CASH DEPOSIT DEP-1 DEP-2', ['cash_movement:'.$f['dep1']->id, 'cash_movement:0'.$f['dep1']->id]))
+        ->toThrow(ValidationException::class, 'The chosen entries total 200.000; the statement line is 500.000.');
+});
+
+test('a new end date must be after the last reconciliation\'s, and its opening balance is not read after the first', function () {
+    $f = $this->f;
+    $first = bankRec($f['finance'], '2026-10-19', '1198.700', '1000');
+    DB::table('bank_reconciliations')->where('id', $first->id)->update(['status' => 'finished', 'finished_by' => $f['finance']->id, 'finished_at' => now()]);
+    $message = 'Choose an end date after 19/10/2026, the end date of the last reconciliation.';
+
+    expect(fn () => bankRec($f['finance'], '2026-10-19', '1', '0'))->toThrow(ValidationException::class, $message)
+        ->and(fn () => bankRec($f['finance'], '2026-10-18', '1', '0'))->toThrow(ValidationException::class, $message);
+
+    $next = bankRec($f['finance'], '2026-10-20', '1308.700', 'not a number');
+    expect([$next->opening_balance, $next->closing_balance])->toBe(['1198.700', '1308.700']);
+});

@@ -56,12 +56,14 @@ class BankReconciliation extends Model
 
     /**
      * Plan ruling 10: locks the account's ledger_accounts row (every bank reconciliation writer does), then returns the
-     * reconciliation re-read under the lock, refusing on $field one that is not open. Call inside a transaction.
+     * reconciliation re-read under a lock, refusing on $field one that is not open. Call inside a transaction. The account lock
+     * must be the first read: a plain read before it would fix the InnoDB snapshot and hide what the lock waited for. The
+     * account id of a reconciliation never changes, so it is taken from the model the caller holds.
      */
-    public static function lockOpen(int $id, string $field): self
+    public static function lockOpen(self $given, string $field): self
     {
-        LedgerAccount::query()->lockForUpdate()->findOrFail(self::query()->findOrFail($id)->ledger_account_id);
-        $rec = self::query()->findOrFail($id);
+        LedgerAccount::query()->lockForUpdate()->findOrFail($given->ledger_account_id);
+        $rec = self::query()->lockForUpdate()->findOrFail($given->id);
         if ($rec->status !== 'open') {
             throw ValidationException::withMessages([$field => __('This reconciliation is finished.')]);
         }

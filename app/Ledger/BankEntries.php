@@ -37,7 +37,7 @@ final class BankEntries
             if (! is_string($key) || preg_match('/^([a-z_]{1,30}):(\d{1,18})$/', $key, $m) !== 1) {
                 return null;
             }
-            $out[$key] = [$m[1], (int) $m[2]];
+            $out[$m[1].':'.(int) $m[2]] = [$m[1], (int) $m[2]];
         }
 
         return array_values($out);

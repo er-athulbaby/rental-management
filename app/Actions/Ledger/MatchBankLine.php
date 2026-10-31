@@ -31,7 +31,7 @@ final class MatchBankLine
             ?? throw ValidationException::withMessages(['picked' => __('Choose the ledger entries that make up this line.')]);
 
         DB::transaction(function () use ($actor, $reconciliation, $lineId, $keys) {
-            $rec = BankReconciliation::lockOpen($reconciliation->id, 'picked');
+            $rec = BankReconciliation::lockOpen($reconciliation, 'picked');
             $line = $rec->unmatchedLine($lineId);
             $found = BankEntries::find($rec->ledger_account_id, $rec->end_date->toDateString(), $keys);
             if (count($found) !== count($keys)) {

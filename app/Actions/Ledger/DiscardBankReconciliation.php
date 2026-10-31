@@ -20,7 +20,7 @@ final class DiscardBankReconciliation
         }
 
         DB::transaction(function () use ($actor, $reconciliation) {
-            $rec = BankReconciliation::lockOpen($reconciliation->id, 'discard');
+            $rec = BankReconciliation::lockOpen($reconciliation, 'discard');
             $matches = BankMatch::query()->where('bank_reconciliation_id', $rec->id)->delete();
             Audit::log('bank.reconciliation_discarded', $rec, old: ['end_date' => $rec->end_date->toDateString(), 'closing' => $rec->closing_balance, 'matches' => $matches],
                 causer: $actor);

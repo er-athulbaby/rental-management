@@ -22,7 +22,7 @@ final class UnmatchBankLine
         }
 
         DB::transaction(function () use ($actor, $reconciliation, $lineId) {
-            $rec = BankReconciliation::lockOpen($reconciliation->id, 'line');
+            $rec = BankReconciliation::lockOpen($reconciliation, 'line');
             $id = is_int($lineId) || (is_string($lineId) && ctype_digit($lineId) && strlen($lineId) < 19) ? (int) $lineId : 0;
             $matches = BankMatch::query()->where('bank_reconciliation_id', $rec->id)->where('bank_statement_line_id', $id)->get();
             if ($matches->isEmpty()) {

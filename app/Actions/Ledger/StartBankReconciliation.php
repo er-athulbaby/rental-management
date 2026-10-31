@@ -35,12 +35,12 @@ final class StartBankReconciliation
             'ledger_account_id' => ['required', 'integer'],
             'end_date' => ['required', 'string', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Bahrain')->toDateString()],
             'closing_balance' => ['required', 'string', self::MONEY],
-            'opening_balance' => ['nullable', 'string', self::MONEY],
-        ], ['closing_balance.regex' => $amount, 'opening_balance.regex' => $amount])->validate();
+        ], ['closing_balance.regex' => $amount])->validate();
 
-        return DB::transaction(function () use ($actor, $v) {
+        return DB::transaction(function () use ($actor, $v, $data, $amount) {
             $account = LedgerAccount::query()->whereKey((int) $v['ledger_account_id'])->where('is_money', true)->where('active', true)->lockForUpdate()->first()
                 ?? throw ValidationException::withMessages(['ledger_account_id' => __('Choose an active money account.')]);
+            $opening = null;
             $last = BankReconciliation::query()->where('ledger_account_id', $account->id)->orderByDesc('end_date')->first();
             if ($last?->status === 'open') {
                 throw ValidationException::withMessages(['ledger_account_id' => __('This account already has an open reconciliation. Finish or discard it first.')]);
@@ -49,14 +49,17 @@ final class StartBankReconciliation
                 throw ValidationException::withMessages(['end_date' => __('Choose an end date after :date, the end date of the last reconciliation.',
                     ['date' => $last->end_date->format('d/m/Y')])]);
             }
-            if ($last === null && blank($v['opening_balance'] ?? null)) {
-                throw ValidationException::withMessages(['opening_balance' => __('Enter the statement opening balance: this is the first reconciliation of this account.')]);
+            if ($last === null) { // the typed opening balance matters only for the first reconciliation
+                if (blank($data['opening_balance'] ?? null)) {
+                    throw ValidationException::withMessages(['opening_balance' => __('Enter the statement opening balance: this is the first reconciliation of this account.')]);
+                }
+                $opening = Validator::make($data, ['opening_balance' => ['string', self::MONEY]], ['opening_balance.regex' => $amount])->validate()['opening_balance'];
             }
 
             $rec = (new BankReconciliation)->forceFill([
                 'ledger_account_id' => $account->id,
                 'end_date' => (string) $v['end_date'],
-                'opening_balance' => $last->closing_balance ?? Fils::toDecimal(Fils::fromDecimal((string) $v['opening_balance'])),
+                'opening_balance' => $last->closing_balance ?? Fils::toDecimal(Fils::fromDecimal((string) $opening)),
                 'closing_balance' => Fils::toDecimal(Fils::fromDecimal((string) $v['closing_balance'])),
                 'status' => 'open',
                 'created_by' => $actor->id,
