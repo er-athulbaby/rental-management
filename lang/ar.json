@@ -153,6 +153,8 @@
     "Payment reversal": "عكس دفعة",
     "Credit refund": "استرداد رصيد",
     "Credit refund reversal": "عكس استرداد رصيد",
+    "The text is not valid UTF-8; save the file as UTF-8.": "النص ليس بترميز UTF-8؛ احفظ الملف بترميز UTF-8.",
+    "The statement has no rows.": "الكشف لا يحتوي على أي صفوف.",
     "Upload the statement as a .csv or .xlsx file.": "ارفع الكشف كملف .csv أو .xlsx.",
     "Use each column for one thing only.": "استخدم كل عمود لغرض واحد فقط.",
     "This file cannot be read as .xlsx or .csv.": "لا يمكن قراءة هذا الملف كملف .xlsx أو .csv.",

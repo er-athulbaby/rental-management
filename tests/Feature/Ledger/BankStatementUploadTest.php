@@ -149,3 +149,46 @@ test('an upload is deleted with its lines only while none is matched; only Finan
     expect(BankUpload::query()->pluck('id')->all())->toBe([$first['upload']->id])
         ->and(BankStatementLine::query()->pluck('description')->all())->toBe(['A']);
 });
+
+test('amounts that would overflow, exponents, signs inside brackets and oversized balances are bad rows, never errors', function () {
+    $amount = 'The amount is not a number with up to 3 decimals.';
+    $out = bankStatement($this->finance, '1010', [
+        ['05/10/2026', 'HUGE', '', '99999999999999999999'],
+        ['05/10/2026', 'NEG BRACKET', '', '(-300)'],
+        ['05/10/2026', 'POS BRACKET', '', '(+5)'],
+        ['05/10/2026', 'BIG BALANCE', '', '5', '1000000000000'],
+        ['05/10/2026', 'MAX BALANCE', '', '6', '999999999999.999'],
+    ], ['balance_column' => 5]);
+    $xlsx = sys_get_temp_dir().'/bank-'.Str::uuid().'.xlsx';
+    $writer = SimpleExcelWriter::create($xlsx);
+    $writer->addRow(new Row([Cell::fromValue('Date'), Cell::fromValue('Description'), Cell::fromValue('Reference'), Cell::fromValue('Amount')]));
+    foreach ([['LARGE', 2177712561.061], ['EXPONENT', 1.0E+25], ['TINY', 1.0E-5]] as [$d, $a]) {
+        $writer->addRow(new Row([Cell::fromValue('05/10/2026'), Cell::fromValue($d), Cell::fromValue(''), Cell::fromValue($a)]));
+    }
+    $writer->close();
+    $x = app(ImportBankStatement::class)->handle($this->finance, $this->bank, $xlsx, 'xlsx', 'x.xlsx', bankMapping());
+    @unlink($xlsx); // Windows may still hold the reader open
+
+    expect($out['failures'])->toBe([
+        ['row' => 2, 'reason' => $amount], ['row' => 3, 'reason' => $amount], ['row' => 4, 'reason' => $amount],
+        ['row' => 5, 'reason' => 'The balance is not a number with up to 3 decimals.'],
+    ])->and(bankLine('MAX BALANCE')->balance)->toBe('999999999999.999')
+        ->and(bankLine('LARGE')->amount)->toBe('2177712561.061')
+        ->and($x['failures'])->toBe([['row' => 3, 'reason' => $amount], ['row' => 4, 'reason' => $amount]]);
+});
+
+test('text that is not valid UTF-8 is a bad row with a reason', function () {
+    $path = sys_get_temp_dir().'/bank-'.Str::uuid().'.csv';
+    file_put_contents($path, "Date,Description,Reference,Amount\n05/10/2026,CAF\xE9 BAD,,5\n05/10/2026,FINE,,6\n");
+    $out = app(ImportBankStatement::class)->handle($this->finance, $this->bank, $path, 'csv', 'x.csv', bankMapping());
+    unlink($path);
+
+    expect($out['failures'])->toBe([['row' => 2, 'reason' => 'The text is not valid UTF-8; save the file as UTF-8.']])
+        ->and(BankStatementLine::query()->pluck('description')->all())->toBe(['FINE']);
+});
+
+test('a statement with no rows is refused, saving nothing', function () {
+    expect(fn () => bankStatement($this->finance, '1010', []))->toThrow(ValidationException::class, 'The statement has no rows.')
+        ->and(fn () => bankStatement($this->finance, '1010', [['05/10/2026', 'A', '', '5']], ['header_row' => 50]))->toThrow(ValidationException::class, 'The statement has no rows.')
+        ->and(BankUpload::query()->count() + BankMapping::query()->count())->toBe(0);
+});

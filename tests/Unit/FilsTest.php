@@ -31,3 +31,9 @@ test('grouped adds a thousands separator, as the builder shows money totals', fu
         ->and(Fils::grouped(1250000))->toBe('1,250.000')
         ->and(Fils::grouped(-1250000500))->toBe('-1,250,000.500');
 });
+
+test('fromDecimal refuses more than 15 integer digits instead of overflowing', function () {
+    expect(Fils::fromDecimal('999999999999999.999'))->toBe(999999999999999999)
+        ->and(fn () => Fils::fromDecimal('99999999999999999999'))->toThrow(InvalidArgumentException::class)
+        ->and(fn () => Fils::fromDecimal('1000000000000000'))->toThrow(InvalidArgumentException::class);
+});

@@ -39,6 +39,9 @@ final class ImportBankStatement
     /** The largest |amount| decimal(13,3) holds, in fils. */
     private const int MAX_FILS = 9_999_999_999_999;
 
+    /** The largest |balance| decimal(15,3) holds, in fils. */
+    private const int MAX_BALANCE_FILS = 999_999_999_999_999;
+
     /**
      * @param  mixed  $mapping  header_row, date_column, date_format, description_column, reference_column, amount_mode, amount_column, debit_column, credit_column, balance_column
      * @return array{upload: BankUpload, failures: list<array{row: int, reason: string}>}
@@ -56,9 +59,13 @@ final class ImportBankStatement
             throw ValidationException::withMessages(['file' => __('Upload the statement as a .csv or .xlsx file.')]);
         }
 
+        $rows = self::read($path, $type, $map['header_row']);
+        if ($rows === []) {
+            throw ValidationException::withMessages(['file' => __('The statement has no rows.')]);
+        }
         $parsed = [];
         $failures = [];
-        foreach (self::read($path, $type, $map['header_row']) as $row => $cells) {
+        foreach ($rows as $row => $cells) {
             try {
                 $parsed[] = ['row' => $row, ...self::parse($cells, $map)];
             } catch (InvalidArgumentException $e) {
@@ -199,7 +206,7 @@ final class ImportBankStatement
             'description' => self::text($cell($map['description_column']), 500),
             'reference' => self::text($cell($map['reference_column']), 100) ?: null,
             'amount' => $amount,
-            'balance' => self::fils($cell($map['balance_column']), __('The balance is not a number with up to 3 decimals.')),
+            'balance' => self::fils($cell($map['balance_column']), __('The balance is not a number with up to 3 decimals.'), self::MAX_BALANCE_FILS),
         ];
     }
 
@@ -227,35 +234,34 @@ final class ImportBankStatement
      *
      * @throws InvalidArgumentException when the cell is not an amount with at most 3 decimals
      */
-    private static function fils(mixed $value, ?string $reason = null): ?int
+    private static function fils(mixed $value, ?string $reason = null, int $max = self::MAX_FILS): ?int
     {
         $reason ??= __('The amount is not a number with up to 3 decimals.');
         if ($value === null || (is_string($value) && trim($value) === '')) {
             return null;
         }
         if (is_int($value) || is_float($value)) {
-            $scaled = round($value * 1000);
-            if (abs($value * 1000 - $scaled) > 0.000001 || abs($scaled) > self::MAX_FILS) {
-                throw new InvalidArgumentException($reason);
+            $text = (string) $value;
+            $negative = false;
+        } elseif (is_string($value)) {
+            $text = str_replace([',', ' ', "\u{00A0}"], '', trim($value));
+            $negative = false;
+            if (preg_match('/^\((.+)\)$/', $text, $m) === 1) {
+                $negative = true;
+                $text = $m[1];
+                if (in_array($text[0], ['+', '-'], true)) {
+                    throw new InvalidArgumentException($reason);
+                }
             }
-
-            return (int) $scaled;
-        }
-        if (! is_string($value)) {
+        } else {
             throw new InvalidArgumentException($reason);
         }
-        $text = str_replace([',', ' ', "\u{00A0}"], '', trim($value));
-        $negative = false;
-        if (preg_match('/^\((.+)\)$/', $text, $m) === 1) {
-            $negative = true;
-            $text = $m[1];
-        }
         try {
-            $fils = Fils::fromDecimal(ltrim($text, '+'));
+            $fils = Fils::fromDecimal(ltrim($text, '+')); // an exponent such as 1.0E+25 does not match, so it is refused here
         } catch (InvalidArgumentException) {
             throw new InvalidArgumentException($reason);
         }
-        if (abs($fils) > self::MAX_FILS) {
+        if (abs($fils) > $max) {
             throw new InvalidArgumentException($reason);
         }
 
@@ -271,6 +277,11 @@ final class ImportBankStatement
             default => '',
         };
 
-        return mb_substr(trim((string) preg_replace('/\s+/u', ' ', $text)), 0, $max);
+        $clean = preg_replace('/\s+/u', ' ', $text);
+        if ($clean === null) {
+            throw new InvalidArgumentException(__('The text is not valid UTF-8; save the file as UTF-8.'));
+        }
+
+        return mb_substr(trim($clean), 0, $max);
     }
 }

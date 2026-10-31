@@ -7,7 +7,7 @@ use InvalidArgumentException;
 /** BHD money as integer fils (1 BHD = 1000 fils). Never floats (spec §2). */
 final class Fils
 {
-    private const string PATTERN = '/^(-)?(\d+)(?:\.(\d{1,3}))?$/';
+    private const string PATTERN = '/^(-)?(\d{1,15})(?:\.(\d{1,3}))?$/';
 
     public static function fromDecimal(string|int $value): int
     {
