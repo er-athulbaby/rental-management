@@ -32,8 +32,8 @@ test('the default chart, its posting rules and the one settings row are there', 
         ->and(LedgerSetting::query()->count())->toBe(1)
         ->and(LedgerSetting::current()->start_date)->toBeNull()
         ->and(LedgerSetting::current()->firstOpenDay())->toBeNull()
-        ->and(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(73)
-        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(73);
+        ->and(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(77)
+        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(77);
 });
 
 test('manual journals never change; automatic ones are removable only while their date is open', function () {

@@ -13,7 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
-test('the two new accounts, their rules and the money flag are there, and the trigger count is 73', function () {
+test('the two new accounts, their rules and the money flag are there, and the trigger count is 77', function () {
     $charges = LedgerAccount::query()->where('system_key', 'bank_charges')->firstOrFail();
     $interest = LedgerAccount::query()->where('system_key', 'bank_interest')->firstOrFail();
 
@@ -22,8 +22,8 @@ test('the two new accounts, their rules and the money flag are there, and the tr
         ->and(DB::table('ledger_rules')->where('key', 'bank_charges')->value('ledger_account_id'))->toBe($charges->id)
         ->and(DB::table('ledger_rules')->where('key', 'bank_interest')->value('ledger_account_id'))->toBe($interest->id)
         ->and(LedgerAccount::query()->where('is_money', true)->orderBy('code')->pluck('code')->all())->toBe(['1000', '1010', '1020'])
-        ->and(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(73)
-        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(73);
+        ->and(IntegrityCheck::EXPECTED_TRIGGERS)->toBe(77)
+        ->and((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(77);
 });
 
 test('cash movements, VAT returns and the expense links are write-once', function () {

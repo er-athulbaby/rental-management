@@ -157,7 +157,7 @@ test('the money migration down() refuses, changing nothing, while vendor bills, 
         array_map(fn ($x) => DB::table($x)->truncate(), $tables);
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }; // TRUNCATE skips the write-once triggers
-    $unchanged = fn () => expect((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(73)
+    $unchanged = fn () => expect((int) DB::selectOne('SELECT rms_trigger_count() AS n')->n)->toBe(77)
         ->and(Schema::hasTable('cash_movements') && Schema::hasTable('vat_returns') && Schema::hasTable('disbursement_expenses'))->toBeTrue()
         ->and(Schema::hasColumn('cheques', 'vendor_id'))->toBeTrue()
         ->and(DB::select("SHOW TRIGGERS WHERE `Trigger` = 'cheques_guard'"))->toHaveCount(1);
