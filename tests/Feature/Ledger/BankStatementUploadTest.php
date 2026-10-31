@@ -226,7 +226,7 @@ test('an XLSX float with binary noise imports as 3 decimals; a float with more d
     $xlsx = sys_get_temp_dir().'/bank-'.Str::uuid().'.xlsx';
     $writer = SimpleExcelWriter::create($xlsx);
     $writer->addRow(new Row([Cell::fromValue('Date'), Cell::fromValue('Description'), Cell::fromValue('Reference'), Cell::fromValue('Amount')]));
-    foreach ([['NOISE', 0.1 + 0.2], ['NEGATIVE', -(0.1 + 0.2)], ['FOUR', 1.2345]] as [$d, $a]) {
+    foreach ([['NOISE', 0.1 + 0.2], ['NEGATIVE', -(0.1 + 0.2)], ['FOUR', 1.2345], ['LARGE', 600000.1234]] as [$d, $a]) {
         $writer->addRow(new Row([Cell::fromValue('05/10/2026'), Cell::fromValue($d), Cell::fromValue(''), Cell::fromValue($a)]));
     }
     $writer->close();
@@ -234,5 +234,5 @@ test('an XLSX float with binary noise imports as 3 decimals; a float with more d
     @unlink($xlsx);
 
     expect(bankLine('NOISE')->amount)->toBe('0.300')->and(bankLine('NEGATIVE')->amount)->toBe('-0.300')
-        ->and($out['failures'])->toBe([['row' => 4, 'reason' => 'The amount is not a number with up to 3 decimals.']]);
+        ->and($out['failures'])->toBe([['row' => 4, 'reason' => 'The amount is not a number with up to 3 decimals.'], ['row' => 5, 'reason' => 'The amount is not a number with up to 3 decimals.']]);
 });

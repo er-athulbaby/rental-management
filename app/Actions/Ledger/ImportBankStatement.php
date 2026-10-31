@@ -256,8 +256,8 @@ final class ImportBankStatement
             return null;
         }
         if (is_int($value) || is_float($value)) {
-            // A float with binary noise (0.1 + 0.2) is accepted when within 1e-9 of its 3-decimal rounding; an exponent or huge value stays refused.
-            if (is_float($value) && (! is_finite($value) || abs($value) > $max / 1000 + 1 || abs(round($value, 3) - $value) > 1e-9 * max(1, abs($value)))) {
+            // A float with binary noise (0.1 + 0.2) is accepted when within a few float epsilons of its 3-decimal rounding; extra decimals, exponents and huge values stay refused.
+            if (is_float($value) && (! is_finite($value) || abs($value) > $max / 1000 + 1 || abs(round($value, 3) - $value) > max(1e-9, 8 * PHP_FLOAT_EPSILON * abs($value)))) {
                 throw new InvalidArgumentException($reason);
             }
             $text = is_float($value) ? number_format(round($value, 3), 3, '.', '') : (string) $value;

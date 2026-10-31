@@ -201,7 +201,7 @@
     "Statement lines not matched": "أسطر الكشف غير المطابَقة",
     "Opening balance plus matched statement lines": "الرصيد الافتتاحي مع أسطر الكشف المطابَقة",
     "Finish": "إنهاء",
-    "Discard": "إلغاء",
+    "Discard": "حذف التسوية",
     "Discard this open reconciliation and its matches?": "إلغاء هذه التسوية المفتوحة ومطابقاتها؟",
     "Reopen": "إعادة فتح",
     "Download report": "تنزيل التقرير",

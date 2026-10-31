@@ -247,18 +247,19 @@ class BankReconciliationShow extends Component
         $base = BankStatementLine::query()->where('ledger_account_id', $rec->ledger_account_id)->where('date', '<=', $end)->whereDoesntHave('matches');
         $unmatchedCount = $base->count();
         $line = $this->lineId === null || ! $open ? null : BankStatementLine::query()->find($this->lineId);
+        $suggestions = $line === null ? [] : BankEntries::suggestions($rec, $line);
 
         return view('livewire.ledger.bank-reconciliation-show', [
             'rec' => $rec,
             'open' => $open,
             'figures' => self::figureRows($f),
-            'duplicateWarning' => $line !== null && BankEntries::suggestions($rec, $line) !== [],
+            'duplicateWarning' => $suggestions !== [],
             'unmatched' => $base->orderBy('date')->orderBy('id')->limit(200)->get(),
             'unmatchedCount' => $unmatchedCount,
             'matched' => BankStatementLine::query()->whereHas('matches', fn (EloquentBuilder $q) => $q->where('bank_reconciliation_id', $rec->id))
                 ->with('matches')->orderBy('date')->orderBy('id')->get(),
             'line' => $line,
-            'suggestions' => $line === null ? [] : self::rows(BankEntries::suggestions($rec, $line)),
+            'suggestions' => self::rows($suggestions),
             'others' => $line === null ? [] : self::rows($this->others($rec, $line)),
             'chosen' => Fils::toDecimal(array_sum(array_map(fn (stdClass $e) => Fils::fromDecimal((string) $e->amount),
                 BankEntries::find($rec->ledger_account_id, $end, BankEntries::parseKeys($this->picked) ?? [])))),
