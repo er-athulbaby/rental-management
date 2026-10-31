@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Ledger;
+
+use App\Models\BankReconciliation;
+use App\Models\BankStatementLine;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Facades\DB;
+use stdClass;
+
+/**
+ * Bank reconciliation plan rulings 1–2: a ledger entry on a money account is one journal's net on that account, keyed by its
+ * source (source type and id; "manual" and the journal id for a manual journal) and dated by its journal. The opening
+ * journal is not an entry. Keys survive a rebuild, which re-posts the same sources.
+ */
+final class BankEntries
+{
+    /** The entry key in SQL, over journals as j. */
+    public const string TYPE = "COALESCE(j.source_type, 'manual')";
+
+    public const string ID = 'COALESCE(j.source_id, j.id)';
+
+    public static function key(string $type, int $id): string
+    {
+        return $type.':'.$id;
+    }
+
+    /** @return list<array{0: string, 1: int}>|null the distinct keys of 1–50 "type:id" strings; null for anything else */
+    public static function parseKeys(mixed $keys): ?array
+    {
+        if (! is_array($keys) || $keys === [] || count($keys) > 50) {
+            return null;
+        }
+        $out = [];
+        foreach ($keys as $key) {
+            if (! is_string($key) || preg_match('/^([a-z_]{1,30}):(\d{1,18})$/', $key, $m) !== 1) {
+                return null;
+            }
+            $out[$key] = [$m[1], (int) $m[2]];
+        }
+
+        return array_values($out);
+    }
+
+    /** Entries on $account dated up to $end. Selects journal, kind, source_type, source_id, date, description, entry_type, entry_id, amount. */
+    public static function query(int $account, string $end): Builder
+    {
+        return DB::table('journal_lines as l')->join('journals as j', 'j.id', '=', 'l.journal_id')
+            ->where('l.ledger_account_id', $account)->where('j.date', '<=', $end)->where('j.kind', '<>', 'opening')
+            ->groupBy('j.id')->havingRaw('SUM(l.debit) <> SUM(l.credit)')
+            ->selectRaw('j.id AS journal, j.kind, j.source_type, j.source_id, j.date, j.description, '.self::TYPE.' AS entry_type, '
+                .self::ID.' AS entry_id, SUM(l.debit) - SUM(l.credit) AS amount');
+    }
+
+    /** Entries no reconciliation of the account has matched (only its open one, always the latest, still takes matches). */
+    public static function unmatched(int $account, string $end): Builder
+    {
+        return self::query($account, $end)->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('bank_matches as m')
+            ->where('m.ledger_account_id', $account)->whereRaw('m.entry_type = '.self::TYPE)->whereRaw('m.entry_id = '.self::ID));
+    }
+
+    /**
+     * The entries named by $keys, as they stand now (a key with no line on $account by $end is missing from the result).
+     *
+     * @param  list<array{0: string, 1: int}>  $keys
+     * @return array<string, stdClass> key => entry, oldest journal first
+     */
+    public static function find(int $account, string $end, array $keys): array
+    {
+        if ($keys === []) {
+            return [];
+        }
+
+        return self::query($account, $end)->where(function (Builder $q) use ($keys) {
+            foreach ($keys as [$type, $id]) {
+                $q->orWhere(fn (Builder $w) => $type === 'manual'
+                    ? $w->where('j.id', $id)->where('j.kind', 'manual')
+                    : $w->where('j.source_type', $type)->where('j.source_id', $id));
+            }
+        })->orderBy('j.id')->get()->keyBy(fn (stdClass $e) => self::key((string) $e->entry_type, (int) $e->entry_id))->all();
+    }
+
+    /**
+     * Plan ruling 2: up to 20 unmatched entries with the line's direction and amount, dated within 7 days of it and by the end
+     * date; a reference or number found in the line's text first, then the nearest date.
+     *
+     * @return list<stdClass>
+     */
+    public static function suggestions(BankReconciliation $rec, BankStatementLine $line): array
+    {
+        $text = trim($line->description.' '.($line->reference ?? ''));
+
+        return array_values(self::unmatched($rec->ledger_account_id, $rec->end_date->toDateString())
+            ->leftJoin('payments as p', fn (JoinClause $j) => $j->on('p.id', '=', 'j.source_id')->whereIn('j.source_type', ['payment', 'payment_reversal']))
+            ->leftJoin('disbursements as d', fn (JoinClause $j) => $j->on('d.id', '=', 'j.source_id')->whereIn('j.source_type', ['disbursement', 'disbursement_reversal']))
+            ->leftJoin('cheques as c', 'c.id', '=', DB::raw('COALESCE(p.cheque_id, d.cheque_id)'))
+            ->whereBetween('j.date', [$line->date->subDays(7)->toDateString(), $line->date->addDays(7)->toDateString()])
+            ->havingRaw('SUM(l.debit) - SUM(l.credit) = ?', [$line->amount])
+            ->selectRaw('MAX('.self::hit('j.description').' OR '.self::hit('p.reference').' OR '.self::hit('d.reference').' OR '.self::hit('c.cheque_no').') AS hit',
+                [$text, $text, $text, $text])
+            ->orderByDesc('hit')->orderByRaw('ABS(DATEDIFF(j.date, ?))', [$line->date->toDateString()])->orderBy('j.id')
+            ->limit(20)->get()->all());
+    }
+
+    /**
+     * @param  literal-string  $column
+     * @return literal-string
+     */
+    private static function hit(string $column): string
+    {
+        return "(CHAR_LENGTH({$column}) >= 3 AND INSTR(?, {$column}) > 0)";
+    }
+}

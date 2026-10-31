@@ -5,6 +5,10 @@ use App\Actions\Disbursements\RecordDisbursement;
 use App\Actions\EnsureNumberSequences;
 use App\Actions\Expenses\RecordExpense;
 use App\Actions\Ledger\ImportBankStatement;
+use App\Actions\Ledger\PostManualJournal;
+use App\Actions\Ledger\RecordCashMovement;
+use App\Actions\Ledger\SaveOpeningBalances;
+use App\Actions\Ledger\StartBankReconciliation;
 use App\Actions\Maintenance\AddWorkOrder;
 use App\Actions\Maintenance\LogMaintenanceRequest;
 use App\Actions\Payments\RecordPayment;
@@ -15,6 +19,7 @@ use App\Enums\RoleName;
 use App\Mail\PortalSignInCode;
 use App\Models\Agreement;
 use App\Models\Bank;
+use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
 use App\Models\Building;
 use App\Models\Cheque;
@@ -641,4 +646,42 @@ function bankStatement(User $by, string $code, array $rows, array $mapping = [])
 function bankLine(string $description): BankStatementLine
 {
     return BankStatementLine::query()->where('description', $description)->sole();
+}
+
+/**
+ * The bank reconciliation worked example (plan, "Worked example"): ledgerFixture() plus, on Bank (1010), Admin's opening
+ * balance 1000.000; transfers from Cash on hand DEP-1 200.000 and DEP-2 300.000 (12/10) and DEP-3 150.000 (19/10); the manual
+ * journal "Office chairs CHQ 7781" Dr 5100 / Cr 1010 40.000 (17/10); and statement 1 uploaded: 11/10 "TRANSFER <PO>"
+ * −300.000, 13/10 "CASH DEPOSIT DEP-1 DEP-2" +500.000, 15/10 "BANK CHARGES OCT" (CHG-OCT) −2.500, 20/10 "CREDIT INTEREST"
+ * +1.200. Seed RolesAndPermissionsSeeder and fake the local disk first. Ends on 20/10/2026 10:00.
+ *
+ * @return array<string, mixed>
+ */
+function bankRecFixture(): array
+{
+    $f = ledgerFixture();
+    $id = fn (string $code) => (int) LedgerAccount::query()->where('code', $code)->value('id');
+    app(SaveOpeningBalances::class)->handle($f['admin'], [$id('1010') => ['debit' => '1000']]);
+    $move = fn (string $reference, string $amount, string $date) => app(RecordCashMovement::class)->handle($f['finance'], ['kind' => 'transfer',
+        'from_account_id' => $id('1000'), 'to_account_id' => $id('1010'), 'amount' => $amount, 'date' => $date, 'reference' => $reference]);
+    $dep1 = $move('DEP-1', '200', '2026-10-12');
+    $dep2 = $move('DEP-2', '300', '2026-10-12');
+    $dep3 = $move('DEP-3', '150', '2026-10-19');
+    $manual = app(PostManualJournal::class)->handle($f['finance'], ['date' => '2026-10-17', 'description' => 'Office chairs CHQ 7781',
+        'lines' => [['account_id' => $id('5100'), 'debit' => '40'], ['account_id' => $id('1010'), 'credit' => '40']]]);
+    bankStatement($f['finance'], '1010', [
+        ['11/10/2026', 'TRANSFER '.$f['headLease']->number, '', '-300.000'],
+        ['13/10/2026', 'CASH DEPOSIT DEP-1 DEP-2', '', '500.000'],
+        ['15/10/2026', 'BANK CHARGES OCT', 'CHG-OCT', '-2.500'],
+        ['20/10/2026', 'CREDIT INTEREST', '', '1.200'],
+    ]);
+
+    return [...$f, 'bank' => $id('1010'), 'cash' => $id('1000'), 'dep1' => $dep1, 'dep2' => $dep2, 'dep3' => $dep3, 'manual' => $manual];
+}
+
+/** Starts a reconciliation of Bank (1010) through StartBankReconciliation (bank reconciliation tests). */
+function bankRec(User $by, string $end, string $closing, ?string $opening = null): BankReconciliation
+{
+    return app(StartBankReconciliation::class)->handle($by, ['ledger_account_id' => (string) LedgerAccount::query()->where('code', '1010')->value('id'),
+        'end_date' => $end, 'closing_balance' => $closing, 'opening_balance' => $opening]);
 }
