@@ -56,6 +56,7 @@
                             <flux:sidebar.item icon="queue-list" :href="route('ledger.journals')" :current="request()->routeIs('ledger.journals')" wire:navigate>{{ __('Journal list') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="arrows-right-left" :href="route('ledger.cash-movements')" :current="request()->routeIs('ledger.cash-movements')" wire:navigate>{{ __('Cash and bank movements') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="receipt-percent" :href="route('ledger.vat-returns')" :current="request()->routeIs('ledger.vat-returns')" wire:navigate>{{ __('VAT returns') }}</flux:sidebar.item>
+                            <flux:sidebar.item icon="banknotes" :href="route('ledger.bank-reconciliation')" :current="request()->routeIs('ledger.bank-reconciliation*')" wire:navigate>{{ __('Bank reconciliation') }}</flux:sidebar.item>
                         @endcan
                         @can('ledger.manage')
                             <flux:sidebar.item icon="pencil-square" :href="route('ledger.journals.create')" :current="request()->routeIs('ledger.journals.create')" wire:navigate>{{ __('New journal') }}</flux:sidebar.item>

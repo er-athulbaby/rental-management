@@ -18,4 +18,7 @@ Route::middleware(['auth:web'])->prefix('ledger')->name('ledger.')->group(functi
     Route::livewire('journals', Reports\JournalListReport::class)->middleware('can:ledger.view')->name('journals');
     Route::livewire('cash-movements', Ledger\CashMovements::class)->middleware('can:ledger.view')->name('cash-movements');
     Route::livewire('vat-returns', Ledger\VatReturns::class)->middleware('can:ledger.view')->name('vat-returns');
+    Route::livewire('bank-reconciliation', Ledger\BankReconciliations::class)->middleware('can:ledger.view')->name('bank-reconciliation');
+    Route::livewire('bank-reconciliation/{reconciliation}', Ledger\BankReconciliationShow::class)->middleware('can:ledger.view')
+        ->whereNumber('reconciliation')->name('bank-reconciliation.show');
 });
