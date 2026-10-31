@@ -4,6 +4,7 @@ namespace App\Ledger;
 
 use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
+use App\Support\Fils;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,9 @@ use stdClass;
  * Bank reconciliation plan rulings 1–2: a ledger entry on a money account is one journal's net on that account, keyed by its
  * source (source type and id; "manual" and the journal id for a manual journal) and dated by its journal. The opening
  * journal is not an entry. Keys survive a rebuild, which re-posts the same sources.
+ *
+ * @phpstan-type Figures array{closing: int, in_transit: int, outstanding: int, adjusted: int, ledger: int, difference: int, opening: int, movement: int,
+ *     covered: bool, unmatched_lines: int, changed: int, in: list<stdClass>, out: list<stdClass>}
  */
 final class BankEntries
 {
@@ -101,6 +105,79 @@ final class BankEntries
                 [$text, $text, $text, $text])
             ->orderByDesc('hit')->orderByRaw('ABS(DATEDIFF(j.date, ?))', [$line->date->toDateString()])->orderBy('j.id')
             ->limit(20)->get()->all());
+    }
+
+    /**
+     * Plan ruling 4 (spec §4), in fils. An entry counts as matched when a reconciliation of the account ending on or before
+     * this one's end date matched it, so a finished reconciliation reads the same after later ones.
+     *
+     * @return Figures
+     */
+    public static function figures(BankReconciliation $rec): array
+    {
+        $account = $rec->ledger_account_id;
+        $end = $rec->end_date->toDateString();
+        $matches = DB::table('bank_matches as m')->join('bank_reconciliations as r', 'r.id', '=', 'm.bank_reconciliation_id')
+            ->where('m.ledger_account_id', $account)->where('r.end_date', '<=', $end)
+            ->get(['m.bank_reconciliation_id', 'm.entry_type', 'm.entry_id', 'm.amount']);
+        $matched = [];
+        foreach ($matches as $m) {
+            $matched[self::key((string) $m->entry_type, (int) $m->entry_id)] = true;
+        }
+
+        $live = [];
+        $in = [];
+        $out = [];
+        $inTransit = 0;
+        $outstanding = 0;
+        foreach (self::query($account, $end)->orderBy('j.date')->orderBy('j.id')->get() as $e) {
+            $key = self::key((string) $e->entry_type, (int) $e->entry_id);
+            $amount = Fils::fromDecimal((string) $e->amount);
+            $live[$key] = $amount;
+            if (isset($matched[$key])) {
+                continue;
+            }
+            if ($amount > 0) {
+                $in[] = $e;
+                $inTransit += $amount;
+            } else {
+                $out[] = $e;
+                $outstanding -= $amount;
+            }
+        }
+        $changed = $matches->filter(fn (stdClass $m) => (int) $m->bank_reconciliation_id === $rec->id
+            && ($live[self::key((string) $m->entry_type, (int) $m->entry_id)] ?? null) !== Fils::fromDecimal((string) $m->amount))->count();
+
+        $closing = Fils::fromDecimal($rec->closing_balance);
+        $opening = Fils::fromDecimal($rec->opening_balance);
+        $ledger = self::sum(DB::table('journal_lines as l')->join('journals as j', 'j.id', '=', 'l.journal_id')
+            ->where('l.ledger_account_id', $account)->where('j.date', '<=', $end)->sum(DB::raw('l.debit - l.credit')));
+        $movement = self::sum(DB::table('bank_statement_lines')
+            ->whereIn('id', DB::table('bank_matches')->where('bank_reconciliation_id', $rec->id)->select('bank_statement_line_id'))->sum('amount'));
+        $adjusted = $closing + $inTransit - $outstanding;
+
+        return [
+            'closing' => $closing,
+            'in_transit' => $inTransit,
+            'outstanding' => $outstanding,
+            'adjusted' => $adjusted,
+            'ledger' => $ledger,
+            'difference' => $adjusted - $ledger,
+            'opening' => $opening,
+            'movement' => $movement,
+            'covered' => $opening + $movement === $closing,
+            'unmatched_lines' => DB::table('bank_statement_lines as s')->where('s.ledger_account_id', $account)->where('s.date', '<=', $end)
+                ->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('bank_matches as m')->whereColumn('m.bank_statement_line_id', 's.id'))->count(),
+            'changed' => $changed,
+            'in' => $in,
+            'out' => $out,
+        ];
+    }
+
+    /** A SUM() result in fils (null or 0 when there are no rows). */
+    private static function sum(mixed $sum): int
+    {
+        return Fils::fromDecimal((string) ($sum ?: '0'));
     }
 
     /**
