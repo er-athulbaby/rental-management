@@ -1,8 +1,7 @@
 @props(['fields', 'values' => [], 'documents' => []])
 {{-- Spec 2026-10-21 custom fields §4: the "More details" inputs, the same for all five record kinds (plan ruling 2). --}}
 @if ($fields->isNotEmpty())
-    <flux:fieldset class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-        <flux:legend>{{ __('More details') }}</flux:legend>
+    <x-ui.section :title="__('More details')">
         <div class="grid gap-4 sm:grid-cols-2">
             @foreach ($fields as $field)
                 @php
@@ -59,5 +58,5 @@
                 </div>
             @endforeach
         </div>
-    </flux:fieldset>
+    </x-ui.section>
 @endif

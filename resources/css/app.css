@@ -9,7 +9,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    /* Arabic has no glyphs in Instrument Sans: the browser falls back to the next face that has them (spec §2). */
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, 'Segoe UI', Tahoma, 'Geeza Pro', 'Noto Sans Arabic', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     --color-zinc-50: #fafafa;
     --color-zinc-100: #f5f5f5;
@@ -23,16 +24,38 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    /*
+     * Design pass §2: charcoal and gold. Contrast (WCAG 2): brand-700 #8A5A0B on white 5.92:1 and white on it 5.92:1
+     * (buttons, links); brand-400 #E0A526 on charcoal 7.76:1 and on zinc-950 9.03:1 (only on dark surfaces);
+     * zinc-300 on charcoal 11.50:1, zinc-400 on charcoal 6.74:1 (sidebar text).
+     */
+    --color-brand-50: #fdf8ec;
+    --color-brand-100: #f9edcc;
+    --color-brand-200: #f2d894;
+    --color-brand-300: #ebbf55;
+    --color-brand-400: #e0a526;
+    --color-brand-500: #c68a12;
+    --color-brand-600: #a8700c;
+    --color-brand-700: #8a5a0b;
+    --color-brand-800: #70480e;
+    --color-brand-900: #5c3b10;
+    --color-brand-950: #352005;
+
+    --color-charcoal: #1c1c1f;
+    --color-charcoal-raised: #2a2a2e;
+    --color-charcoal-line: #3a3a3f;
+
+    --color-accent: var(--color-brand-700);
+    --color-accent-content: var(--color-brand-700);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
+    /* Dark surfaces (dark mode, and the always-charcoal sidebar and portal header, which carry the "dark" class). */
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-brand-400);
+        --color-accent-content: var(--color-brand-400);
+        --color-accent-foreground: var(--color-charcoal);
     }
 }
 
@@ -44,6 +67,12 @@
     ::backdrop,
     ::file-selector-button {
         border-color: var(--color-gray-200, currentColor);
+    }
+
+    /* Spec §9: a visible focus ring on everything focusable; Flux controls keep their own. */
+    :where(a, button, summary, [tabindex]:not([tabindex='-1'])):focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
     }
 }
 
@@ -141,4 +170,44 @@ progress.viz-ring::-webkit-progress-value {
 
 progress.viz-ring::-moz-progress-bar {
     background: transparent;
+}
+
+/*
+ * Design pass §3: list tables inside <x-ui.table>. Unlayered, so these win over Flux's utility classes.
+ * The scroll area is capped so the shaded header can stick inside it (plan ruling 7).
+ */
+.ui-table ui-table-scroll-area {
+    max-height: 75dvh;
+}
+
+.ui-table [data-flux-column] {
+    @apply sticky top-0 z-10 bg-zinc-50 py-2.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300;
+}
+
+.ui-table [data-flux-column]:first-child,
+.ui-table [data-flux-cell]:first-child {
+    padding-inline-start: 1rem;
+}
+
+.ui-table [data-flux-column]:last-child,
+.ui-table [data-flux-cell]:last-child {
+    padding-inline-end: 1rem;
+}
+
+.ui-table tbody tr:hover > [data-flux-cell] {
+    @apply bg-zinc-50 dark:bg-white/5;
+}
+
+.ui-table [data-flux-cell] > [data-flux-link]:first-child {
+    @apply font-semibold;
+}
+
+.ui-table [data-flux-pagination] {
+    @apply px-4 pb-3;
+}
+
+/* Design pass §6: a required field's label ends in a red asterisk; aria-required marks server-required fields without changing how the form submits (plan ruling 8). */
+[data-flux-field]:has(:is(input, select, textarea):is([required], [aria-required='true'])) [data-flux-label]::after {
+    content: ' *';
+    @apply text-red-600 dark:text-red-400;
 }
