@@ -1,12 +1,16 @@
+@php
+    $brand = \App\Models\CompanySetting::brand();
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="min-h-screen bg-white dark:bg-zinc-950">
+        {{-- Design pass §4: charcoal in both modes. The "dark" class gives Flux's light-on-dark item styles and the bright-gold accent (plan ruling 6). --}}
+        <flux:sidebar sticky collapsible="mobile" class="dark border-e border-charcoal-line bg-charcoal text-white">
             <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                <x-ui.brand :name="$brand['name']" :logo="$brand['logo']" :href="route('dashboard')" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
@@ -21,7 +25,7 @@
                     @endcan
                 </flux:sidebar.group>
 
-                <flux:sidebar.group :heading="__('Leasing')" class="grid">
+                <x-ui.nav-group key="leasing" :heading="__('Leasing')" :current="request()->routeIs('customers.*', 'agreements.*', 'reminders.*')">
                     @can('customers.view')
                         <flux:sidebar.item icon="identification" :href="route('customers.index')" :current="request()->routeIs('customers.*')" wire:navigate>{{ __('Tenants') }}</flux:sidebar.item>
                     @endcan
@@ -31,10 +35,11 @@
                     @canany(['finance.view', 'agreements.view'])
                         <flux:sidebar.item icon="bell" :href="route('reminders.index')" :current="request()->routeIs('reminders.*')" wire:navigate>{{ __('Reminders') }}</flux:sidebar.item>
                     @endcanany
-                </flux:sidebar.group>
+                </x-ui.nav-group>
 
                 @can('finance.view')
-                    <flux:sidebar.group :heading="__('Finance')" class="grid">
+                    <x-ui.nav-group key="finance" :heading="__('Finance')"
+                        :current="request()->routeIs('invoices.*', 'payments.*', 'cheques.*', 'disbursements.*', 'owner-payables.*', 'owner-statements.*', 'deposit-settlements.*')">
                         <flux:sidebar.item icon="banknotes" :href="route('invoices.index')" :current="request()->routeIs('invoices.*')" wire:navigate>{{ __('Invoices') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="credit-card" :href="route('payments.index')" :current="request()->routeIs('payments.*')" wire:navigate>{{ __('Payments') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="banknotes" :href="route('cheques.index')" :current="request()->routeIs('cheques.*')" wire:navigate>{{ __('Cheques') }}</flux:sidebar.item>
@@ -42,11 +47,11 @@
                         <flux:sidebar.item icon="calendar-days" :href="route('owner-payables.index')" :current="request()->routeIs('owner-payables.*')" wire:navigate>{{ __('Head-lease due') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="document-chart-bar" :href="route('owner-statements.index')" :current="request()->routeIs('owner-statements.*')" wire:navigate>{{ __('Owner statements') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="shield-check" :href="route('deposit-settlements.index')" :current="request()->routeIs('deposit-settlements.*')" wire:navigate>{{ __('Deposit settlements') }}</flux:sidebar.item>
-                    </flux:sidebar.group>
+                    </x-ui.nav-group>
                 @endcan
 
                 @canany(['ledger.view', 'ledger.admin'])
-                    <flux:sidebar.group :heading="__('Ledger')" class="grid">
+                    <x-ui.nav-group key="ledger" :heading="__('Ledger')" :current="request()->routeIs('ledger.*')">
                         @can('ledger.view')
                             <flux:sidebar.item icon="book-open" :href="route('ledger.index')" :current="request()->routeIs('ledger.index')" wire:navigate>{{ __('Ledger health') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="scale" :href="route('ledger.trial-balance')" :current="request()->routeIs('ledger.trial-balance')" wire:navigate>{{ __('Trial balance') }}</flux:sidebar.item>
@@ -65,19 +70,19 @@
                             <flux:sidebar.item icon="list-bullet" :href="route('ledger.accounts')" :current="request()->routeIs('ledger.accounts')" wire:navigate>{{ __('Accounts and rules') }}</flux:sidebar.item>
                             <flux:sidebar.item icon="flag" :href="route('ledger.setup')" :current="request()->routeIs('ledger.setup')" wire:navigate>{{ __('Start date and opening balances') }}</flux:sidebar.item>
                         @endcan
-                    </flux:sidebar.group>
+                    </x-ui.nav-group>
                 @endcanany
 
                 @canany(['reports.operational', 'reports.financial'])
-                    <flux:sidebar.group :heading="__('Reports')" class="grid">
+                    <x-ui.nav-group key="reports" :heading="__('Reports')" :current="request()->routeIs('reports.*')">
                         <flux:sidebar.item icon="document-chart-bar" :href="route('reports.index')" :current="request()->routeIs('reports.index')" wire:navigate>{{ __('All reports') }}</flux:sidebar.item>
                         @can('reports.financial')
                             <flux:sidebar.item icon="chart-bar" :href="route('reports.building-profitability')" :current="request()->routeIs('reports.building-profitability')" wire:navigate>{{ __('Building profitability') }}</flux:sidebar.item>
                         @endcan
-                    </flux:sidebar.group>
+                    </x-ui.nav-group>
                 @endcanany
 
-                <flux:sidebar.group :heading="__('Property')" class="grid">
+                <x-ui.nav-group key="property" :heading="__('Property')" :current="request()->routeIs('buildings.*', 'units.*', 'owners.*', 'owner-contracts.*', 'expenses.*')">
                     @can('buildings.view')
                         <flux:sidebar.item icon="building-office-2" :href="route('buildings.index')" :current="request()->routeIs('buildings.*')" wire:navigate>{{ __('Buildings') }}</flux:sidebar.item>
                     @endcan
@@ -93,18 +98,18 @@
                     @can('viewAny', \App\Models\Expense::class)
                         <flux:sidebar.item icon="receipt-percent" :href="route('expenses.index')" :current="request()->routeIs('expenses.*')" wire:navigate>{{ __('Expenses') }}</flux:sidebar.item>
                     @endcan
-                </flux:sidebar.group>
+                </x-ui.nav-group>
 
                 @can('maintenance.view')
-                    <flux:sidebar.group :heading="__('Maintenance')" class="grid">
+                    <x-ui.nav-group key="maintenance" :heading="__('Maintenance')" :current="request()->routeIs('maintenance.*')">
                         <flux:sidebar.item icon="wrench-screwdriver" :href="route('maintenance.requests.index')" :current="request()->routeIs('maintenance.requests.*')" wire:navigate>{{ __('Requests') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="clipboard-document-check" :href="route('maintenance.work-orders.index')" :current="request()->routeIs('maintenance.work-orders.*')" wire:navigate>{{ __('Work orders') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="truck" :href="route('maintenance.vendors.index')" :current="request()->routeIs('maintenance.vendors.*')" wire:navigate>{{ __('Vendors') }}</flux:sidebar.item>
-                    </flux:sidebar.group>
+                    </x-ui.nav-group>
                 @endcan
 
                 @canany(['users.manage', 'roles.manage', 'settings.manage', 'templates.manage', 'audit.view', 'import.run'])
-                    <flux:sidebar.group :heading="__('Administration')" class="grid">
+                    <x-ui.nav-group key="administration" :heading="__('Administration')" :current="request()->routeIs('admin.*', 'import.*')">
                         @can('users.manage')
                             <flux:sidebar.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" wire:navigate>{{ __('Users') }}</flux:sidebar.item>
                         @endcan
@@ -129,23 +134,25 @@
                         @can('import.run')
                             <flux:sidebar.item icon="arrow-up-tray" :href="route('import.index')" :current="request()->routeIs('import.*')" wire:navigate>{{ __('Data import') }}</flux:sidebar.item>
                         @endcan
-                    </flux:sidebar.group>
+                    </x-ui.nav-group>
                 @endcanany
             </flux:sidebar.nav>
 
             <flux:spacer />
 
-            <div class="px-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            <div class="px-2 text-xs leading-5 text-zinc-400">
                 <div>{{ __('Version :v', ['v' => config('app.version')]) }}</div>
-                <div>{{ __('Developed by') }} <a href="https://deverra.me" target="_blank" rel="noopener" class="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-white">DeVerra Technologies</a></div>
+                <div>{{ __('Developed by') }} <a href="https://deverra.me" target="_blank" rel="noopener" class="font-medium text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:text-white">DeVerra Technologies</a></div>
             </div>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
-        <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
+        <!-- Mobile header: the same charcoal, the brand, the menu toggle and the user menu (items unchanged). -->
+        <flux:header class="dark border-b border-charcoal-line bg-charcoal text-white lg:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+
+            <x-ui.brand class="ms-2" :name="$brand['name']" :logo="$brand['logo']" :href="route('dashboard')" wire:navigate />
 
             <flux:spacer />
 

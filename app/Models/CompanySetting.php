@@ -73,6 +73,27 @@ class CompanySetting extends Model
         return once(fn () => static::query()->findOrFail(1));
     }
 
+    /**
+     * Design pass §4/§8: the name and logo the sidebar, the portal header and the sign-in pages show. The Arabic name on
+     * Arabic pages when there is one; the app name before the first settings row exists (plan ruling 5). The logo URL
+     * carries the settings' updated_at so a new upload is fetched at once (plan ruling 4).
+     *
+     * @return array{name: string, logo: ?string}
+     */
+    public static function brand(): array
+    {
+        $company = static::query()->find(1);
+        if ($company === null) {
+            return ['name' => (string) config('app.name'), 'logo' => null];
+        }
+        $arabic = app()->getLocale() === 'ar' && filled($company->name_ar);
+
+        return [
+            'name' => $arabic ? (string) $company->name_ar : $company->name_en,
+            'logo' => filled($company->logo_path) ? route('brand.logo', ['v' => $company->updated_at?->getTimestamp()]) : null,
+        ];
+    }
+
     protected static function booted(): void
     {
         static::saved(fn () => Once::flush());
