@@ -10,7 +10,7 @@
             @endif
             <div class="flex flex-wrap items-center gap-2">
                 <flux:heading size="xl" level="1">{{ $title }}</flux:heading>
-                @if ($status !== null)
+                @if (filled($status))
                     <x-status-badge :status="$status" />
                 @endif
             </div>

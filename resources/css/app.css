@@ -27,7 +27,7 @@
     /*
      * Design pass §2: charcoal and gold. Contrast (WCAG 2): brand-700 #8A5A0B on white 5.92:1 and white on it 5.92:1
      * (buttons, links); brand-400 #E0A526 on charcoal 7.76:1 and on zinc-950 9.03:1 (only on dark surfaces);
-     * zinc-300 on charcoal 11.50:1, zinc-400 on charcoal 6.74:1 (sidebar text).
+     * zinc-300 on charcoal 11.47:1, zinc-400 on charcoal 6.74:1 (sidebar text).
      */
     --color-brand-50: #fdf8ec;
     --color-brand-100: #f9edcc;
@@ -69,7 +69,7 @@
         border-color: var(--color-gray-200, currentColor);
     }
 
-    /* Spec §9: a visible focus ring on everything focusable; Flux controls keep their own. */
+    /* Spec §9: a visible focus ring on everything focusable (Flux buttons included). */
     :where(a, button, summary, [tabindex]:not([tabindex='-1'])):focus-visible {
         outline: 2px solid var(--color-accent);
         outline-offset: 2px;
@@ -208,6 +208,11 @@ progress.viz-ring::-moz-progress-bar {
 
 /* Design pass §6: a required field's label ends in a red asterisk; aria-required marks server-required fields without changing how the form submits (plan ruling 8). */
 [data-flux-field]:has(:is(input, select, textarea):is([required], [aria-required='true'])) [data-flux-label]::after {
-    content: ' *';
-    @apply text-red-600 dark:text-red-400;
+    content: ' *' / '';
+    color: var(--color-red-600);
+}
+
+/* Written by hand: @apply dark: on a pseudo-element compiles to a selector that matches nothing. */
+:where(.dark, .dark *) [data-flux-field]:has(:is(input, select, textarea):is([required], [aria-required='true'])) [data-flux-label]::after {
+    color: var(--color-red-400);
 }
