@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BrandLogoController;
 use App\Http\Middleware\EnsureTwoFactorIsConfirmed;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\PortalAccess;
@@ -18,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         then: function () {
             // Outside the web group: no session row per uptime ping.
+            // Design pass plan ruling 4: the company logo, public and read-only; no session, so no cookie on a cacheable response and no 2FA redirect for staff still setting up.
+            Route::get('/brand/logo', BrandLogoController::class)->middleware('throttle:120,1')->name('brand.logo');
             Route::get('/health', function () {
                 DB::select('select 1');
 

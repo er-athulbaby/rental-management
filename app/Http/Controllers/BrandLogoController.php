@@ -17,6 +17,6 @@ class BrandLogoController
         $path = CompanySetting::query()->whereKey(1)->value('logo_path');
         abort_unless(is_string($path) && $path !== '' && Storage::disk('local')->exists($path), 404);
 
-        return Storage::disk('local')->response($path, null, ['Cache-Control' => 'public, max-age=86400']);
+        return Storage::disk('local')->response($path, null, ['Cache-Control' => 'public, max-age=86400', 'X-Content-Type-Options' => 'nosniff']);
     }
 }

@@ -82,7 +82,7 @@ class CompanySetting extends Model
      */
     public static function brand(): array
     {
-        $company = static::query()->find(1);
+        $company = once(fn () => static::query()->find(1)); // flushed on save, like current()
         if ($company === null) {
             return ['name' => (string) config('app.name'), 'logo' => null];
         }
