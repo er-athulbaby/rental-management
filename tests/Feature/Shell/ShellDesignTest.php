@@ -132,3 +132,17 @@ test('Management sees Approvals with the pending count', function () {
     $this->actingAs($management)->get(route('dashboard'))->assertOk()
         ->assertSeeInOrder([route('approvals.index'), 'Approvals', '>1<'], false);
 });
+
+test('the staff sign-in page is a card with the company brand panel', function () {
+    CompanySetting::factory()->create(['name_en' => 'Gulf Homes W.L.L.']);
+
+    $this->get(route('login'))->assertOk()
+        ->assertSee('data-ui-auth-card', false)
+        ->assertSeeInOrder(['Gulf Homes W.L.L.', 'Log in to your account']);
+});
+
+test('the portal sign-in page is the same card, in Arabic too', function () {
+    CompanySetting::factory()->create(['name_en' => 'Gulf Homes', 'name_ar' => 'بيوت الخليج']);
+
+    $this->get(route('portal.login'))->assertOk()->assertSee('data-ui-auth-card', false)->assertSee('Sign in to the portal');
+});
