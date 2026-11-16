@@ -1,48 +1,45 @@
-<section class="w-full max-w-2xl space-y-8">
-    <flux:heading size="xl" level="1">{{ __('Company settings') }}</flux:heading>
+<section class="w-full max-w-3xl space-y-6">
+    <x-ui.page-header :title="__('Company settings')" />
 
-    <form wire:submit="save" class="space-y-8">
-        <flux:fieldset>
-            <flux:legend>{{ __('Profile') }}</flux:legend>
-            <div class="space-y-4">
+    <form wire:submit="save" class="space-y-6">
+        <x-ui.section :title="__('Profile')">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <flux:input wire:model="form.name_en" :label="__('Name (English)')" required />
                 <flux:input wire:model="form.name_ar" :label="__('Name (Arabic)')" dir="rtl" />
                 <flux:input wire:model="form.cr_number" :label="__('CR number')" />
-                <flux:textarea wire:model="form.address_en" :label="__('Address (English)')" rows="2" />
-                <flux:textarea wire:model="form.address_ar" :label="__('Address (Arabic)')" rows="2" dir="rtl" />
                 <flux:input wire:model="form.phone" :label="__('Phone')" type="tel" />
                 <flux:input wire:model="form.email" :label="__('Email')" type="email" />
                 <flux:input wire:model="form.website" :label="__('Website')" type="url" />
-                <flux:field>
+                <flux:textarea wire:model="form.address_en" :label="__('Address (English)')" rows="2" class="sm:col-span-2" />
+                <flux:textarea wire:model="form.address_ar" :label="__('Address (Arabic)')" rows="2" dir="rtl" class="sm:col-span-2" />
+                <flux:field class="sm:col-span-2">
                     <flux:label>{{ __('Logo (PNG or JPG, max 2 MB)') }}</flux:label>
                     <x-file-button wire:model="logo" accept="image/png,image/jpeg" />
                     <flux:error name="logo" />
                 </flux:field>
             </div>
-        </flux:fieldset>
+        </x-ui.section>
 
-        <flux:fieldset>
-            <flux:legend>{{ __('Contract layout') }}</flux:legend>
-            <div class="space-y-4">
+        <x-ui.section :title="__('Contract layout')">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <flux:input wire:model="form.contract_stamp_space_mm" type="number" min="0" max="120" :label="__('Blank space at the top of page 1 (mm)')"
-                    :description="__('For printing contracts on official stamp paper: leave enough room for the printed stamp band. 0 = no space.')" />
-                <flux:field>
+                    :description="__('For printing contracts on official stamp paper: leave enough room for the printed stamp band. 0 = no space.')" class="sm:col-span-2" />
+                <flux:field class="sm:col-span-2">
                     <flux:label>{{ __('Contract letterhead (PNG or JPG, max 2 MB)') }}</flux:label>
                     <flux:description>{{ __('Your company\'s own letterhead, shown at the top of page 1. Not a government stamp: print on official stamp paper for that.') }}</flux:description>
                     <x-file-button wire:model="contractHeader" accept="image/png,image/jpeg" />
                     <flux:error name="contractHeader" />
                 </flux:field>
                 @if ($hasContractHeader)
-                    <flux:checkbox wire:model="removeContractHeader" :label="__('Remove the current letterhead')" />
+                    <flux:checkbox wire:model="removeContractHeader" :label="__('Remove the current letterhead')" class="sm:col-span-2" />
                 @endif
-                <flux:text class="text-sm">{{ __('Applies to contracts approved from now on. Contracts already approved keep the PDF they were stored with.') }}</flux:text>
+                <flux:text class="text-sm sm:col-span-2">{{ __('Applies to contracts approved from now on. Contracts already approved keep the PDF they were stored with.') }}</flux:text>
             </div>
-        </flux:fieldset>
+        </x-ui.section>
 
-        <flux:fieldset>
-            <flux:legend>{{ __('Tax') }}</flux:legend>
-            <div class="space-y-4">
-                <flux:checkbox wire:model="form.vat_registered" :label="__('VAT registered')" />
+        <x-ui.section :title="__('Tax')">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <flux:checkbox wire:model="form.vat_registered" :label="__('VAT registered')" class="sm:col-span-2" />
                 <flux:input wire:model="form.trn" :label="__('TRN')" />
                 <flux:input wire:model="form.vat_rate" :label="__('VAT rate (%)')" inputmode="decimal" />
                 <flux:select wire:model="form.residential_tax_category" :label="__('Default tax for residential units')">
@@ -56,11 +53,10 @@
                     @endforeach
                 </flux:select>
             </div>
-        </flux:fieldset>
+        </x-ui.section>
 
-        <flux:fieldset>
-            <flux:legend>{{ __('Locale and billing') }}</flux:legend>
-            <div class="space-y-4">
+        <x-ui.section :title="__('Locale and billing')">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <flux:input wire:model="form.currency_code" :label="__('Currency code')" maxlength="3" />
                 <flux:select wire:model="form.date_format" :label="__('Date format')">
                     <option value="d/m/Y">DD/MM/YYYY</option>
@@ -75,8 +71,10 @@
                     @endforeach
                 </flux:select>
             </div>
-        </flux:fieldset>
+        </x-ui.section>
 
-        <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+        <x-ui.form-actions>
+            <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+        </x-ui.form-actions>
     </form>
 </section>

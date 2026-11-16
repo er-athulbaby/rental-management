@@ -129,13 +129,17 @@ class Create extends Component
     {
         $customer = Customer::findOrFail($this->customerId);
 
+        $open = Invoice::query()->where('customer_id', $customer->id)->where('status', InvoiceStatus::Issued)
+            ->where('type', '!=', InvoiceType::CreditNote)->where('balance', '>', 0)->orderBy('due_date')->orderBy('id')->get();
+
         return view('livewire.payments.create', [
             'customer' => $customer,
             'methods' => PaymentMethod::manual(),
             'isSplit' => $this->isSplit(),
             'tendersTotal' => $this->isSplit() ? $this->tendersTotal() : null,
-            'open' => Invoice::query()->where('customer_id', $customer->id)->where('status', InvoiceStatus::Issued)
-                ->where('type', '!=', InvoiceType::CreditNote)->where('balance', '>', 0)->orderBy('due_date')->orderBy('id')->get(),
+            'open' => $open,
+            // Design pass §7: what the tenant owes now, beside the form (the loaded rows, no extra query).
+            'owed' => Fils::toDecimal($open->sum(fn (Invoice $i) => Fils::fromDecimal((string) $i->balance))),
         ]);
     }
 }

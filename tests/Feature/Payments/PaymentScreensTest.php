@@ -30,6 +30,7 @@ beforeEach(function () {
 test('Finance records a payment that pays oldest first by default', function () {
     Livewire::withQueryParams(['customer' => $this->customer->id])->actingAs($this->finance)->test(Create::class)
         ->assertSee($this->a->number)
+        ->assertViewHas('owed', '700.000')->assertSeeInOrder(['Owed now', '700.000 BHD'])
         ->set('form.amount', '500')
         ->set('form.method', 'bank_transfer')
         ->set('form.reference', 'BBK-778')

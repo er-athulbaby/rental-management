@@ -21,6 +21,9 @@ test('every string the design pass adds has an Arabic translation', function () 
         'Hello, :name', 'Needs attention', 'Nothing needs attention.', 'Cheques to deposit this week', 'Bounced cheques', 'Approvals waiting',
         'Agreements expiring in 60 days', 'Urgent maintenance requests', 'Reminders', 'Reminders and notes', 'Amendments', 'Notice and move-out',
         'Approval history', 'ID',
+        // Task 8: key screens B
+        'Running total', 'Owed now', 'Open invoices', 'This payment', 'Allocated by hand', 'All monthly charges', 'Total deposit', 'Terms',
+        'Owner and building', 'Remove unit', 'Remove charge', 'BHD',
     ];
 
     expect(array_values(array_diff($keys, array_keys($ar))))->toBe([]);

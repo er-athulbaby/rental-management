@@ -1,17 +1,24 @@
 <section class="w-full max-w-6xl space-y-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <flux:heading size="xl" level="1">{{ __('Bank reconciliation') }} · {{ $rec->account->label() }} · {{ $rec->end_date->format('d/m/Y') }}</flux:heading>
-        <flux:button :href="route('ledger.bank-reconciliation', ['account' => (string) $rec->ledger_account_id])" wire:navigate>{{ __('Back') }}</flux:button>
-    </div>
-    <p class="text-sm">
-        {{ $open ? __('Open') : __('Finished :date by :name', ['date' => $rec->finished_at?->timezone('Asia/Bahrain')->format('d/m/Y H:i'), 'name' => $rec->finisher?->name]) }}
-    </p>
+    <x-ui.page-header :title="__('Bank reconciliation').' · '.$rec->account->label().' · '.$rec->end_date->format('d/m/Y')"
+        :hint="$open ? __('Open') : __('Finished :date by :name', ['date' => $rec->finished_at?->timezone('Asia/Bahrain')->format('d/m/Y H:i'), 'name' => $rec->finisher?->name])"
+        :back="route('ledger.bank-reconciliation', ['account' => (string) $rec->ledger_account_id])" />
 
-    <dl class="grid max-w-xl gap-1 tabular-nums">
-        @foreach ($figures as [$label, $value])
-            <div class="flex justify-between gap-4"><dt>{{ $label }}</dt><dd>{{ $value }}</dd></div>
-        @endforeach
-    </dl>
+    @php
+        [, $closing, , , , $ledgerFigure, $difference, $unmatchedLines] = $figures; // not $inTransit/$outstanding: those are the entry lists below
+    @endphp
+    <x-ui.stats>
+        <x-ui.stat :label="$closing[0]" :value="$closing[1]" />
+        <x-ui.stat :label="$ledgerFigure[0]" :value="$ledgerFigure[1]" />
+        <x-ui.stat :label="$difference[0]" :value="$difference[1]" :tone="$difference[1] === '0.000' ? 'success' : 'danger'" />
+        <x-ui.stat :label="$unmatchedLines[0]" :value="$unmatchedLines[1]" :tone="$unmatchedLines[1] === '0' ? null : 'warning'" />
+    </x-ui.stats>
+    <x-ui.section>
+        <dl class="grid max-w-xl gap-1 tabular-nums">
+            @foreach ($figures as [$label, $value])
+                <div class="flex justify-between gap-4"><dt>{{ $label }}</dt><dd>{{ $value }}</dd></div>
+            @endforeach
+        </dl>
+    </x-ui.section>
 
     <div class="flex flex-wrap gap-2">
         @if ($open && $canManage)
@@ -29,9 +36,8 @@
         @endforeach
     @endforeach
 
-    <div class="space-y-2">
-        <flux:heading size="lg">{{ __('Unmatched statement lines') }}</flux:heading>
-        <flux:table>
+    <x-ui.section :title="__('Unmatched statement lines')">
+        <x-ui.table><flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
                 <flux:table.column>{{ __('Description') }}</flux:table.column>
@@ -54,11 +60,11 @@
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>
-        </flux:table>
+        </flux:table></x-ui.table>
         @if ($unmatchedCount > $unmatched->count())
             <p class="text-sm">{{ __('Showing :shown of :total', ['shown' => $unmatched->count(), 'total' => $unmatchedCount]) }}</p>
         @endif
-    </div>
+    </x-ui.section>
 
     @if ($line !== null)
         <div class="space-y-4 rounded-lg border border-zinc-300 p-4 dark:border-zinc-600">
@@ -111,9 +117,8 @@
         </div>
     @endif
 
-    <div class="space-y-2">
-        <flux:heading size="lg">{{ __('Matched statement lines') }}</flux:heading>
-        <flux:table>
+    <x-ui.section :title="__('Matched statement lines')">
+        <x-ui.table><flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
                 <flux:table.column>{{ __('Description') }}</flux:table.column>
@@ -140,13 +145,12 @@
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>
-        </flux:table>
-    </div>
+        </flux:table></x-ui.table>
+    </x-ui.section>
 
     @foreach ([__('Deposits in transit') => $inTransit, __('Outstanding payments') => $outstanding] as $title => $list)
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ $title }}</flux:heading>
-            <flux:table>
+        <x-ui.section :title="$title">
+            <x-ui.table><flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('Date') }}</flux:table.column>
                     <flux:table.column>{{ __('Source') }}</flux:table.column>
@@ -163,7 +167,7 @@
                         </flux:table.row>
                     @endforeach
                 </flux:table.rows>
-            </flux:table>
-        </div>
+            </flux:table></x-ui.table>
+        </x-ui.section>
     @endforeach
 </section>
