@@ -1,7 +1,14 @@
+@php
+    $filtered = (bool) $building;
+@endphp
 <div class="space-y-4">
-    <flux:heading size="xl">{{ __('Head-lease payments due') }}</flux:heading>
+    <x-ui.page-header :title="__('Head-lease payments due')">
+        <x-slot:actions>
+            @can('reports.financial')<flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button>@endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="grid gap-3 sm:grid-cols-3">
+    <x-ui.filters :clear="$filtered ? route('owner-payables.index') : null">
         <flux:select wire:model.live="building" :label="__('Building')">
             <flux:select.option value="">{{ __('All buildings') }}</flux:select.option>
             @foreach ($buildings as $b)
@@ -9,10 +16,9 @@
             @endforeach
         </flux:select>
         <x-date-input wire:model.live="dueBy" :label="__('Due by')" />
-        @can('reports.financial')<div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>@endcan
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Due') }}</flux:table.column>
@@ -41,7 +47,7 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 
     <flux:modal name="pay-head-lease" class="md:w-96">
         <form wire:submit="pay" class="space-y-4">

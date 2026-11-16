@@ -82,3 +82,10 @@ test('a failed overlap re-check on approval shows as an approval error and leave
 
     expect($this->contract->fresh()->status)->toBe(OwnerContractStatus::PendingApproval);
 });
+
+test('approval figures: how many wait, and how many this approver may decide', function () {
+    app(SubmitOwnerContract::class)->handle($this->finance, $this->contract);
+
+    Livewire::actingAs($this->management)->test(Index::class)
+        ->assertSeeInOrder(['Waiting', '1', 'For you to decide', '1']);
+});

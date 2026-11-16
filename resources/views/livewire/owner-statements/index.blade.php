@@ -1,7 +1,10 @@
+@php
+    $filtered = $status !== '' || $building || $contract;
+@endphp
 <div class="space-y-4">
-    <flux:heading size="xl">{{ __('Owner statements') }}</flux:heading>
+    <x-ui.page-header :title="__('Owner statements')" />
 
-    <div class="grid gap-3 sm:grid-cols-3">
+    <x-ui.filters :clear="$filtered ? route('owner-statements.index') : null">
         <flux:select wire:model.live="status" :label="__('Status')">
             <flux:select.option value="">{{ __('All') }}</flux:select.option>
             @foreach ($statuses as $s)
@@ -14,9 +17,9 @@
                 <flux:select.option :value="$b->id">{{ $b->code }} — {{ $b->name }}</flux:select.option>
             @endforeach
         </flux:select>
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$statements">
             <flux:table.columns>
                 <flux:table.column>{{ __('Month') }}</flux:table.column>
@@ -39,5 +42,5 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 </div>

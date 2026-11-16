@@ -1,22 +1,26 @@
+@php
+    $filtered = $search !== '' || $this->building || ! empty($more);
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Tenants') }}</flux:heading>
-        @can('create', \App\Models\Customer::class)
-            <flux:button variant="primary" :href="route('customers.create')" wire:navigate>{{ __('New tenant') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Tenants')">
+        <x-slot:actions>
+            @can('create', \App\Models\Customer::class)
+                <flux:button variant="primary" icon="plus" :href="route('customers.create')" wire:navigate>{{ __('New tenant') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('customers.index') : null">
         <x-building-filter :buildings="$this->buildings" label="" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name, mobile, ID number or unit')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
     <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
     @if ($hint)
         <flux:callout icon="information-circle" :heading="$hint" />
     @endif
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$customers">
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -33,5 +37,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($customers->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

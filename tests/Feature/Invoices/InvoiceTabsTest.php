@@ -43,9 +43,9 @@ test('tabs split invoices into unpaid, overdue, paid, upcoming and drafts, with 
     expect($page->viewData('counts'))->toBe(['unpaid' => 2, 'overdue' => 1, 'paid' => 1, 'upcoming' => 2, 'drafts' => 1, 'all' => 6])
         ->and($page->viewData('owed'))->toBe(['unpaid' => '160.000', 'overdue' => '100.000']);
 
-    $page->assertSee('Owed: 160.000 BHD')
+    $page->assertSeeInOrder(['Owed', '160.000 BHD', 'Overdue', '100.000 BHD'])
         ->assertSee($this->overdue->number)->assertSee($this->notYetDue->number)->assertDontSee($this->paid->number)
-        ->set('tab', 'overdue')->assertSee('Overdue: 100.000 BHD')->assertSee('49 days overdue')->assertDontSee($this->notYetDue->number)
+        ->set('tab', 'overdue')->assertSeeInOrder(['Owed', '160.000 BHD', 'Overdue', '100.000 BHD'])->assertSee('49 days overdue')->assertDontSee($this->notYetDue->number)
         ->set('tab', 'paid')->assertSee($this->paid->number)->assertDontSee($this->overdue->number)
         ->set('tab', 'nonsense')->assertSee($this->overdue->number); // an unknown tab falls back to Unpaid
 });

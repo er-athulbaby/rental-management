@@ -1,5 +1,11 @@
 <section class="w-full max-w-4xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Pending approvals') }}</flux:heading>
+    <x-ui.page-header :title="__('Pending approvals')" />
+
+    <x-ui.stats :cols="2">
+        <x-ui.stat :label="__('Waiting')" :value="$rows->count()" :tone="$rows->isNotEmpty() ? 'warning' : null" />
+        <x-ui.stat :label="__('For you to decide')" :value="$rows->where('mine', false)->count()" />
+    </x-ui.stats>
+
     <flux:error name="approval" />
 
     @forelse ($rows as $row)
@@ -37,6 +43,6 @@
             @endif
         </flux:card>
     @empty
-        <flux:text>{{ __('Nothing is waiting for approval.') }}</flux:text>
+        <x-ui.empty :title="__('Nothing is waiting for approval.')" icon="check-badge" />
     @endforelse
 </section>

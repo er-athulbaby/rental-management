@@ -1,12 +1,22 @@
+@php
+    $filtered = $status !== '' || $expiring || $search !== '' || $this->building || ! empty($more);
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Agreements') }}</flux:heading>
-        @can('create', \App\Models\Agreement::class)
-            <flux:button variant="primary" :href="route('agreements.create')" wire:navigate>{{ __('New agreement') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Agreements')">
+        <x-slot:actions>
+            @can('create', \App\Models\Agreement::class)
+                <flux:button variant="primary" icon="plus" :href="route('agreements.create')" wire:navigate>{{ __('New agreement') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Active')" :value="$stats['active']" :href="route('agreements.index', ['status' => 'active'])" />
+        <x-ui.stat :label="__('Pending approval')" :value="$stats['pending']" :tone="$stats['pending'] > 0 ? 'warning' : null" :href="route('agreements.index', ['status' => 'pending_approval'])" />
+        <x-ui.stat :label="__('Expiring in 60 days')" :value="$stats['expiring']" :tone="$stats['expiring'] > 0 ? 'warning' : null" :href="route('agreements.index', ['expiring' => 60])" />
+    </x-ui.stats>
+
+    <x-ui.filters :clear="$filtered ? route('agreements.index') : null">
         <flux:select wire:model.live="status" class="sm:max-w-48">
             <option value="">{{ __('All statuses') }}</option>
             @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
@@ -19,10 +29,10 @@
         </flux:select>
         <x-building-filter :buildings="$this->buildings" label="" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number, tenant, mobile or unit')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
     <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$agreements">
             <flux:table.columns>
                 <flux:table.column>{{ __('Number') }}</flux:table.column>
@@ -43,5 +53,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($agreements->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

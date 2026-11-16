@@ -1,12 +1,23 @@
+@php
+    $filtered = $type !== '' || $search !== '' || $this->building;
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl" level="1">{{ __('Invoices') }}</flux:heading>
-        @if ($canCreate)
-            <flux:modal.trigger name="new-invoice">
-                <flux:button variant="primary">{{ __('New invoice') }}</flux:button>
-            </flux:modal.trigger>
-        @endif
-    </div>
+    <x-ui.page-header :title="__('Invoices')">
+        <x-slot:actions>
+            @if ($canCreate)
+                <flux:modal.trigger name="new-invoice">
+                    <flux:button variant="primary" icon="plus">{{ __('New invoice') }}</flux:button>
+                </flux:modal.trigger>
+            @endif
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.stats>
+        <x-ui.stat :label="__('Owed')" :value="__(':amount BHD', ['amount' => $owed['unpaid']])" />
+        <x-ui.stat :label="__('Overdue')" :value="__(':amount BHD', ['amount' => $owed['overdue']])" :tone="$owed['overdue'] !== '0.000' ? 'danger' : null" />
+        <x-ui.stat :label="__('Overdue invoices')" :value="$counts['overdue']" :tone="$counts['overdue'] > 0 ? 'danger' : null" :href="route('invoices.index', ['tab' => 'overdue'])" />
+        <x-ui.stat :label="__('Drafts')" :value="$counts['drafts']" :href="route('invoices.index', ['tab' => 'drafts'])" />
+    </x-ui.stats>
 
     @if ($canCreate)
         <flux:modal name="new-invoice" class="md:w-96">
@@ -26,8 +37,8 @@
             @foreach ($tabLabels as $key => $label)
                 <button type="button" role="tab" aria-selected="{{ $currentTab === $key ? 'true' : 'false' }}" wire:click="$set('tab', '{{ $key }}')"
                     @class([
-                        'flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-inset',
-                        'border-zinc-800 text-zinc-900 dark:border-white dark:text-white' => $currentTab === $key,
+                        'flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
+                        'border-accent text-accent-content' => $currentTab === $key,
                         'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' => $currentTab !== $key,
                     ])>
                     {{ $label }}
@@ -37,23 +48,18 @@
                 </button>
             @endforeach
         </div>
-        @if (in_array($currentTab, ['unpaid', 'overdue'], true))
-            <flux:text @class(['pb-2 text-sm font-medium tabular-nums', 'text-red-600 dark:text-red-400' => $currentTab === 'overdue'])>
-                {{ $currentTab === 'overdue' ? __('Overdue: :amount BHD', ['amount' => $owed['overdue']]) : __('Owed: :amount BHD', ['amount' => $owed['unpaid']]) }}
-            </flux:text>
-        @endif
     </div>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('invoices.index', ['tab' => $currentTab]) : null">
         <flux:select wire:model.live="type" class="sm:max-w-44">
             <option value="">{{ __('All types') }}</option>
             @foreach ($types as $t)<option value="{{ $t->value }}">{{ $t->label() }}</option>@endforeach
         </flux:select>
         <x-building-filter :buildings="$this->buildings" label="" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number, tenant name or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$invoices">
             <flux:table.columns>
                 <flux:table.column>{{ __('Invoice') }}</flux:table.column>
@@ -76,5 +82,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($invoices->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

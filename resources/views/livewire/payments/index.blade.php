@@ -1,12 +1,21 @@
+@php
+    $filtered = $search !== '' || $this->building;
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl" level="1">{{ __('Payments') }}</flux:heading>
-        @if ($canCreate)
-            <flux:modal.trigger name="new-payment">
-                <flux:button variant="primary">{{ __('New payment') }}</flux:button>
-            </flux:modal.trigger>
-        @endif
-    </div>
+    <x-ui.page-header :title="__('Payments')">
+        <x-slot:actions>
+            @if ($canCreate)
+                <flux:modal.trigger name="new-payment">
+                    <flux:button variant="primary" icon="plus">{{ __('New payment') }}</flux:button>
+                </flux:modal.trigger>
+            @endif
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.stats :cols="2">
+        <x-ui.stat :label="__('Collected this month')" :value="__(':amount BHD', ['amount' => $stats['collected']])" />
+        <x-ui.stat :label="__('Receipts this month')" :value="$stats['receipts']" />
+    </x-ui.stats>
 
     @if ($canCreate)
         <flux:modal name="new-payment" class="md:w-96">
@@ -17,12 +26,12 @@
             </div>
         </flux:modal>
     @endif
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('payments.index') : null">
         <x-building-filter :buildings="$this->buildings" label="" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Receipt, reference, tenant or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$payments">
             <flux:table.columns>
                 <flux:table.column>{{ __('Receipt') }}</flux:table.column>
@@ -45,5 +54,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($payments->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

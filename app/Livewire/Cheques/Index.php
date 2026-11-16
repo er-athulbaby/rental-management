@@ -9,6 +9,8 @@ use App\Livewire\Concerns\FiltersByBuilding;
 use App\Livewire\Concerns\WithActor;
 use App\Models\Agreement;
 use App\Models\Cheque;
+use App\Reports\Queries;
+use App\Support\Fils;
 use Flux\Flux;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -76,21 +78,51 @@ class Index extends Component
         Flux::toast(variant: 'success', text: __(':n cheque(s) deposited.', ['n' => $count]));
     }
 
-    public function render(): View
+    /** @return Builder<Cheque> every filter but the status: visibility, received cheques, building and search (plan ruling 1) */
+    private function filtered(): Builder
     {
-        $cheques = Cheque::query()->visibleTo($this->actor())
+        return Cheque::query()->visibleTo($this->actor())
             ->where('direction', 'received')
-            ->when($this->status !== 'all', fn ($q) => $q->where('status', $this->status))
             ->when($this->building, fn ($q, $b) => $q->inBuilding($b))
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('cheque_no', 'like', '%'.$this->search.'%')
-                ->orWhereHas('customer', fn ($c) => $c->search($this->search))))
+                ->orWhereHas('customer', fn ($c) => $c->search($this->search))));
+    }
+
+    /**
+     * Design pass §5: held (count and amount), to deposit this week (held, dated Monday to Sunday of this week, as the
+     * dashboard tile counts it) and bounced. One aggregate query over filtered().
+     *
+     * @return array{held: int, held_amount: string, week: int, bounced: int}
+     */
+    private function stats(): array
+    {
+        $held = ChequeStatus::Held->value;
+        $row = (array) ($this->filtered()->toBase()->selectRaw(
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS held_count, COALESCE(SUM(CASE WHEN status = ? THEN amount END), 0) AS held_amount, '
+            .'SUM(CASE WHEN status = ? AND cheque_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS week_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS bounced_count',
+            [$held, $held, $held, Queries::weekStart(), Queries::weekEnd(), ChequeStatus::Bounced->value],
+        )->first() ?? []);
+
+        return [
+            'held' => (int) ($row['held_count'] ?? 0),
+            'held_amount' => Fils::toDecimal(Fils::fromDecimal((string) ($row['held_amount'] ?? '0'))),
+            'week' => (int) ($row['week_count'] ?? 0),
+            'bounced' => (int) ($row['bounced_count'] ?? 0),
+        ];
+    }
+
+    public function render(): View
+    {
+        $cheques = $this->filtered()
+            ->when($this->status !== 'all', fn ($q) => $q->where('status', $this->status))
             ->with(['customer:id,name_en', 'invoice:id,number,status'])
             ->orderBy('cheque_date')->orderBy('id')
             ->paginate(50);
 
         return view('livewire.cheques.index', [
             'cheques' => $cheques,
+            'stats' => $this->stats(),
             'statuses' => ChequeStatus::cases(),
             'canManage' => $canManage = $this->actor()->can('manage', Cheque::class),
             // Type-to-search: by agreement number, or the customer's name, mobile, ID or unit code.

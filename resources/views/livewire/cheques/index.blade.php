@@ -1,12 +1,22 @@
+@php
+    $filtered = $status !== 'held' || $search !== '' || $this->building;
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl" level="1">{{ __('Cheques') }}</flux:heading>
-        @if ($canManage)
-            <flux:modal.trigger name="enter-cheques">
-                <flux:button variant="primary">{{ __('Enter cheques') }}</flux:button>
-            </flux:modal.trigger>
-        @endif
-    </div>
+    <x-ui.page-header :title="__('Cheques')">
+        <x-slot:actions>
+            @if ($canManage)
+                <flux:modal.trigger name="enter-cheques">
+                    <flux:button variant="primary" icon="plus">{{ __('Enter cheques') }}</flux:button>
+                </flux:modal.trigger>
+            @endif
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Held')" :value="$stats['held']" :hint="__(':amount BHD', ['amount' => $stats['held_amount']])" :href="route('cheques.index', ['status' => 'held'])" />
+        <x-ui.stat :label="__('To deposit this week')" :value="$stats['week']" :tone="$stats['week'] > 0 ? 'warning' : null" />
+        <x-ui.stat :label="__('Bounced')" :value="$stats['bounced']" :tone="$stats['bounced'] > 0 ? 'danger' : null" :href="route('cheques.index', ['status' => 'bounced'])" />
+    </x-ui.stats>
 
     @if ($canManage)
         <flux:modal name="enter-cheques" class="md:w-96">
@@ -34,22 +44,24 @@
         </flux:modal>
     @endif
 
-    <div class="flex flex-wrap items-end gap-3">
+    <x-ui.filters :clear="$filtered ? route('cheques.index') : null">
         <flux:select wire:model.live="status" :label="__('Status')" class="max-w-48">
             <option value="all">{{ __('All') }}</option>
             @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
         </flux:select>
         <x-building-filter :buildings="$this->buildings" />
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no., tenant or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
-        @if ($canManage && $status === 'held')
+    </x-ui.filters>
+    @if ($canManage && $status === 'held')
+        <div class="flex flex-wrap items-end gap-3">
             <x-date-input wire:model="depositedOn" :label="__('Deposited on')" class="max-w-44" />
             <flux:button variant="primary" wire:click="depositSelected" :disabled="count($selected) === 0">{{ __('Deposit selected') }}</flux:button>
-        @endif
-    </div>
+        </div>
+    @endif
     <flux:error name="selected" />
     <flux:error name="deposited_on" />
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$cheques">
             <flux:table.columns>
                 @if ($canManage && $status === 'held')<flux:table.column></flux:table.column>@endif
@@ -76,5 +88,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($cheques->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

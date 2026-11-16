@@ -1,10 +1,16 @@
 @use('App\Models\ReminderSend')
 @use('App\Models\ReminderSetting')
+@php
+    $filtered = filled($type) || filled($status) || filled($building);
+@endphp
 <section class="w-full space-y-4">
-    <flux:heading size="xl" level="1">{{ __('Reminders') }}</flux:heading>
-    <flux:text>{{ __('Every reminder emailed to tenants, automatic or sent by hand, and the ones skipped.') }}</flux:text>
+    <x-ui.page-header :title="__('Reminders')" :hint="__('Every reminder emailed to tenants, automatic or sent by hand, and the ones skipped.')">
+        <x-slot:actions>
+            <flux:button icon="arrow-down-tray" wire:click="export">{{ __('Export to Excel') }}</flux:button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+    <x-ui.filters :clear="$filtered ? route('reminders.index') : null">
         <x-date-input wire:model.live="from" :label="__('From')" />
         <x-date-input wire:model.live="to" :label="__('To')" />
         <flux:select wire:model.live="type" :label="__('Type')">
@@ -20,10 +26,9 @@
             @endforeach
         </flux:select>
         <x-building-filter :buildings="$buildings" />
-        <div class="flex items-end"><flux:button icon="arrow-down-tray" wire:click="export">{{ __('Export to Excel') }}</flux:button></div>
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -52,6 +57,6 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
     {{ $rows->links() }}
 </section>
