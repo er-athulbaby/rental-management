@@ -49,6 +49,7 @@
                             @endforeach
                         </nav>
                     @endif
+                    <x-ui.theme-toggle compact />
                     {{-- Each language is named in its own language (plan ruling 16). --}}
                     <form method="POST" action="{{ route('portal.locale') }}">
                         @csrf

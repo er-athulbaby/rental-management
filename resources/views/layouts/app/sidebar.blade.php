@@ -140,6 +140,8 @@
 
             <flux:spacer />
 
+            <x-ui.theme-toggle class="mx-2" />
+
             <div class="px-2 text-xs leading-5 text-zinc-400">
                 <div>{{ __('Version :v', ['v' => config('app.version')]) }}</div>
                 <div>{{ __('Developed by') }} <a href="https://deverra.me" target="_blank" rel="noopener" class="font-medium text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:text-white">DeVerra Technologies</a></div>
@@ -155,6 +157,8 @@
             <x-ui.brand class="ms-2" :name="$brand['name']" :logo="$brand['logo']" :href="route('dashboard')" wire:navigate />
 
             <flux:spacer />
+
+            <x-ui.theme-toggle compact />
 
             <flux:dropdown position="top" align="end">
                 <flux:profile
