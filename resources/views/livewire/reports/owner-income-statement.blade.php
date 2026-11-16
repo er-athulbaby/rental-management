@@ -1,10 +1,11 @@
 <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl">{{ __('Owner income statement') }}</flux:heading>
-        <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
-    </div>
+    <x-ui.page-header :title="__('Owner income statement')">
+        <x-slot:actions>
+            <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <x-ui.filters>
         <flux:input wire:model.live.debounce.300ms="ownerSearch" :label="__('Find an owner')" :placeholder="__('Name')" icon="magnifying-glass" autocomplete="off" />
         <flux:select wire:model.live="owner" :label="__('Owner')">
             <option value="">{{ __('Choose an owner') }}</option>
@@ -13,7 +14,7 @@
             @endforeach
         </flux:select>
         @include('livewire.reports.partials.statement-inputs')
-    </div>
+    </x-ui.filters>
 
     @error('owner')
         <flux:text class="text-sm text-red-600">{{ $message }}</flux:text>

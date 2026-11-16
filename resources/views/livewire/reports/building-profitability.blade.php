@@ -1,7 +1,7 @@
 <div class="space-y-4">
-    <flux:heading size="xl">{{ __('Building profitability') }}</flux:heading>
+    <x-ui.page-header :title="__('Building profitability')" />
 
-    <div class="grid gap-3 sm:grid-cols-4">
+    <x-ui.filters>
         <flux:select wire:model.live="building" :label="__('Building')">
             <flux:select.option value="">{{ __('All buildings') }}</flux:select.option>
             @foreach ($buildings as $b)
@@ -11,7 +11,7 @@
         <x-date-input wire:model.live="from" :label="__('From')" />
         <x-date-input wire:model.live="to" :label="__('To')" />
         <div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>
-    </div>
+    </x-ui.filters>
 
     @if (count($rows) > 0)
         @php($money = fn (int $fils) => number_format($fils / 1000, 3))
@@ -28,7 +28,7 @@
         </div>
     @endif
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Building') }}</flux:table.column>
@@ -51,6 +51,6 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
     <flux:text class="text-sm">{{ __('Cash basis: income by payment posting, net of VAT; head lease by payment date; expenses by expense date. Billed shows invoices issued less credit notes, for comparison.') }}</flux:text>
 </div>

@@ -1,5 +1,5 @@
 <section class="w-full max-w-4xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Custom fields') }}</flux:heading>
+    <x-ui.page-header :title="__('Custom fields')" />
     <flux:text>{{ __('Fields added here appear under "More details" on each record. Tenant, unit and agreement fields can show in the tenant portal; owner and building fields in the owner portal.') }}</flux:text>
 
     <div class="flex flex-wrap gap-2">
@@ -8,7 +8,7 @@
         @endforeach
     </div>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Label') }}</flux:table.column>
@@ -49,7 +49,7 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
     <flux:error name="list" />
 
     @if ($editing)

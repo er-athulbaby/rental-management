@@ -1,7 +1,7 @@
 <section class="w-full space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Roles') }}</flux:heading>
+    <x-ui.page-header :title="__('Roles')" />
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Role') }}</flux:table.column>
@@ -20,5 +20,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($roles->isEmpty())
+            <x-ui.empty />
+        @endif
+    </x-ui.table>
 </section>

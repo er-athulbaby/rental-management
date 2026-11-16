@@ -232,7 +232,7 @@
                     @php($cmp = $result->comparison)
                     @php($tkeys = array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]))
                     @if ($cmp['truncated'])<p class="text-sm text-zinc-500">{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</p>@endif
-                    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <x-ui.table>
                         <flux:table>
                             <flux:table.columns>
                                 <flux:table.column>{{ __('Compared') }}</flux:table.column>
@@ -260,9 +260,9 @@
                                 @endforeach
                             </flux:table.rows>
                         </flux:table>
-                    </div>
+                    </x-ui.table>
                 @endif
-                <div class="overflow-x-auto" x-data="{ closed: {} }">
+                <x-ui.table x-data="{ closed: {} }">
                     <flux:table>
                         <flux:table.columns>
                             @foreach ($result->columns as $col)
@@ -324,7 +324,7 @@
                             @endif
                         </flux:table.rows>
                     </flux:table>
-                </div>
+                </x-ui.table>
             @endif
         </section>
     </div>

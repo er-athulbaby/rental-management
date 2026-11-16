@@ -1,5 +1,5 @@
 <section class="w-full max-w-6xl space-y-8">
-    <flux:heading size="xl" level="1">{{ __('Cash and bank movements') }}</flux:heading>
+    <x-ui.page-header :title="__('Cash and bank movements')" />
 
     @if ($canManage)
         <form wire:submit="save" class="space-y-4">
@@ -55,7 +55,10 @@
         </form>
     @endif
 
-    <div class="grid gap-3 sm:grid-cols-4">
+    @php
+        $filtered = filled($filterFrom) || filled($filterTo) || filled($filterKind) || filled($filterAccount);
+    @endphp
+    <x-ui.filters :clear="$filtered ? route('ledger.cash-movements') : null">
         <x-date-input wire:model.live="filterFrom" :label="__('From')" />
         <x-date-input wire:model.live="filterTo" :label="__('To')" />
         <flux:select wire:model.live="filterKind" :label="__('Kind')">
@@ -70,9 +73,9 @@
                 <flux:select.option :value="(string) $account->id">{{ $account->label() }}</flux:select.option>
             @endforeach
         </flux:select>
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$rows">
             <flux:table.columns>
                 <flux:table.column>#</flux:table.column>
@@ -109,5 +112,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($rows->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

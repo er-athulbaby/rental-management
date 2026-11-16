@@ -1,19 +1,23 @@
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Users') }}</flux:heading>
-        <flux:button variant="primary" :href="route('admin.users.create')" wire:navigate>{{ __('New user') }}</flux:button>
-    </div>
+    <x-ui.page-header :title="__('Users')">
+        <x-slot:actions>
+            <flux:button variant="primary" icon="plus" :href="route('admin.users.create')" wire:navigate>{{ __('New user') }}</flux:button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    @php
+        $filtered = $search !== '' || $status !== 'active';
+    @endphp
+    <x-ui.filters :clear="$filtered ? route('admin.users.index') : null">
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Search name or email')" icon="magnifying-glass" class="sm:max-w-xs" />
         <flux:select wire:model.live="status" class="sm:max-w-40">
             <option value="active">{{ __('Active') }}</option>
             <option value="inactive">{{ __('Inactive') }}</option>
             <option value="all">{{ __('All') }}</option>
         </flux:select>
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$users">
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -40,5 +44,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($users->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

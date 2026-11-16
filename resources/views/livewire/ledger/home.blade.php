@@ -1,5 +1,5 @@
 <section class="w-full max-w-4xl space-y-8" @if ($settings->rebuilding()) wire:poll.2s @endif>
-    <flux:heading size="xl" level="1">{{ __('Ledger') }}</flux:heading>
+    <x-ui.page-header :title="__('Ledger')" />
 
     <div class="space-y-1">
         <flux:text>{{ $settings->start_date ? __('Start date :date', ['date' => $settings->start_date->format('d/m/Y')]) : __('Not set up yet: Admin sets the start date.') }}</flux:text>

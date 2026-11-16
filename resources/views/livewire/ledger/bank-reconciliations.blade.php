@@ -1,5 +1,5 @@
 <section class="w-full max-w-6xl space-y-8">
-    <flux:heading size="xl" level="1">{{ __('Bank reconciliation') }}</flux:heading>
+    <x-ui.page-header :title="__('Bank reconciliation')" />
 
     <div class="max-w-sm">
         <flux:select wire:model.live="account" :label="__('Money account')">
@@ -91,6 +91,7 @@
         <div class="space-y-2">
             <flux:heading size="lg">{{ __('Uploads') }}</flux:heading>
             <flux:error name="upload" />
+            <x-ui.table>
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('File') }}</flux:table.column>
@@ -119,10 +120,12 @@
                     @endforeach
                 </flux:table.rows>
             </flux:table>
+            </x-ui.table>
         </div>
 
         <div class="space-y-2">
             <flux:heading size="lg">{{ __('Reconciliations') }}</flux:heading>
+            <x-ui.table>
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('End date') }}</flux:table.column>
@@ -143,6 +146,7 @@
                     @endforeach
                 </flux:table.rows>
             </flux:table>
+            </x-ui.table>
         </div>
 
         @if ($canManage && ! $hasOpen)

@@ -1,10 +1,11 @@
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Contract templates') }}</flux:heading>
-        <flux:button variant="primary" :href="route('admin.templates.create')" wire:navigate>{{ __('New template') }}</flux:button>
-    </div>
+    <x-ui.page-header :title="__('Contract templates')">
+        <x-slot:actions>
+            <flux:button variant="primary" icon="plus" :href="route('admin.templates.create')" wire:navigate>{{ __('New template') }}</flux:button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -24,5 +25,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($templates->isEmpty())
+            <x-ui.empty />
+        @endif
+    </x-ui.table>
 </section>

@@ -1,13 +1,14 @@
 <section class="w-full max-w-2xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Banks') }}</flux:heading>
-    <flux:text>{{ __('The banks offered for owners and cheques. Switch one off to stop offering it; records that already name it keep it.') }}</flux:text>
+    <x-ui.page-header :title="__('Banks')" :hint="__('The banks offered for owners and cheques. Switch one off to stop offering it; records that already name it keep it.')" />
 
-    <form wire:submit="add" class="flex flex-wrap items-end gap-2">
-        <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New bank')" :placeholder="__('e.g. Khaleeji Bank')" /></div>
-        <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
-    </form>
+    <x-ui.section>
+        <form wire:submit="add" class="flex flex-wrap items-end gap-2">
+            <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New bank')" :placeholder="__('e.g. Khaleeji Bank')" /></div>
+            <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
+        </form>
+    </x-ui.section>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -36,6 +37,6 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
     <flux:error name="name" />
 </section>

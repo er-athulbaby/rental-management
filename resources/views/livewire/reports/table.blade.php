@@ -1,10 +1,11 @@
 <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl">{{ $title }}</flux:heading>
-        <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
-    </div>
+    <x-ui.page-header :title="$title">
+        <x-slot:actions>
+            <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="grid gap-3 sm:grid-cols-4">
+    <x-ui.filters>
         @if ($buildingFilter)
             <x-building-filter :buildings="$buildings" />
         @endif
@@ -22,7 +23,7 @@
             </flux:select>
         @endforeach
         <div class="flex items-end"><flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button></div>
-    </div>
+    </x-ui.filters>
 
     @if ($charts !== [])
         <div @class(['grid gap-4', 'lg:grid-cols-2' => count($charts) > 1])>
@@ -34,7 +35,7 @@
         <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Too many lines to show: narrow the filters or download Excel.')" />
     @endif
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 @foreach ($columns as $key => $label)
@@ -59,5 +60,5 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 </div>

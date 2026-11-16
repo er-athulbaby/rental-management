@@ -1,17 +1,18 @@
 <section class="w-full max-w-3xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Unit types') }}</flux:heading>
-    <flux:text>{{ __('The types a unit can be. The usual use fills in the unit\'s Residential or Commercial when the type is picked. Switch a type off to stop offering it; units that already have it keep it.') }}</flux:text>
+    <x-ui.page-header :title="__('Unit types')" :hint="__('The types a unit can be. The usual use fills in the unit\'s Residential or Commercial when the type is picked. Switch a type off to stop offering it; units that already have it keep it.')" />
 
-    <form wire:submit="add" class="flex flex-wrap items-end gap-2">
-        <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New unit type')" :placeholder="__('e.g. Car wash bay')" /></div>
-        <flux:select wire:model="defaultUse" :label="__('Usual use')" class="max-w-44">
-            @foreach ($uses as $use)<option value="{{ $use->value }}">{{ str($use->value)->headline() }}</option>@endforeach
-            <option value="">{{ __('Either') }}</option>
-        </flux:select>
-        <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
-    </form>
+    <x-ui.section>
+        <form wire:submit="add" class="flex flex-wrap items-end gap-2">
+            <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New unit type')" :placeholder="__('e.g. Car wash bay')" /></div>
+            <flux:select wire:model="defaultUse" :label="__('Usual use')" class="max-w-44">
+                @foreach ($uses as $use)<option value="{{ $use->value }}">{{ str($use->value)->headline() }}</option>@endforeach
+                <option value="">{{ __('Either') }}</option>
+            </flux:select>
+            <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
+        </form>
+    </x-ui.section>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -48,7 +49,7 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
     <flux:error name="name" />
     <flux:error name="use" />
 </section>

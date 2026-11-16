@@ -1,5 +1,5 @@
 {{-- An income statement: one row per line, one column per month, then Total. A null amount is a fee not yet final; $statement['fee_pending'] (owner statements only) lists the months whose fee is still pending. --}}
-<div class="overflow-x-auto">
+<x-ui.table>
     <flux:table>
         <flux:table.columns>
             <flux:table.column scope="col">{{ __('Line') }}</flux:table.column>
@@ -20,7 +20,7 @@
             @endforeach
         </flux:table.rows>
     </flux:table>
-</div>
+</x-ui.table>
 @if (($statement['fee_pending'] ?? []) !== [])
     @php
         $feeCells = $statement['rows']['fee']['amounts'] ?? [];

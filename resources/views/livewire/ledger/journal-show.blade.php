@@ -1,5 +1,5 @@
 <section class="w-full max-w-5xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Journal :id', ['id' => $journal->id]) }}</flux:heading>
+    <x-ui.page-header :title="__('Journal :id', ['id' => $journal->id])" />
 
     <div class="grid gap-3 sm:grid-cols-2">
         <div>
@@ -31,7 +31,7 @@
         @endif
     </div>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Account') }}</flux:table.column>
@@ -63,7 +63,7 @@
                 </flux:table.row>
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 
     @if ($canReverse)
         <form wire:submit="reverse" class="flex flex-wrap items-end gap-2">

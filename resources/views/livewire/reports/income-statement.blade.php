@@ -1,10 +1,11 @@
 <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl">{{ __('Income statement') }}</flux:heading>
-        <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
-    </div>
+    <x-ui.page-header :title="__('Income statement')">
+        <x-slot:actions>
+            <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <x-ui.filters>
         <x-building-filter :buildings="$buildings" />
         <flux:select wire:model.live="owner" :label="__('Owner')">
             <option value="">{{ __('All owners') }}</option>
@@ -13,7 +14,7 @@
             @endforeach
         </flux:select>
         @include('livewire.reports.partials.statement-inputs')
-    </div>
+    </x-ui.filters>
 
     @if ($statement !== null)
         @if (\App\Reports\IncomeStatement::isEmpty($statement))

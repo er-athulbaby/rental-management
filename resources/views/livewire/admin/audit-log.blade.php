@@ -1,7 +1,10 @@
 <section class="w-full space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Audit log') }}</flux:heading>
+    <x-ui.page-header :title="__('Audit log')" />
 
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    @php
+        $filtered = $event !== '' || $causerId !== null || $subjectType !== '' || $from !== '' || $to !== '';
+    @endphp
+    <x-ui.filters :clear="$filtered ? route('admin.audit') : null">
         <flux:input wire:model.live.debounce.300ms="event" :label="__('Event')" />
         <flux:select wire:model.live="causerId" :label="__('User')">
             <option value="">{{ __('Anyone') }}</option>
@@ -17,9 +20,9 @@
         </flux:select>
         <x-date-input wire:model.live="from" :label="__('From')" />
         <x-date-input wire:model.live="to" :label="__('To')" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$entries">
             <flux:table.columns>
                 <flux:table.column>{{ __('Time') }}</flux:table.column>
@@ -49,5 +52,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($entries->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

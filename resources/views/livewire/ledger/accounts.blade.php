@@ -1,8 +1,9 @@
 <section class="w-full max-w-5xl space-y-8">
-    <flux:heading size="xl" level="1">{{ __('Accounts and rules') }}</flux:heading>
+    <x-ui.page-header :title="__('Accounts and rules')" />
 
     <div class="space-y-4">
         <flux:heading size="lg">{{ __('Chart of accounts') }}</flux:heading>
+        <x-ui.section>
         <form wire:submit="save" class="grid gap-3 sm:grid-cols-6">
             <flux:input wire:model="code" :label="__('Code')" />
             <flux:input wire:model="name_en" :label="__('Name (English)')" />
@@ -20,6 +21,7 @@
                 @endif
             </div>
         </form>
+        </x-ui.section>
         <flux:error name="code" />
         <flux:error name="name_en" />
         <flux:error name="name_ar" />
@@ -27,7 +29,7 @@
         <flux:error name="is_money" />
         <flux:error name="accounts" />
 
-        <div class="overflow-x-auto">
+        <x-ui.table>
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('Code') }}</flux:table.column>
@@ -56,7 +58,10 @@
                     @endforeach
                 </flux:table.rows>
             </flux:table>
-        </div>
+            @if ($accounts->isEmpty())
+                <x-ui.empty />
+            @endif
+        </x-ui.table>
     </div>
 
     <form wire:submit="saveRules" class="space-y-4">

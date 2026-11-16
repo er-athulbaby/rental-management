@@ -1,6 +1,5 @@
 <section class="w-full max-w-3xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Data import') }}</flux:heading>
-    <flux:text>{{ __('Fill the templates (ID, phone, IBAN and money columns formatted as Text), then run a dry run. Nothing is saved until every row of every file passes.') }}</flux:text>
+    <x-ui.page-header :title="__('Data import')" :hint="__('Fill the templates (ID, phone, IBAN and money columns formatted as Text), then run a dry run. Nothing is saved until every row of every file passes.')" />
 
     @if ($closed)
         <flux:callout variant="danger" icon="lock-closed" :heading="$closed" />
@@ -15,7 +14,7 @@
 
         <flux:error name="import" />
 
-        <div class="space-y-4">
+        <x-ui.section>
             @foreach ($kinds as $kind)
                 <flux:field wire:key="file-{{ $kind->value }}">
                     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -27,7 +26,7 @@
                 </flux:field>
             @endforeach
             <flux:error name="files" />
-        </div>
+        </x-ui.section>
 
         <div class="flex flex-wrap gap-2">
             <flux:button wire:click="run(false)">{{ __('Dry run') }}</flux:button>

@@ -1,5 +1,5 @@
 <section class="w-full max-w-6xl space-y-8">
-    <flux:heading size="xl" level="1">{{ __('VAT returns') }}</flux:heading>
+    <x-ui.page-header :title="__('VAT returns')" />
 
     @if ($canManage)
         <form wire:submit="save" class="space-y-4">
@@ -52,7 +52,7 @@
         </form>
     @endif
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$rows">
             <flux:table.columns>
                 <flux:table.column>{{ __('Period') }}</flux:table.column>
@@ -87,5 +87,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($rows->isEmpty())
+            <x-ui.empty />
+        @endif
+    </x-ui.table>
 </section>
