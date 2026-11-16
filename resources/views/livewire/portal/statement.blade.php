@@ -12,7 +12,7 @@
     @if (! $valid)
         <flux:text>{{ __('Choose a valid date range.') }}</flux:text>
     @else
-        <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white text-sm dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+        <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white text-sm dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
             <li class="flex justify-between gap-2 p-3">
                 <span>{{ \Carbon\CarbonImmutable::parse($from)->format('d/m/Y') }} · {{ __('Opening balance') }}</span>
                 <span class="tabular-nums">{{ App\Support\Fils::grouped($receivables['opening']) }}</span>
@@ -32,7 +32,7 @@
         @foreach ($deposits as $d => $deposit)
             <div wire:key="dep-{{ $d }}" class="space-y-2">
                 <flux:heading size="lg" level="2">{{ __('Deposit — :unit', ['unit' => $deposit['unit']]) }}</flux:heading>
-                <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white text-sm dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+                <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white text-sm dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
                     @foreach ($deposit['rows'] as $i => $row)
                         <li wire:key="dep-{{ $d }}-{{ $i }}" class="flex flex-wrap justify-between gap-2 p-3">
                             <span>{{ \Carbon\CarbonImmutable::parse($row['date'])->format('d/m/Y') }} · {{ __($row['kind']) }}</span>

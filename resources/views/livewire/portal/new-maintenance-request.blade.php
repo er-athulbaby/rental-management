@@ -5,6 +5,7 @@
         <flux:text>{{ __('You have no current agreement, so requests cannot be sent here. Please call the office.') }}</flux:text>
     @else
         <form wire:submit="save" class="space-y-4">
+            <x-ui.section>
             <flux:select wire:model="form.place" :label="__('Where is the problem?')">
                 <option value="">{{ __('Choose…') }}</option>
                 @foreach ($places as $value => $label)
@@ -27,6 +28,7 @@
                     <flux:error name="photos.{{ $i }}" />
                 @endforeach
             </flux:field>
+            </x-ui.section>
             <flux:error name="request" />
             <flux:button type="submit" variant="primary" class="w-full sm:w-auto">{{ __('Send request') }}</flux:button>
         </form>

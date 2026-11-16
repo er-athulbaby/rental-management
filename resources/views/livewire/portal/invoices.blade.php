@@ -6,13 +6,13 @@
             <button type="button" role="tab" aria-selected="{{ $currentTab === $key ? 'true' : 'false' }}" wire:click="$set('tab', '{{ $key }}')"
                 @class([
                     'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium',
-                    'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $currentTab === $key,
+                    'bg-accent text-accent-foreground' => $currentTab === $key,
                     'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700' => $currentTab !== $key,
                 ])>{{ $label }}</button>
         @endforeach
     </div>
 
-    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
         @forelse ($invoices as $i)
             <li wire:key="inv-{{ $i->id }}" class="space-y-2 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">

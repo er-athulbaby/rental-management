@@ -1,6 +1,6 @@
 <section class="space-y-4">
     <flux:heading size="xl" level="1">{{ __('Documents') }}</flux:heading>
-    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
         @forelse ($documents as $document)
             <li wire:key="doc-{{ $document->id }}" class="flex flex-wrap items-center justify-between gap-2 p-4">
                 <flux:link :href="route('portal.documents.download', $document)" class="min-w-0 truncate">{{ $document->original_name }}</flux:link>

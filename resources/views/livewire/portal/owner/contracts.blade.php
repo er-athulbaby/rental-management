@@ -1,6 +1,6 @@
 <section class="space-y-4">
     <flux:heading size="xl" level="1">{{ __('Contracts') }}</flux:heading>
-    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
         @forelse ($contracts as $c)
             <li wire:key="oc-{{ $c->id }}" class="space-y-1 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">

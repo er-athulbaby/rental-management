@@ -6,7 +6,7 @@
         @if ($bank)
             <flux:text>{{ $bank }}</flux:text>
         @endif
-        <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+        <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
             @forelse ($payouts as $p)
                 <li wire:key="po-{{ $p->id }}" class="space-y-1 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -27,7 +27,7 @@
     @if ($payables->isNotEmpty())
         <div class="space-y-2">
             <flux:heading size="lg" level="2">{{ __('Rent schedule') }}</flux:heading>
-            <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+            <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
                 @foreach ($payables as $r)
                     <li wire:key="op-{{ $r->id }}" class="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
                         <span>{{ __('Due :date', ['date' => $r->due_date->format('d/m/Y')]) }} · {{ $r->contract->building->name }}</span>

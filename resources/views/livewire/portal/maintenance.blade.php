@@ -3,7 +3,7 @@
         <flux:heading size="xl" level="1">{{ __('Maintenance') }}</flux:heading>
         <flux:button variant="primary" :href="route('portal.maintenance.create')">{{ __('New request') }}</flux:button>
     </div>
-    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
+    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
         @forelse ($requests as $r)
             <li wire:key="mr-{{ $r->id }}" class="space-y-1 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">

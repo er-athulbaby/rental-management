@@ -1,8 +1,7 @@
 @php
     $account = auth('tenant')->user();
+    $brand = \App\Models\CompanySetting::brand();
     $rtl = app()->getLocale() === 'ar';
-    $company = \App\Models\CompanySetting::query()->find(1);
-    $companyName = $company ? ($rtl && filled($company->name_ar) ? $company->name_ar : $company->name_en) : config('app.name');
     // Owner portal plan ruling 4: the side is the route's; a shared account gets the Tenant / Owner switch.
     $ownerSide = request()->routeIs('portal.owner.*');
     $both = $account instanceof \App\Models\PortalAccount && $account->hasTenant() && $account->hasOwner();
@@ -32,11 +31,11 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-900 dark:text-zinc-100">
+    <body class="min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
         {{-- Spec 2026-10-18 tenant portal §4: mobile first; the 16px gutter is px-4; only the menu scrolls sideways. --}}
-        <header class="border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
+        <header class="dark border-b border-charcoal-line bg-charcoal text-white">
             <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-                <a href="{{ route($account ? ($ownerSide ? 'portal.owner.home' : 'portal.home') : 'portal.login') }}" class="font-semibold">{{ $companyName }}</a>
+                <x-ui.brand :name="$brand['name']" :logo="$brand['logo']" :href="route($account ? ($ownerSide ? 'portal.owner.home' : 'portal.home') : 'portal.login')" />
                 <div class="flex items-center gap-1">
                     @if ($both)
                         <nav aria-label="{{ __('Portal') }}" class="flex gap-1">
@@ -44,8 +43,8 @@
                                 <a href="{{ route($route) }}" @if ($current) aria-current="page" @endif
                                     @class([
                                         'block rounded-md px-3 py-1.5 text-sm font-medium',
-                                        'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $current,
-                                        'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700' => ! $current,
+                                        'bg-brand-400 text-charcoal' => $current,
+                                        'text-zinc-300 hover:bg-charcoal-raised hover:text-white' => ! $current,
                                     ])>{{ $label }}</a>
                             @endforeach
                         </nav>
@@ -72,8 +71,8 @@
                                 <a href="{{ route($route) }}" @if (request()->routeIs($route.'*')) aria-current="page" @endif
                                     @class([
                                         'block rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap',
-                                        'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => request()->routeIs($route.'*'),
-                                        'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700' => ! request()->routeIs($route.'*'),
+                                        'bg-brand-400 text-charcoal' => request()->routeIs($route.'*'),
+                                        'text-zinc-300 hover:bg-charcoal-raised hover:text-white' => ! request()->routeIs($route.'*'),
                                     ])>{{ $label }}</a>
                             </li>
                         @endforeach
