@@ -1,44 +1,52 @@
 <section class="w-full max-w-2xl space-y-6">
-    <flux:heading size="xl" level="1">{{ $owner?->name_en ?? __('New owner') }}</flux:heading>
+    <x-ui.page-header :title="$owner?->name_en ?? __('New owner')" :back="route('owners.index')" />
 
     <form wire:submit="save" class="space-y-6">
-        <fieldset @disabled(! $canEdit) class="space-y-4">
-            <flux:select wire:model="form.type" :label="__('Owner type')">
-                @foreach ($types as $type)<option value="{{ $type->value }}">{{ str($type->value)->headline() }}</option>@endforeach
-            </flux:select>
-            <flux:input wire:model="form.name_en" :label="__('Name (English)')" required />
-            <flux:input wire:model="form.name_ar" :label="__('Name (Arabic)')" dir="rtl" />
-            <div class="grid gap-4 sm:grid-cols-2">
-                <flux:select wire:model="form.id_type" :label="__('ID type')">
-                    @foreach ($idTypes as $idType)<option value="{{ $idType->value }}">{{ $idType->label() }}</option>@endforeach
-                </flux:select>
-                <flux:input wire:model="form.id_number" :label="__('ID number')" required />
-                <x-nationality-select wire:model="form.nationality" :current="$owner?->nationality" />
-                <flux:input wire:model="form.phone" :label="__('Phone')" type="tel" />
-            </div>
-            <flux:input wire:model="form.email" :label="__('Email')" type="email" />
-            <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" />
-            <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
+        <fieldset @disabled(! $canEdit) class="space-y-6">
+            <x-ui.section :title="__('Identity')">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <flux:select wire:model="form.type" :label="__('Owner type')" aria-required="true" class="sm:col-span-2">
+                        @foreach ($types as $type)<option value="{{ $type->value }}">{{ str($type->value)->headline() }}</option>@endforeach
+                    </flux:select>
+                    <flux:input wire:model="form.name_en" :label="__('Name (English)')" required />
+                    <flux:input wire:model="form.name_ar" :label="__('Name (Arabic)')" dir="rtl" />
+                    <flux:select wire:model="form.id_type" :label="__('ID type')" aria-required="true">
+                        @foreach ($idTypes as $idType)<option value="{{ $idType->value }}">{{ $idType->label() }}</option>@endforeach
+                    </flux:select>
+                    <flux:input wire:model="form.id_number" :label="__('ID number')" required />
+                    <x-nationality-select wire:model="form.nationality" :current="$owner?->nationality" />
+                </div>
+            </x-ui.section>
+
+            <x-ui.section :title="__('Contact')">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <flux:input wire:model="form.phone" :label="__('Phone')" type="tel" />
+                    <flux:input wire:model="form.email" :label="__('Email')" type="email" />
+                    <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" class="sm:col-span-2" />
+                    <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" class="sm:col-span-2" />
+                </div>
+            </x-ui.section>
         </fieldset>
 
         @if ($canViewBank)
-            <flux:fieldset>
-                <flux:legend>{{ __('Bank details') }}</flux:legend>
+            <x-ui.section :title="__('Bank details')">
                 @if ($owner?->bankChangedRecently())
                     <flux:callout variant="warning" icon="exclamation-triangle"
                         :heading="__('Bank details changed :date by :user', ['date' => $owner->bank_changed_at->timezone('Asia/Bahrain')->format('d/m/Y'), 'user' => $owner->bankChanger?->name])" />
                 @endif
-                <fieldset @disabled(! $canEditBank) class="mt-4 space-y-4">
+                <fieldset @disabled(! $canEditBank) class="space-y-4">
                     <x-bank-select wire:model="form.bank_name" :current="$owner?->bank_name" />
                     <flux:input wire:model="form.iban" :label="__('IBAN')" />
                     <flux:input wire:model="form.account_name" :label="__('Account name')" />
                 </fieldset>
-            </flux:fieldset>
+            </x-ui.section>
         @endif
 
         @if ($canEdit)
             <x-custom-fields.section :fields="$customFields" :values="$custom" :documents="$customDocuments" />
-            <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+            <x-ui.form-actions :cancel="route('owners.index')">
+                <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+            </x-ui.form-actions>
         @endif
     </form>
     @unless ($canEdit)
@@ -46,8 +54,7 @@
     @endunless
 
     @if ($portal)
-        <flux:card class="space-y-3">
-            <flux:heading size="lg">{{ __('Owner portal') }}</flux:heading>
+        <x-ui.section :title="__('Owner portal')">
             @if ($portal['account'] === null)
                 <flux:text>{{ __('Not invited yet.') }}</flux:text>
             @elseif ($portal['account']->disabled_at)
@@ -79,7 +86,7 @@
                 @endif
             </div>
             <flux:error name="portal" />
-        </flux:card>
+        </x-ui.section>
     @endif
 
     @if ($owner)

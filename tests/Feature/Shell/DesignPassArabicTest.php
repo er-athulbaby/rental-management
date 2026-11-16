@@ -15,6 +15,8 @@ test('every string the design pass adds has an Arabic translation', function () 
         'Expiring in 60 days', 'Waiting', 'For you to decide',
         // Task 4: lists B
         'Occupied', 'Blocked', 'Urgent', 'Open work orders', 'Overdue work orders',
+        // Task 5: forms A
+        'Location', 'Details', 'Money', 'Availability', 'Management and notes', 'Identity', 'Contact',
     ];
 
     expect(array_values(array_diff($keys, array_keys($ar))))->toBe([]);
