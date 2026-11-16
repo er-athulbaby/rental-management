@@ -1,18 +1,28 @@
+@php
+    $filtered = filled($building) || filled($priority) || filled($category) || filled($vendor) || filled($search);
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="xl" level="1">{{ __('Maintenance requests') }}</flux:heading>
-        @can('create', \App\Models\MaintenanceRequest::class)
-            <flux:button variant="primary" :href="route('maintenance.requests.create')" wire:navigate>{{ __('New request') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Maintenance requests')">
+        <x-slot:actions>
+            @can('create', \App\Models\MaintenanceRequest::class)
+                <flux:button variant="primary" icon="plus" :href="route('maintenance.requests.create')" wire:navigate>{{ __('New request') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Open')" :value="$counts['open']" />
+        <x-ui.stat :label="__('In progress')" :value="$counts['in_progress']" />
+        <x-ui.stat :label="__('Urgent')" :value="$urgent" :tone="$urgent > 0 ? 'danger' : null" :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" />
+    </x-ui.stats>
 
     <div class="border-b border-zinc-200 dark:border-zinc-700">
         <div role="tablist" aria-label="{{ __('Maintenance requests') }}" class="-mb-px flex max-w-full gap-1 overflow-x-auto">
             @foreach ($tabLabels as $key => $label)
                 <button type="button" role="tab" aria-selected="{{ $currentTab === $key ? 'true' : 'false' }}" wire:click="$set('tab', '{{ $key }}')"
                     @class([
-                        'flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-inset',
-                        'border-zinc-800 text-zinc-900 dark:border-white dark:text-white' => $currentTab === $key,
+                        'flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
+                        'border-accent text-accent-content' => $currentTab === $key,
                         'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' => $currentTab !== $key,
                     ])>
                     {{ $label }}
@@ -22,7 +32,7 @@
         </div>
     </div>
 
-    <div class="flex flex-col flex-wrap gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('maintenance.requests.index', ['tab' => $currentTab]) : null">
         <x-building-filter :buildings="$buildings" label="" />
         <flux:select wire:model.live="priority" class="sm:max-w-40">
             <option value="">{{ __('All priorities') }}</option>
@@ -37,9 +47,9 @@
             @foreach ($vendors as $v)<option value="{{ $v->id }}">{{ $v->name }}</option>@endforeach
         </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number, unit code, tenant name or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$requests">
             <flux:table.columns>
                 <flux:table.column>{{ __('Request') }}</flux:table.column>
@@ -72,5 +82,5 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 </section>

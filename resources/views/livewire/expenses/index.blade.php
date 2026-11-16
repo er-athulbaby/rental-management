@@ -1,12 +1,16 @@
+@php
+    $filtered = $buildingId || $status !== '';
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Expenses') }}</flux:heading>
-        @can('create', \App\Models\Expense::class)
-            <flux:button variant="primary" :href="route('expenses.create')" wire:navigate>{{ __('Record expense') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Expenses')">
+        <x-slot:actions>
+            @can('create', \App\Models\Expense::class)
+                <flux:button variant="primary" icon="plus" :href="route('expenses.create')" wire:navigate>{{ __('Record expense') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('expenses.index') : null">
         <flux:select wire:model.live="buildingId" class="sm:max-w-64">
             <option value="">{{ __('All buildings') }}</option>
             @foreach ($buildings as $building)<option value="{{ $building->id }}">{{ $building->code }} — {{ $building->name }}</option>@endforeach
@@ -16,9 +20,9 @@
             <option value="recorded">{{ __('Recorded') }}</option>
             <option value="reversed">{{ __('Reversed') }}</option>
         </flux:select>
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$expenses">
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -55,5 +59,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($expenses->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

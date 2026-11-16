@@ -1,12 +1,16 @@
+@php
+    $filtered = $status !== '' || $search !== '';
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Owner contracts') }}</flux:heading>
-        @can('create', \App\Models\OwnerContract::class)
-            <flux:button variant="primary" :href="route('owner-contracts.create')" wire:navigate>{{ __('New contract') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Owner contracts')">
+        <x-slot:actions>
+            @can('create', \App\Models\OwnerContract::class)
+                <flux:button variant="primary" icon="plus" :href="route('owner-contracts.create')" wire:navigate>{{ __('New contract') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('owner-contracts.index') : null">
         <flux:select wire:model.live="status" class="sm:max-w-48">
             <option value="">{{ __('All statuses') }}</option>
             @foreach ($statuses as $s)
@@ -14,9 +18,9 @@
             @endforeach
         </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Number or owner')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$contracts">
             <flux:table.columns>
                 <flux:table.column>{{ __('Number') }}</flux:table.column>
@@ -41,5 +45,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($contracts->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

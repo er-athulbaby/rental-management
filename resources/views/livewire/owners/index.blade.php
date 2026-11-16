@@ -1,15 +1,21 @@
+@php
+    $filtered = $search !== '';
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Owners') }}</flux:heading>
-        @can('create', \App\Models\Owner::class)
-            <flux:button variant="primary" :href="route('owners.create')" wire:navigate>{{ __('New owner') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Owners')">
+        <x-slot:actions>
+            @can('create', \App\Models\Owner::class)
+                <flux:button variant="primary" icon="plus" :href="route('owners.create')" wire:navigate>{{ __('New owner') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name or exact ID number')" icon="magnifying-glass" class="sm:max-w-xs" />
+    <x-ui.filters :clear="$filtered ? route('owners.index') : null">
+        <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name or exact ID number')" icon="magnifying-glass" class="sm:max-w-xs" />
+    </x-ui.filters>
     <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$owners">
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -26,5 +32,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($owners->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

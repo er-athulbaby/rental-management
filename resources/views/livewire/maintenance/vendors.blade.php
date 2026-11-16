@@ -1,12 +1,16 @@
+@php
+    $filtered = filled($trade) || filled($type) || $active !== '1' || filled($search);
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Vendors') }}</flux:heading>
-        @can('create', \App\Models\Vendor::class)
-            <flux:button variant="primary" :href="route('maintenance.vendors.create')" wire:navigate>{{ __('New vendor') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Vendors')">
+        <x-slot:actions>
+            @can('create', \App\Models\Vendor::class)
+                <flux:button variant="primary" icon="plus" :href="route('maintenance.vendors.create')" wire:navigate>{{ __('New vendor') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.filters :clear="$filtered ? route('maintenance.vendors.index') : null">
         <flux:select wire:model.live="trade" class="sm:max-w-48">
             <option value="">{{ __('All trades') }}</option>
             @foreach ($trades as $t)<option value="{{ $t->value }}">{{ $t->label() }}</option>@endforeach
@@ -21,9 +25,9 @@
             <option value="">{{ __('All') }}</option>
         </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Name or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$vendors">
             <flux:table.columns>
                 <flux:table.column>{{ __('Name') }}</flux:table.column>
@@ -50,5 +54,5 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 </section>

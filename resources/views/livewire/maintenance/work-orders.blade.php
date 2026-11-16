@@ -1,7 +1,15 @@
+@php
+    $filtered = filled($status) || filled($building) || filled($priority) || filled($category) || filled($vendor) || filled($search);
+@endphp
 <section class="w-full space-y-6">
-    <flux:heading size="xl" level="1">{{ __('Work orders') }}</flux:heading>
+    <x-ui.page-header :title="__('Work orders')" />
 
-    <div class="flex flex-col flex-wrap gap-3 sm:flex-row">
+    <x-ui.stats :cols="2">
+        <x-ui.stat :label="__('Open work orders')" :value="$stats['open']" />
+        <x-ui.stat :label="__('Overdue work orders')" :value="$stats['overdue']" :tone="$stats['overdue'] > 0 ? 'danger' : null" />
+    </x-ui.stats>
+
+    <x-ui.filters :clear="$filtered ? route('maintenance.work-orders.index') : null">
         <flux:select wire:model.live="status" class="sm:max-w-40">
             <option value="">{{ __('All statuses') }}</option>
             @foreach ($statuses as $s)<option value="{{ $s->value }}">{{ $s->label() }}</option>@endforeach
@@ -20,9 +28,9 @@
             @foreach ($vendors as $v)<option value="{{ $v->id }}">{{ $v->name }}</option>@endforeach
         </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Work order or request number')" icon="magnifying-glass" class="sm:max-w-xs" />
-    </div>
+    </x-ui.filters>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$workOrders">
             <flux:table.columns>
                 <flux:table.column>{{ __('Work order') }}</flux:table.column>
@@ -54,5 +62,5 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 </section>

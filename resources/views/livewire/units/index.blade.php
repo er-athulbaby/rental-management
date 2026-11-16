@@ -1,12 +1,22 @@
+@php
+    $filtered = $buildingId || $type !== '' || $search !== '' || ! empty($more);
+@endphp
 <section class="w-full space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Units') }}</flux:heading>
-        @can('create', \App\Models\Unit::class)
-            <flux:button variant="primary" :href="route('units.create')" wire:navigate>{{ __('New unit') }}</flux:button>
-        @endcan
-    </div>
+    <x-ui.page-header :title="__('Units')">
+        <x-slot:actions>
+            @can('create', \App\Models\Unit::class)
+                <flux:button variant="primary" icon="plus" :href="route('units.create')" wire:navigate>{{ __('New unit') }}</flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Occupied')" :value="$stats['occupied']" />
+        <x-ui.stat :label="__('Vacant')" :value="$stats['vacant']" />
+        <x-ui.stat :label="__('Blocked')" :value="$stats['blocked']" />
+    </x-ui.stats>
+
+    <x-ui.filters :clear="$filtered ? route('units.index') : null">
         <flux:select wire:model.live="buildingId" class="sm:max-w-64">
             <option value="">{{ __('All buildings') }}</option>
             @foreach ($buildings as $building)
@@ -18,10 +28,10 @@
             @foreach ($types as $t)<option value="{{ $t->code }}">{{ $t->name }}</option>@endforeach
         </flux:select>
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Unit code')" icon="magnifying-glass" class="sm:max-w-40" />
-    </div>
+    </x-ui.filters>
     <x-custom-fields.filter :fields="$customFields" :more="$more" />
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table :paginate="$units">
             <flux:table.columns>
                 <flux:table.column>{{ __('Building') }}</flux:table.column>
@@ -47,5 +57,8 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        @if ($units->isEmpty())
+            <x-ui.empty :filtered="$filtered" />
+        @endif
+    </x-ui.table>
 </section>

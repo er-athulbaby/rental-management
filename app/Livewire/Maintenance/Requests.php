@@ -100,6 +100,9 @@ class Requests extends Component
             'currentTab' => $tab,
             'tabLabels' => ['open' => __('Open'), 'in_progress' => __('In progress'), 'resolved' => __('Resolved'), 'all' => __('All')],
             'counts' => collect(self::TABS)->mapWithKeys(fn (string $t) => [$t => self::inTab($this->filtered(), $t)->count()])->all(),
+            // Design pass §5: open or in-progress urgent requests under the filters (the dashboard card's definition). One count.
+            'urgent' => $this->filtered()->where('priority', MaintenancePriority::Urgent)
+                ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])->count(),
             'buildings' => Building::query()->visibleTo($this->actor())->orderBy('code')->get(['id', 'code', 'name']),
             'priorities' => MaintenancePriority::cases(),
             'categories' => Trade::cases(),
