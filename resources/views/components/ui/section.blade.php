@@ -1,4 +1,4 @@
-@props(['title' => null, 'hint' => null])
+@props(['title' => null, 'hint' => null, 'flush' => false])
 {{-- Design pass §3/§6: a titled card for a group of form fields or a record panel. Pass id="…" for the in-page nav. --}}
 <section {{ $attributes->class('scroll-mt-20 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900') }} data-ui-section>
     @if (filled($title))
@@ -14,5 +14,5 @@
             @endisset
         </header>
     @endif
-    <div class="space-y-4 p-4 sm:p-6">{{ $slot }}</div>
+    <div @class(['space-y-4 p-4 sm:p-6' => ! $flush, 'ui-section-flush' => $flush])>{{ $slot }}</div>
 </section>

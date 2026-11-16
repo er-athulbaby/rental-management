@@ -1,11 +1,9 @@
-<section class="w-full max-w-3xl space-y-8">
+<section class="w-full max-w-3xl space-y-6">
     <x-ui.page-header :title="__('Start date and opening balances')" />
 
     <form wire:submit="setStart" class="space-y-6">
-        <x-ui.section>
-            <flux:heading size="lg">{{ __('Start date') }}</flux:heading>
-            <flux:text>{{ __('Nothing is posted before this date. It can move only while no month is locked; moving it rebuilds the ledger.') }}</flux:text>
-            <div class="flex flex-wrap items-end gap-2">
+        <x-ui.section :title="__('Start date')" :hint="__('Nothing is posted before this date. It can move only while no month is locked; moving it rebuilds the ledger.')">
+            <div class="flex flex-wrap items-end gap-3">
                 <x-date-input wire:model="startDate" :label="__('Start date')" aria-required="true" />
                 <flux:button type="submit" variant="primary">{{ __('Save start date') }}</flux:button>
             </div>
@@ -15,9 +13,7 @@
 
     @if ($settings->start_date)
         <form wire:submit="saveOpening" class="space-y-6">
-            <x-ui.section>
-                <flux:heading size="lg">{{ __('Opening balances') }}</flux:heading>
-                <flux:text>{{ __('One balance per account at the start date. Any difference goes to Opening balance equity.') }}</flux:text>
+            <x-ui.section :title="__('Opening balances')" :hint="__('One balance per account at the start date. Any difference goes to Opening balance equity.')" flush>
                 <x-ui.table>
                     <flux:table>
                         <flux:table.columns>
@@ -36,8 +32,10 @@
                         </flux:table.rows>
                     </flux:table>
                 </x-ui.table>
-                <flux:text>{{ __('Difference to Opening balance equity: :amount', ['amount' => $difference]) }}</flux:text>
-                <flux:error name="balances" />
+                <div class="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    <span class="text-sm font-semibold tabular-nums">{{ __('Difference to Opening balance equity: :amount', ['amount' => $difference]) }}</span>
+                    <flux:error name="balances" />
+                </div>
             </x-ui.section>
 
             <x-ui.form-actions>

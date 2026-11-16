@@ -1,7 +1,8 @@
-<section class="w-full max-w-6xl space-y-8">
-    <x-ui.page-header :title="__('Bank reconciliation')" />
+<section class="w-full max-w-6xl space-y-6">
+    <x-ui.page-header :title="__('Bank reconciliation')" :hint="__('Match your bank statement to the ledger, one money account at a time.')" />
 
-    <div class="max-w-sm">
+    <x-ui.section :title="__('Money account')">
+        <div class="max-w-sm">
         <flux:select wire:model.live="account" :label="__('Money account')">
             <flux:select.option value="">{{ __('Choose…') }}</flux:select.option>
             @foreach ($accounts as $a)
@@ -10,13 +11,14 @@
         </flux:select>
         <flux:error name="account" />
         <flux:error name="ledger_account_id" />
-    </div>
+        </div>
+    </x-ui.section>
 
     @if ($selected !== null)
         @if ($canManage)
-            <form wire:submit="upload" class="space-y-4">
-                <flux:heading size="lg">{{ __('Upload a statement') }}</flux:heading>
-                <div class="grid gap-3 sm:grid-cols-4">
+            <form wire:submit="upload">
+            <x-ui.section :title="__('Upload a statement')" :hint="__('Tell us which column of your file holds what.')">
+                <div class="grid gap-4 sm:grid-cols-3">
                     <flux:input wire:model="header_row" inputmode="numeric" :label="__('Header row (0 for none)')" />
                     <flux:select wire:model="date_column" :label="__('Date column')">
                         @foreach ($columns as $n => $letter)
@@ -71,25 +73,28 @@
                         @endforeach
                     </flux:select>
                 </div>
-                <x-file-button wire:model="file" accept=".csv,.xlsx" :label="__('Choose statement file')" />
+                <div class="sm:col-span-3"><x-file-button wire:model="file" accept=".csv,.xlsx" :label="__('Choose statement file')" /></div>
                 @foreach (['header_row', 'date_column', 'date_format', 'description_column', 'reference_column', 'amount_mode', 'amount_column', 'debit_column', 'credit_column', 'balance_column', 'file'] as $field)
                     <flux:error name="{{ $field }}" />
                 @endforeach
-                <flux:button type="submit" variant="primary">{{ __('Upload') }}</flux:button>
+                <div class="flex justify-end">
+                    <flux:button type="submit" variant="primary">{{ __('Upload') }}</flux:button>
+                </div>
+            </x-ui.section>
             </form>
         @endif
 
         @if ($result !== null)
-            <div class="space-y-1 text-sm">
+            <flux:callout icon="information-circle" color="zinc" class="space-y-1 text-sm">
                 <p>{{ __('Imported :imported, skipped as duplicates :skipped, failed :failed.', ['imported' => $result['imported'], 'skipped' => $result['skipped'], 'failed' => count($result['failures'])]) }}</p>
                 @foreach ($result['failures'] as $failure)
                     <p>{{ __('Row :row: :reason', ['row' => $failure['row'], 'reason' => $failure['reason']]) }}</p>
                 @endforeach
-            </div>
+            </flux:callout>
         @endif
 
         <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Uploads') }}</flux:heading>
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-white">{{ __('Uploads') }}</h2>
             <flux:error name="upload" />
             <x-ui.table>
             <flux:table>
@@ -124,7 +129,7 @@
         </div>
 
         <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Reconciliations') }}</flux:heading>
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-white">{{ __('Reconciliations') }}</h2>
             <x-ui.table>
             <flux:table>
                 <flux:table.columns>
@@ -137,11 +142,11 @@
                     @foreach ($reconciliations as $r)
                         <flux:table.row :key="'rec-'.$r->id">
                             <flux:table.cell class="whitespace-nowrap">
-                                <a href="{{ route('ledger.bank-reconciliation.show', $r->id) }}" wire:navigate class="underline">{{ $r->end_date->format('d/m/Y') }}</a>
+                                <a href="{{ route('ledger.bank-reconciliation.show', $r->id) }}" wire:navigate class="font-medium text-accent-content underline">{{ $r->end_date->format('d/m/Y') }}</a>
                             </flux:table.cell>
                             <flux:table.cell class="text-end tabular-nums">{{ $r->opening_balance }}</flux:table.cell>
                             <flux:table.cell class="text-end tabular-nums">{{ $r->closing_balance }}</flux:table.cell>
-                            <flux:table.cell>{{ $r->status === 'open' ? __('Open') : __('Finished') }}</flux:table.cell>
+                            <flux:table.cell><flux:badge size="sm" :color="$r->status === 'open' ? 'amber' : 'green'">{{ $r->status === 'open' ? __('Open') : __('Finished') }}</flux:badge></flux:table.cell>
                         </flux:table.row>
                     @endforeach
                 </flux:table.rows>
@@ -150,9 +155,9 @@
         </div>
 
         @if ($canManage && ! $hasOpen)
-            <form wire:submit="start" class="space-y-3">
-                <flux:heading size="lg">{{ __('Start a reconciliation') }}</flux:heading>
-                <div class="grid gap-3 sm:grid-cols-3">
+            <form wire:submit="start">
+            <x-ui.section :title="__('Start a reconciliation')" class="max-w-4xl">
+                <div class="grid gap-4 sm:grid-cols-3">
                     <x-date-input wire:model="end_date" :label="__('Statement end date')" />
                     <flux:input wire:model="closing_balance" inputmode="decimal" :label="__('Statement closing balance')" />
                     @if ($first)
@@ -162,7 +167,10 @@
                 @foreach (['end_date', 'closing_balance', 'opening_balance'] as $field)
                     <flux:error name="{{ $field }}" />
                 @endforeach
-                <flux:button type="submit" variant="primary">{{ __('Start') }}</flux:button>
+                <div class="flex justify-end">
+                    <flux:button type="submit" variant="primary">{{ __('Start') }}</flux:button>
+                </div>
+            </x-ui.section>
             </form>
         @endif
     @endif

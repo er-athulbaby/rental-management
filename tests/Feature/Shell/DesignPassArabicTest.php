@@ -26,6 +26,12 @@ test('every string the design pass adds has an Arabic translation', function () 
         'Owner and building', 'Remove unit', 'Remove charge', 'BHD',
         // Task 13: final pass
         'Facilities', 'Charge to', 'Reported by', 'Trades', 'Bank details', 'Urgent, not started', 'Approvals for you to decide', 'Rental management',
+        // Polish pass
+        'Report builder', 'Report name', 'Report package', 'Package name', '1. What to report', 'Name the report and choose what it is about.', '2. Columns', 'Tick the columns you want to see.', '3. Filters', 'Only rows that match every filter are shown.', 'No filters yet. Add one to narrow the report.', '4. Sort and group', 'Order the rows, group them and add totals.', '1. Name the package', '2. Reports in the package', 'Move a report up or down to change its sheet order.', '3. Add a report',
+        // Polish pass
+        'Lock a period', 'Checks with a difference', 'Transfers, bank charges and bank interest between your money accounts.', 'Record a movement', 'Record the VAT you paid to, or got back from, NBR for a period.', 'Record a return', 'Match your bank statement to the ledger, one money account at a time.', 'Tell us which column of your file holds what.', 'Reconciliation figures', 'The chart of accounts and where each event posts.', 'Edit account', 'Lines',
+        // Polish pass
+        'Locked up to', 'Last checked',
     ];
 
     expect(array_values(array_diff($keys, array_keys($ar))))->toBe([]);

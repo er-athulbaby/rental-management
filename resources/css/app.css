@@ -206,6 +206,16 @@ progress.viz-ring::-moz-progress-bar {
     @apply font-semibold;
 }
 
+/* A section whose only content is a table: the table drops its own card so there is no card inside a card. */
+.ui-section-flush > .ui-table {
+    border-width: 0;
+    border-radius: 0;
+}
+
+[data-ui-section]:has(> .ui-section-flush) {
+    overflow: hidden;
+}
+
 .ui-table [data-flux-pagination] {
     @apply px-4 pb-3;
 }

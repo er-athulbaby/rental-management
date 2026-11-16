@@ -1,7 +1,18 @@
-<section class="w-full max-w-6xl space-y-8">
+<section class="w-full max-w-6xl space-y-6">
     <x-ui.page-header :title="__('Bank reconciliation').' · '.$rec->account->label().' · '.$rec->end_date->format('d/m/Y')"
         :hint="$open ? __('Open') : __('Finished :date by :name', ['date' => $rec->finished_at?->timezone('Asia/Bahrain')->format('d/m/Y H:i'), 'name' => $rec->finisher?->name])"
-        :back="route('ledger.bank-reconciliation', ['account' => (string) $rec->ledger_account_id])" />
+        :back="route('ledger.bank-reconciliation', ['account' => (string) $rec->ledger_account_id])">
+        <x-slot:actions>
+            @if ($open && $canManage)
+                <flux:button variant="primary" wire:click="finish">{{ __('Finish') }}</flux:button>
+                <flux:button variant="danger" wire:click="discard" wire:confirm="{{ __('Discard this open reconciliation and its matches?') }}">{{ __('Discard') }}</flux:button>
+            @endif
+            @if (! $open && $canAdmin)
+                <flux:button wire:click="reopen">{{ __('Reopen') }}</flux:button>
+            @endif
+            <flux:button wire:click="download">{{ __('Download report') }}</flux:button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @php
         [, $closing, , , , $ledgerFigure, $difference, $unmatchedLines] = $figures; // not $inTransit/$outstanding: those are the entry lists below
@@ -12,31 +23,21 @@
         <x-ui.stat :label="$difference[0]" :value="$difference[1]" :tone="$difference[1] === '0.000' ? 'success' : 'danger'" />
         <x-ui.stat :label="$unmatchedLines[0]" :value="$unmatchedLines[1]" :tone="$unmatchedLines[1] === '0' ? null : 'warning'" />
     </x-ui.stats>
-    <x-ui.section>
+    <x-ui.section :title="__('Reconciliation figures')">
         <dl class="grid max-w-xl gap-1 tabular-nums">
             @foreach ($figures as [$label, $value])
-                <div class="flex justify-between gap-4"><dt>{{ $label }}</dt><dd>{{ $value }}</dd></div>
+                <div class="flex justify-between gap-4 border-b border-zinc-100 py-1 last:border-0 dark:border-zinc-800"><dt class="text-zinc-600 dark:text-zinc-300">{{ $label }}</dt><dd class="font-medium">{{ $value }}</dd></div>
             @endforeach
         </dl>
     </x-ui.section>
 
-    <div class="flex flex-wrap gap-2">
-        @if ($open && $canManage)
-            <flux:button variant="primary" wire:click="finish">{{ __('Finish') }}</flux:button>
-            <flux:button variant="danger" wire:click="discard" wire:confirm="{{ __('Discard this open reconciliation and its matches?') }}">{{ __('Discard') }}</flux:button>
-        @endif
-        @if (! $open && $canAdmin)
-            <flux:button wire:click="reopen">{{ __('Reopen') }}</flux:button>
-        @endif
-        <flux:button wire:click="download">{{ __('Download report') }}</flux:button>
-    </div>
     @foreach (['finish', 'discard', 'reopen', 'line', 'picked'] as $field)
         @foreach ($errors->get($field) as $message)
             <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @endforeach
     @endforeach
 
-    <x-ui.section :title="__('Unmatched statement lines')">
+    <x-ui.section :title="__('Unmatched statement lines')" flush>
         <x-ui.table><flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -62,17 +63,15 @@
             </flux:table.rows>
         </flux:table></x-ui.table>
         @if ($unmatchedCount > $unmatched->count())
-            <p class="text-sm">{{ __('Showing :shown of :total', ['shown' => $unmatched->count(), 'total' => $unmatchedCount]) }}</p>
+            <p class="px-4 py-2 text-sm text-zinc-500">{{ __('Showing :shown of :total', ['shown' => $unmatched->count(), 'total' => $unmatchedCount]) }}</p>
         @endif
     </x-ui.section>
 
     @if ($line !== null)
-        <div class="space-y-4 rounded-lg border border-zinc-300 p-4 dark:border-zinc-600">
-            <flux:heading size="lg">{{ $line->date->format('d/m/Y') }} · {{ $line->description }} · {{ $line->amount }}</flux:heading>
-
-            <flux:heading>{{ __('Suggested entries') }}</flux:heading>
+        <x-ui.section :title="$line->date->format('d/m/Y').' · '.$line->description.' · '.$line->amount" class="border-accent ring-1 ring-accent/30">
+            <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">{{ __('Suggested entries') }}</h3>
             @forelse ($suggestions as $e)
-                <label class="flex items-center gap-2 text-sm">
+                <label class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
                     <input type="checkbox" wire:model.live.debounce.300ms="picked" value="{{ $e['key'] }}" />
                     {{ $e['date'] }} · {{ $e['source'] }} · {{ $e['description'] }} · <span class="tabular-nums">{{ $e['amount'] }}</span>
                 </label>
@@ -82,20 +81,22 @@
 
             <flux:input wire:model.live.debounce.400ms="search" :label="__('Find other entries (description or amount)')" />
             @foreach ($others as $e)
-                <label class="flex items-center gap-2 text-sm">
+                <label class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
                     <input type="checkbox" wire:model.live.debounce.300ms="picked" value="{{ $e['key'] }}" />
                     {{ $e['date'] }} · {{ $e['source'] }} · {{ $e['description'] }} · <span class="tabular-nums">{{ $e['amount'] }}</span>
                 </label>
             @endforeach
 
-            <p class="text-sm tabular-nums">{{ __('Chosen: :total of :amount', ['total' => $chosen, 'amount' => $line->amount]) }}</p>
-            <div class="flex gap-2">
-                <flux:button variant="primary" wire:click="match">{{ __('Match') }}</flux:button>
-                <flux:button wire:click="cancelPick">{{ __('Cancel') }}</flux:button>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+                <p class="text-sm font-medium tabular-nums">{{ __('Chosen: :total of :amount', ['total' => $chosen, 'amount' => $line->amount]) }}</p>
+                <div class="flex gap-2">
+                    <flux:button wire:click="cancelPick">{{ __('Cancel') }}</flux:button>
+                    <flux:button variant="primary" wire:click="match">{{ __('Match') }}</flux:button>
+                </div>
             </div>
 
-            <flux:heading>{{ __('Not in the ledger yet') }}</flux:heading>
-            <div class="grid gap-3 sm:grid-cols-2">
+            <h3 class="border-t border-zinc-200 pt-4 text-sm font-semibold text-zinc-900 dark:border-zinc-700 dark:text-white">{{ __('Not in the ledger yet') }}</h3>
+            <div class="grid gap-4 sm:grid-cols-2">
                 <flux:select wire:model.live="kind" :label="__('Record as')">
                     @foreach ($kinds as $k)
                         <flux:select.option :value="$k->value">{{ $k->label() }}</flux:select.option>
@@ -114,10 +115,10 @@
                 <flux:error name="{{ $field }}" />
             @endforeach
             <flux:button wire:click="bankOnly" :wire:confirm="$duplicateWarning ? __('An entry with this amount already exists. Record a new one anyway?') : null">{{ __('Record and match') }}</flux:button>
-        </div>
+        </x-ui.section>
     @endif
 
-    <x-ui.section :title="__('Matched statement lines')">
+    <x-ui.section :title="__('Matched statement lines')" flush>
         <x-ui.table><flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -149,7 +150,7 @@
     </x-ui.section>
 
     @foreach ([__('Deposits in transit') => $inTransit, __('Outstanding payments') => $outstanding] as $title => $list)
-        <x-ui.section :title="$title">
+        <x-ui.section :title="$title" flush>
             <x-ui.table><flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('Date') }}</flux:table.column>

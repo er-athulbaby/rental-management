@@ -1,9 +1,10 @@
-<section class="w-full max-w-6xl space-y-8">
-    <x-ui.page-header :title="__('Cash and bank movements')" />
+<section class="w-full max-w-6xl space-y-6">
+    <x-ui.page-header :title="__('Cash and bank movements')" :hint="__('Transfers, bank charges and bank interest between your money accounts.')" />
 
     @if ($canManage)
-        <form wire:submit="save" class="space-y-4">
-            <div class="grid gap-3 sm:grid-cols-3">
+        <form wire:submit="save">
+        <x-ui.section :title="__('Record a movement')">
+            <div class="grid gap-4 sm:grid-cols-3">
                 <flux:select wire:model.live="kind" :label="__('Kind')">
                     @foreach ($kinds as $k)
                         <flux:select.option :value="$k->value">{{ $k->label() }}</flux:select.option>
@@ -26,7 +27,7 @@
                     </flux:select>
                 @endif
             </div>
-            <div class="grid gap-3 sm:grid-cols-3">
+            <div class="grid gap-4 sm:grid-cols-3">
                 <flux:input wire:model="amount" inputmode="decimal" :label="__('Amount')" />
                 <x-date-input wire:model="date" :label="__('Date')" />
                 <flux:input wire:model="reference" :label="__('Reference')" />
@@ -35,23 +36,27 @@
             @foreach (['kind', 'from_account_id', 'to_account_id', 'amount', 'date', 'reference', 'note'] as $field)
                 <flux:error name="{{ $field }}" />
             @endforeach
-            <flux:button type="submit" variant="primary">{{ __('Record movement') }}</flux:button>
+            <div class="flex justify-end">
+                <flux:button type="submit" variant="primary">{{ __('Record movement') }}</flux:button>
+            </div>
+        </x-ui.section>
         </form>
     @endif
 
     @if ($reversingId !== null)
-        <form wire:submit="reverse" class="space-y-3">
-            <flux:heading size="lg">{{ __('Reverse') }} #{{ $reversingId }}</flux:heading>
-            <div class="grid gap-3 sm:grid-cols-2">
-                <x-date-input wire:model="reverseDate" :label="__('Reversal date')" />
-                <flux:input wire:model="reverseReason" :label="__('Reason')" />
-            </div>
-            <flux:error name="reverseDate" />
-            <flux:error name="reverseReason" />
-            <div class="flex gap-2">
-                <flux:button type="submit" variant="danger">{{ __('Reverse') }}</flux:button>
-                <flux:button type="button" wire:click="cancelReverse">{{ __('Cancel') }}</flux:button>
-            </div>
+        <form wire:submit="reverse">
+            <x-ui.section :title="__('Reverse').' #'.$reversingId" class="max-w-4xl border-red-300 dark:border-red-500/40">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-date-input wire:model="reverseDate" :label="__('Reversal date')" />
+                    <flux:input wire:model="reverseReason" :label="__('Reason')" />
+                </div>
+                <flux:error name="reverseDate" />
+                <flux:error name="reverseReason" />
+                <div class="flex justify-end gap-2">
+                    <flux:button type="button" wire:click="cancelReverse">{{ __('Cancel') }}</flux:button>
+                    <flux:button type="submit" variant="danger">{{ __('Reverse') }}</flux:button>
+                </div>
+            </x-ui.section>
         </form>
     @endif
 
@@ -93,7 +98,7 @@
                     <flux:table.row :key="'m-'.$row->id">
                         <flux:table.cell>{{ $row->id }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $row->date->format('d/m/Y') }}</flux:table.cell>
-                        <flux:table.cell>{{ $row->kind->label() }}</flux:table.cell>
+                        <flux:table.cell><flux:badge size="sm" color="zinc">{{ $row->kind->label() }}</flux:badge></flux:table.cell>
                         <flux:table.cell>{{ $row->fromAccount?->label() ?? '—' }}</flux:table.cell>
                         <flux:table.cell>{{ $row->toAccount?->label() ?? '—' }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $row->amount }}</flux:table.cell>
@@ -101,9 +106,9 @@
                         <flux:table.cell>{{ $row->note }}</flux:table.cell>
                         <flux:table.cell class="text-end">
                             @if ($row->reverses_id !== null)
-                                {{ __('Reversal of #:id', ['id' => $row->reverses_id]) }}
+                                <flux:badge size="sm" color="amber">{{ __('Reversal of #:id', ['id' => $row->reverses_id]) }}</flux:badge>
                             @elseif ($row->reversal !== null)
-                                {{ __('Reversed') }}
+                                <flux:badge size="sm" color="zinc">{{ __('Reversed') }}</flux:badge>
                             @elseif ($canManage)
                                 <flux:button size="sm" wire:click="startReverse({{ $row->id }})">{{ __('Reverse') }}</flux:button>
                             @endif
