@@ -142,12 +142,12 @@
 
             <x-ui.theme-toggle class="mx-2" />
 
+            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+
             <div class="px-2 text-xs leading-5 text-zinc-400">
                 <div>{{ __('Version :v', ['v' => config('app.version')]) }}</div>
                 <div>{{ __('Developed by') }} <a href="https://deverra.me" target="_blank" rel="noopener" class="font-medium text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:text-white">DeVerra Technologies</a></div>
             </div>
-
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
         <!-- Mobile header: the same charcoal, the brand, the menu toggle and the user menu (items unchanged). -->
