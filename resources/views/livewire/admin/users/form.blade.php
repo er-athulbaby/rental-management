@@ -1,33 +1,39 @@
 <section class="w-full max-w-2xl space-y-6">
-    <flux:heading size="xl" level="1">{{ $subject ? __('Edit user') : __('New user') }}</flux:heading>
+    <x-ui.page-header :title="$subject ? __('Edit user') : __('New user')" :back="route('admin.users.index')" />
 
     @if ($subject?->isVendorSupport())
         <flux:callout variant="warning" icon="lock-closed" :heading="__('The Vendor Support account is managed on the server. You can only deactivate it.')" />
     @else
         <form wire:submit="save" class="space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" required />
-            <flux:input wire:model="email" :label="__('Email')" type="email" required />
+            <x-ui.section>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <flux:input wire:model="name" :label="__('Name')" required />
+                    <flux:input wire:model="email" :label="__('Email')" type="email" required />
 
-            <flux:checkbox.group wire:model="roles" :label="__('Roles')">
-                @foreach ($roleOptions as $role)
-                    <flux:checkbox :value="$role->value" :label="$role->label()" />
-                @endforeach
-            </flux:checkbox.group>
-            <flux:error name="roles" />
+                    <flux:checkbox.group wire:model="roles" :label="__('Roles')" class="sm:col-span-2">
+                        @foreach ($roleOptions as $role)
+                            <flux:checkbox :value="$role->value" :label="$role->label()" />
+                        @endforeach
+                    </flux:checkbox.group>
+                    <flux:error name="roles" class="sm:col-span-2" />
 
-            <flux:checkbox.group wire:model="buildingIds" :label="__('Assigned buildings')" :description="__('Only matters for users without access to all buildings.')">
-                @forelse ($buildings as $building)
-                    <flux:checkbox :value="$building->id" :label="$building->code.' — '.$building->name" />
-                @empty
-                    <flux:text>{{ __('No buildings yet.') }}</flux:text>
-                @endforelse
-            </flux:checkbox.group>
+                    <flux:checkbox.group wire:model="buildingIds" :label="__('Assigned buildings')" :description="__('Only matters for users without access to all buildings.')" class="sm:col-span-2">
+                        @forelse ($buildings as $building)
+                            <flux:checkbox :value="$building->id" :label="$building->code.' — '.$building->name" />
+                        @empty
+                            <flux:text>{{ __('No buildings yet.') }}</flux:text>
+                        @endforelse
+                    </flux:checkbox.group>
+                </div>
 
-            @unless ($subject)
-                <flux:text>{{ __('The new user receives an email with a link to set their own password.') }}</flux:text>
-            @endunless
+                @unless ($subject)
+                    <flux:text>{{ __('The new user receives an email with a link to set their own password.') }}</flux:text>
+                @endunless
+            </x-ui.section>
 
-            <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+            <div class="flex justify-end">
+                <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+            </div>
         </form>
     @endif
 
