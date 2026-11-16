@@ -3,8 +3,9 @@
 
     <flux:heading level="2" class="sr-only">{{ __('Security settings') }}</flux:heading>
 
-    <x-settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
-        <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
+    <x-settings.layout>
+      <x-ui.section :title="__('Update password')" :hint="__('Ensure your account is using a long, random password to stay secure')">
+        <form method="POST" wire:submit="updatePassword" class="space-y-4">
             <flux:input
                 wire:model="current_password"
                 :label="__('Current password')"
@@ -36,13 +37,11 @@
                 <flux:button variant="primary" type="submit" data-test="update-password-button">{{ __('Save') }}</flux:button>
             </div>
         </form>
+      </x-ui.section>
 
         @if ($canManageTwoFactor)
-            <section class="mt-12">
-                <flux:heading>{{ __('Two-factor authentication') }}</flux:heading>
-                <flux:subheading>{{ __('Manage your two-factor authentication settings') }}</flux:subheading>
-
-                <div class="flex flex-col w-full mx-auto space-y-6 text-sm" wire:cloak>
+            <x-ui.section :title="__('Two-factor authentication')" :hint="__('Manage your two-factor authentication settings')">
+                <div class="flex flex-col w-full space-y-6 text-sm" wire:cloak>
                     @if ($twoFactorEnabled)
                         <div class="space-y-4">
                             <flux:text>
@@ -78,7 +77,7 @@
                         </div>
                     @endif
                 </div>
-            </section>
+            </x-ui.section>
         @endif
 
         @if ($canManageTwoFactor)
@@ -90,15 +89,15 @@
             >
                 <div class="space-y-6">
                     <div class="flex flex-col items-center space-y-4">
-                        <div class="p-0.5 w-auto rounded-full border border-stone-100 dark:border-stone-600 bg-white dark:bg-stone-800 shadow-sm">
-                            <div class="p-2.5 rounded-full border border-stone-200 dark:border-stone-600 overflow-hidden bg-stone-100 dark:bg-stone-200 relative">
-                                <div class="flex items-stretch absolute inset-0 w-full h-full divide-x [&>div]:flex-1 divide-stone-200 dark:divide-stone-300 justify-around opacity-50">
+                        <div class="p-0.5 w-auto rounded-full border border-zinc-100 dark:border-zinc-600 bg-white dark:bg-zinc-800 shadow-sm">
+                            <div class="p-2.5 rounded-full border border-zinc-200 dark:border-zinc-600 overflow-hidden bg-zinc-100 dark:bg-zinc-200 relative">
+                                <div class="flex items-stretch absolute inset-0 w-full h-full divide-x [&>div]:flex-1 divide-zinc-200 dark:divide-zinc-300 justify-around opacity-50">
                                     @for ($i = 1; $i <= 5; $i++)
                                         <div></div>
                                     @endfor
                                 </div>
 
-                                <div class="flex flex-col items-stretch absolute w-full h-full divide-y [&>div]:flex-1 inset-0 divide-stone-200 dark:divide-stone-300 justify-around opacity-50">
+                                <div class="flex flex-col items-stretch absolute w-full h-full divide-y [&>div]:flex-1 inset-0 divide-zinc-200 dark:divide-zinc-300 justify-around opacity-50">
                                     @for ($i = 1; $i <= 5; $i++)
                                         <div></div>
                                     @endfor
@@ -156,9 +155,9 @@
                         @enderror
 
                         <div class="flex justify-center">
-                            <div class="relative w-64 overflow-hidden border rounded-lg border-stone-200 dark:border-stone-700 aspect-square">
+                            <div class="relative w-64 overflow-hidden border rounded-lg border-zinc-200 dark:border-zinc-700 aspect-square">
                                 @empty($qrCodeSvg)
-                                    <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-stone-700 animate-pulse">
+                                    <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-zinc-700 animate-pulse">
                                         <flux:icon.loading/>
                                     </div>
                                 @else
@@ -187,8 +186,8 @@
 
                         <div class="space-y-4">
                             <div class="relative flex items-center justify-center w-full">
-                                <div class="absolute inset-0 w-full h-px top-1/2 bg-stone-200 dark:bg-stone-600"></div>
-                                <span class="relative px-2 text-sm bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400">
+                                <div class="absolute inset-0 w-full h-px top-1/2 bg-zinc-200 dark:bg-zinc-600"></div>
+                                <span class="relative px-2 text-sm bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
                                     {{ __('or, enter the code manually') }}
                                 </span>
                             </div>
@@ -208,9 +207,9 @@
                                     }
                                 }"
                             >
-                                <div class="flex items-stretch w-full border rounded-xl dark:border-stone-700">
+                                <div class="flex items-stretch w-full border rounded-xl dark:border-zinc-700">
                                     @empty($manualSetupKey)
-                                        <div class="flex items-center justify-center w-full p-3 bg-stone-100 dark:bg-stone-700">
+                                        <div class="flex items-center justify-center w-full p-3 bg-zinc-100 dark:bg-zinc-700">
                                             <flux:icon.loading variant="mini"/>
                                         </div>
                                     @else
@@ -218,12 +217,12 @@
                                             type="text"
                                             readonly
                                             value="{{ $manualSetupKey }}"
-                                            class="w-full p-3 bg-transparent outline-none text-stone-900 dark:text-stone-100"
+                                            class="w-full p-3 bg-transparent outline-none text-zinc-900 dark:text-zinc-100"
                                         />
 
                                         <button
                                             @click="copy()"
-                                            class="px-3 transition-colors border-l cursor-pointer border-stone-200 dark:border-stone-600"
+                                            class="px-3 transition-colors border-s cursor-pointer border-zinc-200 dark:border-zinc-600"
                                         >
                                             <flux:icon.document-duplicate x-show="!copied" variant="outline"></flux:icon>
                                             <flux:icon.check

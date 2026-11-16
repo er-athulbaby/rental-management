@@ -1,11 +1,18 @@
 <section class="w-full max-w-2xl space-y-6">
     <x-ui.page-header :title="__('Facilities')" :hint="__('The facilities buildings can tick. Switch one off to stop offering it; buildings that already have it keep it.')" />
 
-    <x-ui.section>
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Facilities')" :value="$facilities->count()" />
+        <x-ui.stat :label="__('Offered')" :value="$facilities->where('active', true)->count()" tone="success" />
+        <x-ui.stat :label="__('Switched off')" :value="$facilities->where('active', false)->count()" />
+    </x-ui.stats>
+
+    <x-ui.section :title="__('Add a facility')" :hint="__('Type the facility name as it should appear when a building is edited.')">
         <form wire:submit="add" class="flex flex-wrap items-end gap-2">
             <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New facility')" :placeholder="__('e.g. Rooftop terrace')" /></div>
             <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
         </form>
+        <flux:error name="name" />
     </x-ui.section>
 
     <x-ui.table>
@@ -38,5 +45,4 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
-    <flux:error name="name" />
 </section>

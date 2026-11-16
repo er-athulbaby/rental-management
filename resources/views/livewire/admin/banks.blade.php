@@ -1,11 +1,18 @@
 <section class="w-full max-w-2xl space-y-6">
     <x-ui.page-header :title="__('Banks')" :hint="__('The banks offered for owners and cheques. Switch one off to stop offering it; records that already name it keep it.')" />
 
-    <x-ui.section>
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Banks')" :value="$banks->count()" />
+        <x-ui.stat :label="__('Offered')" :value="$banks->where('active', true)->count()" tone="success" />
+        <x-ui.stat :label="__('Switched off')" :value="$banks->where('active', false)->count()" />
+    </x-ui.stats>
+
+    <x-ui.section :title="__('Add a bank')" :hint="__('Type the bank name as it should appear in lists.')">
         <form wire:submit="add" class="flex flex-wrap items-end gap-2">
             <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New bank')" :placeholder="__('e.g. Khaleeji Bank')" /></div>
             <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
         </form>
+        <flux:error name="name" />
     </x-ui.section>
 
     <x-ui.table>
@@ -38,5 +45,4 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
-    <flux:error name="name" />
 </section>

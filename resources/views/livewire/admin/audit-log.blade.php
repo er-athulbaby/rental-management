@@ -43,8 +43,8 @@
                         <flux:table.cell>
                             @if ($entry->attribute_changes?->isNotEmpty() || $entry->properties?->isNotEmpty())
                                 <details>
-                                    <summary class="cursor-pointer text-sm">{{ __('Show') }}</summary>
-                                    <pre class="mt-2 max-w-md overflow-x-auto text-xs">{{ json_encode(['changes' => $entry->attribute_changes, 'properties' => $entry->properties], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                    <summary class="cursor-pointer text-sm text-accent-content">{{ __('Show') }}</summary>
+                                    <pre class="mt-2 max-h-72 max-w-md overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200">{{ json_encode(['changes' => $entry->attribute_changes, 'properties' => $entry->properties], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                 </details>
                             @endif
                         </flux:table.cell>

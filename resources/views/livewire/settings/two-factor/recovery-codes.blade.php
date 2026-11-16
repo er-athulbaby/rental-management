@@ -1,9 +1,9 @@
 <div
-    class="py-6 space-y-6 border shadow-sm rounded-xl border-zinc-200 dark:border-white/10"
+    class="space-y-4 border-t border-zinc-200 pt-6 dark:border-zinc-700"
     wire:cloak
     x-data="{ showRecoveryCodes: false }"
 >
-    <div class="px-6 space-y-2">
+    <div class="space-y-2">
         <div class="flex items-center gap-2">
             <flux:icon.lock-closed variant="outline" class="size-4"/>
             <flux:heading size="lg" level="3">{{ __('2FA recovery codes') }}</flux:heading>
@@ -13,7 +13,7 @@
         </flux:text>
     </div>
 
-    <div class="px-6">
+    <div>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <flux:button
                 x-show="!showRecoveryCodes"

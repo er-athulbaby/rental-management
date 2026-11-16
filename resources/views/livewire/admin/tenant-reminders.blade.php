@@ -6,22 +6,24 @@
     <flux:error name="settings" />
 
     <form wire:submit="save" class="space-y-6">
-        <x-ui.section>
-            @foreach ($types as $type => [$label, $daysLabel])
-                <flux:fieldset wire:key="reminder-{{ $type }}" class="border-t border-zinc-200 pt-4 first:border-t-0 first:pt-0 dark:border-zinc-700">
-                    <flux:legend>{{ $label }}</flux:legend>
-                    <div class="space-y-4">
-                        <flux:switch wire:model="settings.{{ $type }}.enabled" :label="__('Send automatically')" />
-                        <flux:input wire:model="settings.{{ $type }}.days" :label="$daysLabel" :placeholder="__('e.g. 1, 7, 14')" aria-required="true" />
-                        <flux:textarea wire:model="settings.{{ $type }}.intro_en" :label="__('Intro line (English)')" rows="2" aria-required="true" />
-                        <flux:textarea wire:model="settings.{{ $type }}.intro_ar" :label="__('Intro line (Arabic)')" rows="2" dir="rtl" aria-required="true" />
-                        <flux:error name="settings.{{ $type }}" />
+        @foreach ($types as $type => [$label, $daysLabel])
+            <x-ui.section :title="$label" wire:key="reminder-{{ $type }}">
+                <flux:fieldset>
+                    <flux:legend class="sr-only">{{ $label }}</flux:legend>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="flex items-center sm:col-span-2">
+                            <flux:switch wire:model="settings.{{ $type }}.enabled" :label="__('Send automatically')" />
+                        </div>
+                        <div class="sm:col-span-2"><flux:input wire:model="settings.{{ $type }}.days" :label="$daysLabel" :placeholder="__('e.g. 1, 7, 14')" aria-required="true" /></div>
+                        <flux:textarea wire:model="settings.{{ $type }}.intro_en" :label="__('Intro line (English)')" rows="3" aria-required="true" />
+                        <flux:textarea wire:model="settings.{{ $type }}.intro_ar" :label="__('Intro line (Arabic)')" rows="3" dir="rtl" aria-required="true" />
+                        <flux:error name="settings.{{ $type }}" class="sm:col-span-2" />
                     </div>
                 </flux:fieldset>
-            @endforeach
-        </x-ui.section>
-        <div class="flex justify-end">
+            </x-ui.section>
+        @endforeach
+        <x-ui.form-actions>
             <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
-        </div>
+        </x-ui.form-actions>
     </form>
 </section>

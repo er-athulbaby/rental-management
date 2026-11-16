@@ -1,7 +1,13 @@
 <section class="w-full max-w-3xl space-y-6">
     <x-ui.page-header :title="__('Unit types')" :hint="__('The types a unit can be. The usual use fills in the unit\'s Residential or Commercial when the type is picked. Switch a type off to stop offering it; units that already have it keep it.')" />
 
-    <x-ui.section>
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Unit types')" :value="$types->count()" />
+        <x-ui.stat :label="__('Offered')" :value="$types->where('active', true)->count()" tone="success" />
+        <x-ui.stat :label="__('Switched off')" :value="$types->where('active', false)->count()" />
+    </x-ui.stats>
+
+    <x-ui.section :title="__('Add a unit type')" :hint="__('Pick the usual use so the unit form can fill it in.')">
         <form wire:submit="add" class="flex flex-wrap items-end gap-2">
             <div class="min-w-0 flex-1"><flux:input wire:model="name" :label="__('New unit type')" :placeholder="__('e.g. Car wash bay')" /></div>
             <flux:select wire:model="defaultUse" :label="__('Usual use')" class="max-w-44">
@@ -10,6 +16,8 @@
             </flux:select>
             <flux:button type="submit" variant="primary">{{ __('Add') }}</flux:button>
         </form>
+        <flux:error name="name" />
+        <flux:error name="use" />
     </x-ui.section>
 
     <x-ui.table>
@@ -50,6 +58,4 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
-    <flux:error name="name" />
-    <flux:error name="use" />
 </section>

@@ -1,11 +1,17 @@
 <section class="w-full max-w-4xl space-y-6">
-    <x-ui.page-header :title="__('Custom fields')" />
-    <flux:text>{{ __('Fields added here appear under "More details" on each record. Tenant, unit and agreement fields can show in the tenant portal; owner and building fields in the owner portal.') }}</flux:text>
+    <x-ui.page-header :title="__('Custom fields')" :hint='__("Fields added here appear under \"More details\" on each record. Tenant, unit and agreement fields can show in the tenant portal; owner and building fields in the owner portal.")' />
 
-    <div class="flex flex-wrap gap-2">
-        @foreach ($kinds as $k)
-            <flux:button size="sm" :variant="$k === $kind ? 'primary' : 'ghost'" wire:click="$set('entity', '{{ $k->value }}')">{{ $k->label() }}</flux:button>
-        @endforeach
+    <div class="border-b border-zinc-200 dark:border-zinc-700">
+        <div role="tablist" aria-label="{{ __('Custom fields') }}" class="-mb-px flex max-w-full gap-1 overflow-x-auto">
+            @foreach ($kinds as $k)
+                <button type="button" role="tab" aria-selected="{{ $k === $kind ? 'true' : 'false' }}" wire:click="$set('entity', '{{ $k->value }}')"
+                    @class([
+                        'shrink-0 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
+                        'border-accent text-accent-content' => $k === $kind,
+                        'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' => $k !== $kind,
+                    ])>{{ $k->label() }}</button>
+            @endforeach
+        </div>
     </div>
 
     <x-ui.table>
@@ -53,8 +59,8 @@
     <flux:error name="list" />
 
     @if ($editing)
-        <form wire:submit="save" class="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-            <flux:heading size="lg">{{ $editingId ? __('Edit field') : __('New field') }}</flux:heading>
+        <form wire:submit="save">
+          <x-ui.section :title="$editingId ? __('Edit field') : __('New field')" :hint="__('Label, type and where the field shows.')">
             <div class="grid gap-4 sm:grid-cols-2">
                 <flux:input wire:model="form.label_en" :label="__('Label (English)')" required />
                 <flux:input wire:model="form.label_ar" :label="__('Label (Arabic)')" dir="rtl" />
@@ -68,11 +74,11 @@
                 <flux:checkbox wire:model="form.in_portal" :label="__('Show in portal')" />
             </div>
             @if (($form['type'] ?? '') === 'choice')
-                <flux:fieldset>
+                <flux:fieldset class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                     <flux:legend>{{ __('Choices') }}</flux:legend>
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                         @foreach ($choices as $i => $choice)
-                            <div class="flex flex-wrap items-end gap-2" wire:key="choice-{{ $i }}">
+                            <div class="flex flex-wrap items-end gap-2 border-b border-zinc-200 pb-3 dark:border-zinc-700" wire:key="choice-{{ $i }}">
                                 <flux:input wire:model="choices.{{ $i }}.label_en" :label="__('Choice (English)')" class="min-w-0 flex-1" />
                                 <flux:input wire:model="choices.{{ $i }}.label_ar" :label="__('Choice (Arabic)')" dir="rtl" class="min-w-0 flex-1" />
                                 <flux:checkbox wire:model="choices.{{ $i }}.hidden" :label="__('Hidden')" />
@@ -85,10 +91,11 @@
                     </div>
                 </flux:fieldset>
             @endif
-            <div class="flex gap-2">
-                <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
+            <div class="flex flex-wrap justify-end gap-2">
                 <flux:button wire:click="cancel">{{ __('Cancel') }}</flux:button>
+                <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
             </div>
+          </x-ui.section>
         </form>
     @else
         <flux:button variant="primary" icon="plus" wire:click="create">{{ __('Add field') }}</flux:button>

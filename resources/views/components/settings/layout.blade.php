@@ -9,12 +9,8 @@
 
     <flux:separator class="md:hidden" />
 
-    <div class="flex-1 self-stretch max-md:pt-6">
-        <flux:heading>{{ $heading ?? '' }}</flux:heading>
-        <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
-
-        <x-ui.section class="mt-5 w-full max-w-lg">
-            {{ $slot }}
-        </x-ui.section>
+    {{-- Each settings page puts its own titled <x-ui.section>s in the slot. --}}
+    <div class="w-full max-w-xl flex-1 space-y-6 self-stretch max-md:pt-6">
+        {{ $slot }}
     </div>
 </div>
