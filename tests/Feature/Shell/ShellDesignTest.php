@@ -155,3 +155,13 @@ test('the staff sign-in page renders before any company settings exist', functio
 
     $this->get(route('login'))->assertOk()->assertSee('data-ui-auth-card', false)->assertSee(config('app.name'));
 });
+
+test('the one-click theme switch shows on the staff dashboard and on the portal sign-in page', function () {
+    $management = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
+    CompanySetting::factory()->create();
+
+    $this->actingAs($management)->get(route('dashboard'))->assertOk()->assertSee('data-ui-theme-toggle', false);
+
+    auth()->logout();
+    $this->get(route('portal.login'))->assertOk()->assertSee('data-ui-theme-toggle', false);
+});

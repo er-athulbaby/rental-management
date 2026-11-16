@@ -26,3 +26,9 @@ test('no repository, a missing ref or a damaged HEAD gives null, never an error'
         ->and(GitVersion::read(gitDir(['.git/HEAD' => "ref: refs/heads/gone\n"])))->toBeNull()
         ->and(GitVersion::read(gitDir(['.git/HEAD' => "not a hash\n"])))->toBeNull();
 });
+
+test('CRLF line endings in HEAD and packed-refs still give the short hash', function () {
+    $hash = str_repeat('ab12cd3', 5).'ef012';
+
+    expect(GitVersion::read(gitDir(['.git/HEAD' => "ref: refs/heads/main\r\n", '.git/packed-refs' => "# pack-refs\r\n{$hash} refs/heads/main\r\n"])))->toBe('ab12cd3');
+});
