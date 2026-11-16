@@ -94,10 +94,13 @@ test('the work orders list filters by status and vendor and flags overdue work',
     $late = workOrderFor($this->pm, $this->waiting, $this->plumber, ['scheduled_on' => '2026-10-16']);
     workOrderFor($this->pm, $this->urgent, $this->cool, ['scheduled_on' => '2026-10-20']);
 
-    $page = Livewire::actingAs($this->pm)->test(WorkOrders::class)->assertSee('Overdue');
+    // The badge is the bare word; the "Overdue work orders" figure label must not satisfy this.
+    $badge = '/>\s*Overdue\s*</';
+    $page = Livewire::actingAs($this->pm)->test(WorkOrders::class);
+    expect($page->html())->toMatch($badge);
     expect(($this->numbers)($page, 'workOrders'))->toBe(['WO-2026-000002', 'WO-2026-000003', 'WO-2026-000001']); // by scheduled date, unscheduled last
 
-    $page->set('vendor', (string) $this->cool->id)->assertDontSee('data-tone="red"', false);
+    expect($page->set('vendor', (string) $this->cool->id)->html())->not->toMatch($badge);
     expect(($this->numbers)($page, 'workOrders'))->toBe(['WO-2026-000003']);
     $page->set('vendor', '')->set('status', 'assigned')->set('building', (string) $this->a->id);
     expect(($this->numbers)($page, 'workOrders'))->toBe(['WO-2026-000002', 'WO-2026-000001']);
