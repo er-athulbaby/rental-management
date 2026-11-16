@@ -1,10 +1,6 @@
 <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="min-w-0 flex-1">
-            <flux:input wire:model.blur="name" :placeholder="__('Untitled package')" :aria-label="__('Package name')" aria-describedby="package-name-error" :aria-invalid="$errors->has('name') ? 'true' : null" class="max-w-md" :disabled="! $canEdit" />
-            @error('name')<flux:text id="package-name-error" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
+    <x-ui.page-header :title="is_string($name) && $name !== '' ? $name : __('Report package')" :back="route('reports.index')">
+        <x-slot:actions>
             @if ($canEdit)
                 <flux:button variant="primary" wire:click="save">{{ __('Save') }}</flux:button>
             @endif
@@ -16,20 +12,24 @@
                     <flux:button variant="ghost" icon="trash" wire:click="deletePackage" wire:confirm="{{ __('Delete this package?') }}" :aria-label="__('Delete')" />
                 @endif
             @endif
-            <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($packageId && $canEdit)
         @include('livewire.reports.partials.schedule-modal', ['intro' => __('Each person gets the package with only the data they are allowed to see.'), 'fixedDates' => false])
     @endif
 
-    <flux:text>{{ __('One Excel workbook, one sheet per report, in this order. Periods are worked out again on every run.') }}</flux:text>
+    <x-ui.section :title="__('1. Name the package')" :hint="__('One Excel workbook, one sheet per report, in this order. Periods are worked out again on every run.')" class="max-w-2xl">
+        <flux:input wire:model.blur="name" :placeholder="__('Untitled package')" :label="__('Package name')" aria-describedby="package-name-error" :aria-invalid="$errors->has('name') ? 'true' : null" :disabled="! $canEdit" />
+        @error('name')<flux:text id="package-name-error" class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
+    </x-ui.section>
+
     @error('items')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
 
+    <x-ui.section :title="__('2. Reports in the package')" :hint="__('Move a report up or down to change its sheet order.')">
     <ol class="space-y-3">
         @forelse ($rows as $n => $row)
-            <li class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900" wire:key="item-{{ $n }}-{{ $row['index'] }}-{{ $row['title'] }}">
+            <li class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50" wire:key="item-{{ $n }}-{{ $row['index'] }}-{{ $row['title'] }}">
                 <div class="flex flex-wrap items-start justify-between gap-2">
                     <div class="min-w-0">
                         <span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ $n + 1 }}. {{ $row['title'] }}</span>
@@ -71,8 +71,10 @@
             <li><flux:text>{{ __('No reports yet. Add the first one below.') }}</flux:text></li>
         @endforelse
     </ol>
+    </x-ui.section>
 
     @if ($canEdit)
+        <x-ui.section :title="__('3. Add a report')">
         <div class="flex flex-wrap items-end gap-2">
             <flux:select wire:model="add" :label="__('Add a report')" class="sm:max-w-md">
                 <option value="">{{ __('Choose a report') }}</option>
@@ -88,5 +90,6 @@
             <flux:button icon="plus" wire:click="addItem">{{ __('Add') }}</flux:button>
         </div>
         @error('add')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
+        </x-ui.section>
     @endif
 </div>

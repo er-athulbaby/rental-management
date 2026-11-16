@@ -5,11 +5,8 @@
         'between' => __('between'), 'on' => __('on'), 'before' => __('before'), 'after' => __('after'), 'yes' => __('is yes'), 'no' => __('is no')];
 @endphp
 <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="min-w-0 flex-1">
-            <flux:input wire:model.blur="name" :placeholder="__('Untitled report')" :aria-label="__('Report name')" class="max-w-md" />
-        </div>
-        <div class="flex flex-wrap gap-2">
+    <x-ui.page-header :title="$name !== '' ? $name : __('Report builder')" :back="route('reports.index')">
+        <x-slot:actions>
             @if ($canEdit)
                 <flux:button variant="primary" wire:click="save">{{ __('Save') }}</flux:button>
             @endif
@@ -23,17 +20,19 @@
                     <flux:button variant="ghost" icon="trash" wire:click="deleteReport" wire:confirm="{{ __('Delete this report?') }}" :aria-label="__('Delete')" />
                 @endif
             @endif
-            @error('name')<flux:text class="w-full text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>@enderror
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($reportId && $canEdit)
         @include('livewire.reports.partials.schedule-modal', ['intro' => __('Each person gets the report with only the data they are allowed to see.'),
             'fixedDates' => ($def['period']['preset'] ?? null) === 'custom'])
     @endif
 
-    <div class="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside class="space-y-4">
+    <div class="grid items-start gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <aside class="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto lg:pe-1">
+        <x-ui.section :title="__('1. What to report')" :hint="__('Name the report and choose what it is about.')">
+            <flux:input wire:model.blur="name" :placeholder="__('Untitled report')" :label="__('Report name')" />
+            @error('name')<flux:text class="text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>@enderror
             <flux:select wire:change="setSubject($event.target.value)" :label="__('Subject')">
                 @foreach (collect($subjects)->groupBy(fn ($s) => $s->group()) as $group => $items)
                     <optgroup label="{{ $group }}">
@@ -45,7 +44,7 @@
             <x-building-filter :buildings="$buildings" model="def.building_id" />
 
             @if ($subject->periodFields() !== [])
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                     <flux:select wire:model.live="def.period.field" :label="__('Period by')">
                         @foreach ($subject->periodFields() as $p)<option value="{{ $p }}">{{ $fields[$p]->label }}</option>@endforeach
                     </flux:select>
@@ -60,16 +59,18 @@
             @elseif ($subject->usesAsAt())
                 <x-date-input wire:model.live="def.as_at" :label="__('As at')" />
             @endif
+        </x-ui.section>
 
+        <x-ui.section :title="__('2. Columns')" :hint="__('Tick the columns you want to see.')">
             <flux:fieldset>
-                <flux:legend>{{ __('Columns') }}</flux:legend>
-                <div class="max-h-72 space-y-3 overflow-y-auto pe-1">
+                <flux:legend class="sr-only">{{ __('Columns') }}</flux:legend>
+                <div class="max-h-96 space-y-4 overflow-y-auto pe-1">
                     @foreach ($sections as $section => $sectionFields)
                         <div>
-                            <div class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $section }}</div>
+                            <div class="mb-1 border-b border-zinc-200 pb-1 text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400">{{ $section }}</div>
                             @foreach ($sectionFields as $f)
                                 @continue($f->archived && ! in_array($f->key, is_array($def['columns'] ?? null) ? $def['columns'] : [], true))
-                                <label class="flex items-center gap-2 py-0.5 text-sm">
+                                <label class="flex items-center gap-2 py-1 text-sm">
                                     <input type="checkbox" wire:click="toggleColumn('{{ $f->key }}')" @checked(in_array($f->key, is_array($def['columns'] ?? null) ? $def['columns'] : [], true))>
                                     {{ $f->label }}
                                 </label>
@@ -79,14 +80,19 @@
                 </div>
                 @error('columns')<flux:text class="text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>@enderror
             </flux:fieldset>
+        </x-ui.section>
 
+        <x-ui.section :title="__('3. Filters')" :hint="__('Only rows that match every filter are shown.')">
             <flux:fieldset>
-                <flux:legend>{{ __('Filters') }}</flux:legend>
+                <flux:legend class="sr-only">{{ __('Filters') }}</flux:legend>
                 <div class="space-y-2">
+                    @if (! is_array($def['filters'] ?? null) || $def['filters'] === [])
+                        <flux:text class="text-sm">{{ __('No filters yet. Add one to narrow the report.') }}</flux:text>
+                    @endif
                     @foreach (is_array($def['filters'] ?? null) ? $def['filters'] : [] as $i => $filter)
                         @php $filter = is_array($filter) ? $filter : []; @endphp
                         @php $ff = is_string($filter['field'] ?? null) ? ($fields[$filter['field']] ?? null) : null; @endphp
-                        <div class="space-y-1 rounded-lg border border-zinc-200 p-2 dark:border-zinc-700" wire:key="filter-{{ $i }}">
+                        <div class="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-800/50" wire:key="filter-{{ $i }}">
                             <div class="flex gap-1">
                                 <flux:select wire:model.live="def.filters.{{ $i }}.field" size="sm" :aria-label="__('Field')">
                                     <option value="">{{ __('Field…') }}</option>
@@ -140,8 +146,10 @@
                     <flux:button size="sm" icon="plus" wire:click="addFilter">{{ __('Add filter') }}</flux:button>
                 </div>
             </flux:fieldset>
+        </x-ui.section>
 
-            <div class="grid grid-cols-2 gap-2">
+        <x-ui.section :title="__('4. Sort and group')" :hint="__('Order the rows, group them and add totals.')">
+            <div class="grid grid-cols-2 gap-3">
                 <flux:select wire:model.live="def.sort.field" :label="__('Sort by')">
                     @foreach ($fields as $f)@if (! $f->archived || ($def['sort']['field'] ?? null) === $f->key)<option value="{{ $f->key }}">{{ $f->label }}</option>@endif @endforeach
                 </flux:select>
@@ -153,6 +161,7 @@
 
             <flux:fieldset>
                 <flux:legend>{{ __('Group by') }}</flux:legend>
+                <div class="space-y-2">
                 @foreach ([0, 1] as $level)
                     @php $g = is_array($def['groups'][$level] ?? null) ? $def['groups'][$level] : null; @endphp
                     @php $gf = is_string($g['field'] ?? null) ? ($fields[$g['field']] ?? null) : null; @endphp
@@ -171,6 +180,7 @@
                     @endif
                 @endforeach
                 <flux:checkbox wire:model.live="def.summary_only" :label="__('Summary only (hide detail rows)')" />
+                </div>
             </flux:fieldset>
 
             <flux:fieldset>
@@ -190,7 +200,7 @@
             </flux:fieldset>
 
             @if (is_array($def['groups'][0] ?? null) && is_string($def['groups'][0]['field'] ?? null) && $def['groups'][0]['field'] !== '')
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                     <flux:select wire:model.live="def.chart.type" :label="__('Chart')">
                         <option value="">{{ __('None') }}</option><option value="bars">{{ __('Show chart') }}</option>
                     </flux:select>
@@ -209,9 +219,10 @@
                     <option value="last_year">{{ __('Same period last year') }}</option>
                 </flux:select>
             @endif
+        </x-ui.section>
         </aside>
 
-        <section class="min-w-0 space-y-3">
+        <section class="min-w-0 space-y-4">
             @if ($dropped !== [])
                 <flux:callout icon="information-circle" color="amber">
                     <flux:callout.text>{{ __('Some fields aren\'t available to you and were left out: :list', ['list' => implode(', ', $dropped)]) }}</flux:callout.text>
@@ -222,7 +233,7 @@
                     <flux:callout.text>{{ collect($defErrors)->flatten()->first() }}</flux:callout.text>
                 </flux:callout>
             @elseif ($result)
-                <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm text-zinc-500">
+                <div class="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                     <span>{{ trans_choice(':n row|:n rows', $result->rowCount, ['n' => number_format($result->rowCount)]) }}@if ($result->periodLabel) · {{ $result->periodLabel }}@endif</span>
                     @if ($result->truncated)<span>{{ __('Showing the first :n — export to Excel for all.', ['n' => App\Reports\Builder\Engine::DETAIL_LIMIT]) }}</span>@endif
                     @if ($result->groupsTruncated)<span>{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</span>@endif
@@ -310,7 +321,7 @@
                                         @endforeach
                                     </flux:table.row>
                                 @empty
-                                    <flux:table.row><flux:table.cell :colspan="count($result->columns)">{{ __('No rows match.') }}</flux:table.cell></flux:table.row>
+                                    <flux:table.row><flux:table.cell :colspan="count($result->columns)" class="py-8 text-center text-zinc-500">{{ __('No rows match.') }}</flux:table.cell></flux:table.row>
                                 @endforelse
                             @endif
                             @if ($result->rows !== [] || $result->groups !== [])
