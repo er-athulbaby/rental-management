@@ -1,20 +1,38 @@
 <div class="space-y-6">
-    <flux:heading size="xl">{{ __('Dashboard') }}</flux:heading>
+    <x-ui.page-header :title="__('Dashboard')"
+        :hint="__('Hello, :name', ['name' => auth()->user()->name]).' · '.now('Asia/Bahrain')->format('l d/m/Y')" />
+
     @if ($tiles === [])
         <flux:text>{{ __('Welcome. Use the menu to get started.') }}</flux:text>
     @else
-        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <x-ui.stats>
             @foreach ($tiles as $tile)
-                <a href="{{ $tile['url'] }}" wire:navigate
-                    class="group block min-w-0 rounded-xl border border-zinc-200 bg-white p-3 transition sm:p-4 hover:border-zinc-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600">
-                    <span class="flex items-center justify-between gap-2 text-sm text-zinc-500">
-                        {{ $tile['label'] }}
-                        <flux:icon.arrow-up-right variant="micro" class="opacity-0 transition group-hover:opacity-100" />
-                    </span>
-                    <span class="mt-2 block truncate text-xl font-semibold text-zinc-900 sm:text-2xl dark:text-white">{{ preg_match('/^-?\d+\.\d{3}$/', $tile['value']) ? number_format((float) $tile['value'], 3) : $tile['value'] }}</span>
-                </a>
+                <x-ui.stat :label="$tile['label']" :href="$tile['url']" :tone="$tile['tone'] ?? null"
+                    :value="preg_match('/^-?\d+\.\d{3}$/', $tile['value']) ? number_format((float) $tile['value'], 3) : $tile['value']" />
             @endforeach
-        </div>
+        </x-ui.stats>
+    @endif
+
+    @if ($tiles !== [] || $attention !== [])
+        <x-ui.section :title="__('Needs attention')">
+            @if ($attention === [])
+                <flux:text>{{ __('Nothing needs attention.') }}</flux:text>
+            @else
+                <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
+                    @foreach ($attention as $item)
+                        <li wire:key="attention-{{ $loop->index }}">
+                            <a href="{{ $item['url'] }}" wire:navigate class="flex items-center justify-between gap-3 py-2 text-sm hover:text-accent-content">
+                                <span>{{ $item['label'] }}</span>
+                                <span class="flex items-center gap-1 font-semibold tabular-nums">
+                                    {{ $item['count'] }}
+                                    <flux:icon.chevron-right variant="micro" class="text-zinc-400 rtl:rotate-180" />
+                                </span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </x-ui.section>
     @endif
 
     @if ($collections || $occupancy)
@@ -45,15 +63,14 @@
     @endif
 
     @if ($urgent)
-        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="flex items-baseline justify-between gap-2">
-                <span class="text-sm font-medium text-zinc-800 dark:text-white">{{ __('Urgent maintenance') }}</span>
+        <x-ui.section :title="__('Urgent maintenance')">
+            <x-slot:actions>
                 <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" wire:navigate class="text-xs">{{ __('Open: :n', ['n' => $urgent['count']]) }}</flux:link>
-            </div>
+            </x-slot:actions>
             @if ($urgent['requests']->isEmpty())
-                <flux:text class="mt-2 text-sm">{{ __('No urgent requests.') }}</flux:text>
+                <flux:text class="text-sm">{{ __('No urgent requests.') }}</flux:text>
             @else
-                <ul class="mt-2 divide-y divide-zinc-200 dark:divide-zinc-700">
+                <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
                     @foreach ($urgent['requests'] as $r)
                         <li wire:key="urgent-{{ $r->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                             <span><flux:link :href="route('maintenance.requests.show', $r)" wire:navigate>{{ $r->number }}</flux:link> · {{ $r->place() }} · {{ $r->summary() }}</span>
@@ -62,6 +79,6 @@
                     @endforeach
                 </ul>
             @endif
-        </div>
+        </x-ui.section>
     @endif
 </div>

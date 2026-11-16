@@ -17,6 +17,10 @@ test('every string the design pass adds has an Arabic translation', function () 
         'Occupied', 'Blocked', 'Urgent', 'Open work orders', 'Overdue work orders',
         // Task 5: forms A
         'Location', 'Details', 'Money', 'Availability', 'Management and notes', 'Identity', 'Contact',
+        // Task 7: key screens A
+        'Hello, :name', 'Needs attention', 'Nothing needs attention.', 'Cheques to deposit this week', 'Bounced cheques', 'Approvals waiting',
+        'Agreements expiring in 60 days', 'Urgent maintenance requests', 'Reminders', 'Reminders and notes', 'Amendments', 'Notice and move-out',
+        'Approval history', 'ID',
     ];
 
     expect(array_values(array_diff($keys, array_keys($ar))))->toBe([]);

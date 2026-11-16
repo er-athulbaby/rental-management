@@ -20,7 +20,7 @@ class Dashboard extends Component
 {
     use WithActor;
 
-    /** @return list<array{label: string, value: string, url: string}> */
+    /** @return list<array{label: string, value: string, url: string, tone?: ?string}> */
     public static function tiles(User $user): array
     {
         $today = now('Asia/Bahrain');
@@ -43,11 +43,13 @@ class Dashboard extends Component
             $tiles[] = ['label' => __('Rent due this month'), 'url' => route('invoices.index'), 'value' => $money((string) (Queries::rentDue($user, $monthStart, $monthEnd)->sum('subtotal') ?: '0'))];
             $tiles[] = ['label' => __('Collected this month'), 'url' => route('reports.collections', ['from' => $monthStart, 'to' => $today->toDateString()]),
                 'value' => $money((string) (Queries::collections($user, $monthStart, $today->toDateString())->where('method', '!=', PaymentMethod::DepositApplied)->sum('amount') ?: '0'))];
-            $tiles[] = ['label' => __('Overdue total'), 'url' => route('reports.ageing'), 'value' => $money((string) (Queries::overdueInvoices($user)->sum('balance') ?: '0'))];
+            $overdue = $money((string) (Queries::overdueInvoices($user)->sum('balance') ?: '0'));
+            $tiles[] = ['label' => __('Overdue total'), 'url' => route('reports.ageing'), 'value' => $overdue, 'tone' => $overdue !== '0.000' ? 'danger' : null];
         }
         if ($cheques) {
             $tiles[] = ['label' => __('Cheques to deposit this week'), 'url' => route('reports.cheques', ['kind' => 'week']), 'value' => (string) Queries::chequesToDeposit($user, Queries::weekEnd(), Queries::weekStart())->count()];
-            $tiles[] = ['label' => __('Open bounced cheques'), 'url' => route('reports.cheques', ['kind' => 'bounced']), 'value' => (string) Queries::bouncedCheques($user)->count()];
+            $bounced = Queries::bouncedCheques($user)->count();
+            $tiles[] = ['label' => __('Open bounced cheques'), 'url' => route('reports.cheques', ['kind' => 'bounced']), 'value' => (string) $bounced, 'tone' => $bounced > 0 ? 'danger' : null];
         }
         if ($operational) {
             $tiles[] = ['label' => __('Expiring in 60 days'), 'url' => route('reports.expiring', ['window' => '60']), 'value' => (string) Queries::expiringAgreements($user, 60)->count()];
@@ -57,6 +59,38 @@ class Dashboard extends Component
         }
 
         return $tiles;
+    }
+
+    /**
+     * Design pass §7: what needs doing now, each linking to its list (filtered where the list can be), each only for a
+     * role that can open that list. Items with nothing to do are left out (plan ruling 15).
+     *
+     * @return list<array{label: string, count: int, url: string}>
+     */
+    public static function attention(User $user): array
+    {
+        $items = [];
+        if ($user->can('finance.view')) {
+            $items[] = ['label' => __('Overdue invoices'), 'count' => Queries::overdueInvoices($user)->count(), 'url' => route('invoices.index', ['tab' => 'overdue'])];
+            $items[] = ['label' => __('Cheques to deposit this week'), 'count' => Queries::chequesToDeposit($user, Queries::weekEnd(), Queries::weekStart())->count(),
+                'url' => route('cheques.index', ['status' => 'held'])];
+            $items[] = ['label' => __('Bounced cheques'), 'count' => Queries::bouncedCheques($user)->count(), 'url' => route('cheques.index', ['status' => 'bounced'])];
+        }
+        if ($user->can('approvals.decide')) {
+            $items[] = ['label' => __('Approvals waiting'), 'count' => Queries::approvalsToDecide($user)->count(), 'url' => route('approvals.index')];
+        }
+        if ($user->can('agreements.view')) {
+            $items[] = ['label' => __('Agreements expiring in 60 days'), 'count' => Queries::expiringAgreements($user, 60)->count(),
+                'url' => route('agreements.index', ['expiring' => 60])];
+        }
+        if ($user->can('maintenance.view')) {
+            $items[] = ['label' => __('Urgent maintenance requests'),
+                'count' => MaintenanceRequest::query()->visibleTo($user)->where('priority', MaintenancePriority::Urgent)
+                    ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])->count(),
+                'url' => route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])];
+        }
+
+        return array_values(array_filter($items, fn (array $item) => $item['count'] > 0));
     }
 
     /**
@@ -119,6 +153,7 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', [
             'tiles' => self::tiles($user),
+            'attention' => self::attention($user),
             'collections' => self::collectionsChart($user),
             'occupancy' => self::occupancy($user),
             'urgent' => self::urgentMaintenance($user),

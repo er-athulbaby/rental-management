@@ -3,14 +3,25 @@
 @php
     $list = $agreement->listRentFils();
     $discount = $agreement->discountFils();
+    $lastRejection = $agreement->status === AgreementStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null;
+    $showNotice = auth()->user()->can('agreements.manage') && in_array($agreement->status, [AgreementStatus::Active, AgreementStatus::Expired], true);
+    $showDetails = $canManage ? $customFields->isNotEmpty() : $customDetails !== [];
+    $nav = array_values(array_filter([
+        ['units', __('Units')],
+        $showDetails ? ['details', __('More details')] : null,
+        $amendments->isNotEmpty() ? ['amendments', __('Amendments')] : null,
+        $showNotice ? ['notice', __('Notice and move-out')] : null,
+        $invoices->isNotEmpty() ? ['invoices', __('Invoices')] : null,
+        $chequesToReturn->isNotEmpty() ? ['cheques', __('Cheques to return')] : null,
+        $settlements->isNotEmpty() ? ['settlements', __('Deposit settlements')] : null,
+        $approvals->isNotEmpty() ? ['approvals', __('Approval history')] : null,
+        ['reminders', __('Reminders')],
+        ['documents', __('Documents')],
+    ]));
 @endphp
-<section class="w-full max-w-4xl space-y-8">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ $agreement->label() }}</flux:heading>
-            <x-status-badge :status="$agreement->status" />
-        </div>
-        <div class="flex flex-wrap gap-2">
+<section class="w-full max-w-5xl space-y-6">
+    <x-ui.summary :title="$agreement->label()" :status="$agreement->status" :back="route('agreements.index')">
+        <x-slot:actions>
             @if ($canManage && $agreement->status === AgreementStatus::Draft)
                 <flux:button :href="route('agreements.edit', $agreement)" wire:navigate>{{ __('Edit') }}</flux:button>
                 <flux:button variant="ghost" wire:click="deleteDraft" wire:confirm="{{ __('Delete this draft?') }}">{{ __('Delete draft') }}</flux:button>
@@ -41,15 +52,31 @@
             @else
                 <flux:text>{{ __('Imported from the previous system: the signed contract is kept outside this system.') }}</flux:text>
             @endif
-        </div>
-    </div>
+        </x-slot:actions>
+        <x-slot:facts>
+            <x-ui.fact :label="__('Tenant')"><flux:link :href="route('customers.edit', $agreement->customer)" wire:navigate>{{ $agreement->customer->name_en }}</flux:link></x-ui.fact>
+            <x-ui.fact :label="__('Dates')">{{ $agreement->start_date->format('d/m/Y') }} – {{ $agreement->end_date->format('d/m/Y') }}</x-ui.fact>
+            <x-ui.fact :label="__('Billing')">{{ str($agreement->frequency->value)->headline() }}{{ $agreement->billing_day ? ', '.__('day :d', ['d' => $agreement->billing_day]) : '' }}</x-ui.fact>
+            <x-ui.fact :label="__('Grace / notice')">{{ __(':g days / :n days', ['g' => $agreement->grace_days, 'n' => $agreement->notice_period_days]) }}</x-ui.fact>
+            <x-ui.fact :label="__('Monthly rent (list → agreed)')">
+                {{ Fils::toDecimal($list) }} → {{ Fils::toDecimal($agreement->monthlyRentFils()) }}
+                @if ($discount !== 0)
+                    · {{ __('discount :bhd BHD (:pct%)', ['bhd' => Fils::toDecimal($discount), 'pct' => $list > 0 ? number_format($discount * 100 / $list, 1) : '0.0']) }}
+                @endif
+            </x-ui.fact>
+            <x-ui.fact :label="__('Total deposit')">{{ Fils::toDecimal($agreement->depositFils()) }} BHD</x-ui.fact>
+            @if ($agreement->planned_exit_date)
+                <x-ui.fact :label="__('Notice')">{{ __('given :n, leaving :p', ['n' => $agreement->notice_date?->format('d/m/Y'), 'p' => $agreement->planned_exit_date->format('d/m/Y')]) }}</x-ui.fact>
+            @endif
+            <x-ui.fact :label="__('Created by')">{{ $agreement->creator->name }}</x-ui.fact>
+        </x-slot:facts>
+    </x-ui.summary>
 
     <flux:error name="units" />
     <flux:error name="status" />
     <flux:error name="approval" />
     <flux:error name="contract_template_id" />
 
-    @php($lastRejection = $agreement->status === AgreementStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null)
     @if ($lastRejection)
         <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
     @endif
@@ -58,25 +85,10 @@
         <flux:text>{{ __('Renewed by') }} <flux:link :href="route('agreements.show', $renewal)" wire:navigate>{{ $renewal->label() }}</flux:link></flux:text>
     @endif
 
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd><flux:link :href="route('customers.edit', $agreement->customer)" wire:navigate>{{ $agreement->customer->name_en }}</flux:link></dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Dates') }}</dt><dd>{{ $agreement->start_date->format('d/m/Y') }} – {{ $agreement->end_date->format('d/m/Y') }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Billing') }}</dt><dd>{{ str($agreement->frequency->value)->headline() }}{{ $agreement->billing_day ? ', '.__('day :d', ['d' => $agreement->billing_day]) : '' }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Grace / notice') }}</dt><dd>{{ __(':g days / :n days', ['g' => $agreement->grace_days, 'n' => $agreement->notice_period_days]) }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Monthly rent (list → agreed)') }}</dt>
-            <dd class="tabular-nums">{{ Fils::toDecimal($list) }} → {{ Fils::toDecimal($agreement->monthlyRentFils()) }}
-                @if ($discount !== 0)
-                    · {{ __('discount :bhd BHD (:pct%)', ['bhd' => Fils::toDecimal($discount), 'pct' => $list > 0 ? number_format($discount * 100 / $list, 1) : '0.0']) }}
-                @endif
-            </dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Total deposit') }}</dt><dd class="tabular-nums">{{ Fils::toDecimal($agreement->depositFils()) }} BHD</dd></div>
-        @if ($agreement->planned_exit_date)
-            <div><dt class="text-sm text-zinc-500">{{ __('Notice') }}</dt><dd>{{ __('given :n, leaving :p', ['n' => $agreement->notice_date?->format('d/m/Y'), 'p' => $agreement->planned_exit_date->format('d/m/Y')]) }}</dd></div>
-        @endif
-        <div><dt class="text-sm text-zinc-500">{{ __('Created by') }}</dt><dd>{{ $agreement->creator->name }}</dd></div>
-    </dl>
+    <x-ui.section-nav :items="$nav" />
 
-    <div class="overflow-x-auto">
+    <x-ui.section :title="__('Units')" id="units">
+        <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Unit') }}</flux:table.column>
@@ -103,7 +115,7 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+        </x-ui.table>
 
     @foreach ($agreement->agreementUnits->whereNotNull('move_out_date') as $au)
         <div class="space-y-1" wire:key="mo-{{ $au->id }}">
@@ -112,7 +124,10 @@
             <livewire:documents.panel :documentable="$au" :key="'docs-au-'.$au->id" />
         </div>
     @endforeach
+    </x-ui.section>
 
+    @if ($showDetails)
+        <div id="details" class="scroll-mt-20">
     @if ($canManage && $customFields->isNotEmpty())
         <form wire:submit="saveDetails" class="space-y-3">
             <x-custom-fields.section :fields="$customFields" :values="$custom" :documents="$customDocuments" />
@@ -121,10 +136,11 @@
     @elseif (! $canManage)
         <x-custom-fields.display :items="$customDetails" />
     @endif
+        </div>
+    @endif
 
     @if ($amendments->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Amendments') }}</flux:heading>
+        <x-ui.section :title="__('Amendments')" id="amendments">
             <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($amendments as $m)
                     <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm" wire:key="am-{{ $m->id }}">
@@ -138,11 +154,11 @@
                     </li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.section>
     @endif
 
-    @if (auth()->user()->can('agreements.manage') && in_array($agreement->status, [AgreementStatus::Active, AgreementStatus::Expired], true))
-        <div class="space-y-3">
+    @if ($showNotice)
+        <x-ui.section :title="__('Notice and move-out')" id="notice">
         <details wire:ignore.self class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" @if ($errors->hasAny(['noticeTarget', 'noticeDate', 'plannedExit'])) open @endif>
             <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
                 <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record notice') }}</span><span class="block text-xs text-zinc-500">{{ __('The tenant has said they are leaving, and when.') }}</span></span>
@@ -174,13 +190,12 @@
                 <flux:button type="submit" class="sm:col-span-2 sm:justify-self-start">{{ __('Record move-out') }}</flux:button>
             </form>
         </details>
-        </div>
+        </x-ui.section>
     @endif
 
     @if ($invoices->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Invoices') }}</flux:heading>
-            <div class="overflow-x-auto">
+        <x-ui.section :title="__('Invoices')" id="invoices">
+            <x-ui.table>
                 <flux:table>
                     <flux:table.rows>
                         @foreach ($invoices as $invoice)
@@ -194,31 +209,28 @@
                         @endforeach
                     </flux:table.rows>
                 </flux:table>
-            </div>
-        </div>
+            </x-ui.table>
+        </x-ui.section>
     @endif
 
     @if ($chequesToReturn->isNotEmpty())
-        <div class="space-y-1">
-            <flux:heading size="lg">{{ __('Cheques to return') }}</flux:heading>
+        <x-ui.section :title="__('Cheques to return')" id="cheques">
             @foreach ($chequesToReturn as $cheque)
                 <div class="text-sm"><flux:link :href="route('cheques.show', $cheque)" wire:navigate>{{ $cheque->cheque_no }}</flux:link> · {{ $cheque->bank_name }} · {{ $cheque->cheque_date->format('d/m/Y') }} · <span class="tabular-nums">{{ $cheque->amount }}</span> · {{ $cheque->status->label() }}</div>
             @endforeach
-        </div>
+        </x-ui.section>
     @endif
 
     @if ($settlements->isNotEmpty())
-        <div class="space-y-1">
-            <flux:heading size="lg">{{ __('Deposit settlements') }}</flux:heading>
+        <x-ui.section :title="__('Deposit settlements')" id="settlements">
             @foreach ($settlements as $st)
                 <div class="text-sm"><flux:link :href="route('deposit-settlements.show', $st)" wire:navigate>{{ $st->label() }}</flux:link> · {{ $st->status->label() }}</div>
             @endforeach
-        </div>
+        </x-ui.section>
     @endif
 
     @if ($approvals->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Approval history') }}</flux:heading>
+        <x-ui.section :title="__('Approval history')" id="approvals">
             <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($approvals as $approval)
                     <li class="py-2 text-sm">
@@ -228,12 +240,16 @@
                     </li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.section>
     @endif
 
-    <livewire:reminders.record-panel :record="$agreement" :key="'reminders-agreement-'.$agreement->id" />
+    <div id="reminders" class="scroll-mt-20">
+        <livewire:reminders.record-panel :record="$agreement" :key="'reminders-agreement-'.$agreement->id" />
+    </div>
 
-    <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
+    <div id="documents" class="scroll-mt-20">
+        <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
+    </div>
 
     <flux:modal name="renew" class="md:w-96">
         <form wire:submit="renew" class="space-y-4">
