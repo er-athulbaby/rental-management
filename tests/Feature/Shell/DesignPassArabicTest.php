@@ -9,7 +9,7 @@ test('every string the design pass adds has an Arabic translation', function () 
     $ar = json_decode((string) file_get_contents(lang_path('ar.json')), true, flags: JSON_THROW_ON_ERROR);
     $keys = [
         // Task 1: shared components
-        'Clear filters', 'Nothing to show here.', 'Try clearing the filters.', 'On this page',
+        'Basis', 'My reports', 'Packages', 'Clear filters', 'Nothing to show here.', 'Try clearing the filters.', 'On this page',
         // Task 3: lists A
         'Owed', 'Overdue invoices', 'Drafts', 'Collected this month', 'Receipts this month', 'To deposit this week', 'Pending approval',
         'Expiring in 60 days', 'Waiting', 'For you to decide',

@@ -14,7 +14,7 @@
             @endif
 
             @forelse ($schedules as $s)
-                <div class="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-700" wire:key="schedule-{{ $s->id }}">
+                <div class="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/50" wire:key="schedule-{{ $s->id }}">
                     <div class="min-w-0 space-y-1">
                         <div class="font-medium">
                             {{ $freqLabels[$s->frequency] ?? $s->frequency }}
@@ -36,7 +36,7 @@
                 <flux:text class="text-sm">{{ __('Not scheduled yet.') }}</flux:text>
             @endforelse
 
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 sm:grid-cols-3 dark:border-zinc-700 dark:bg-zinc-800/50">
                 <flux:select wire:model.live="schedule.frequency" :label="__('Repeat')" :aria-invalid="$errors->has('schedule.frequency') ? 'true' : null">
                     @foreach ($freqLabels as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach
                 </flux:select>
@@ -63,7 +63,7 @@
             <fieldset class="space-y-2">
                 <legend class="mb-1 text-sm font-medium">{{ __('Send to') }}</legend>
                 <flux:input wire:model.live.debounce.300ms="staffSearch" :aria-label="__('Search staff')" :placeholder="__('Search staff by name or email')" icon="magnifying-glass" autocomplete="off" />
-                <div class="max-h-48 space-y-1 overflow-y-auto">
+                <div class="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
                     @forelse ($staff as $u)
                         <label class="flex items-center gap-2 text-sm" wire:key="staff-{{ $u->id }}">
                             <input type="checkbox" value="{{ $u->id }}" wire:model="schedule.recipients"> {{ $u->name }} <span class="text-zinc-500">{{ $u->email }}</span>
@@ -74,6 +74,6 @@
                 </div>
                 @foreach ($errors->get('schedule.recipients*') as $messages)@foreach ($messages as $m)<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $m }}</flux:text>@endforeach @endforeach
             </fieldset>
-            <div class="flex justify-end"><flux:button variant="primary" wire:click="addSchedule">{{ __('Add schedule') }}</flux:button></div>
+            <div class="flex justify-end border-t border-zinc-200 pt-4 dark:border-zinc-700"><flux:button variant="primary" wire:click="addSchedule">{{ __('Add schedule') }}</flux:button></div>
         </div>
     </flux:modal>

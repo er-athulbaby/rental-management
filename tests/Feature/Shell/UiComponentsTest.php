@@ -56,6 +56,12 @@ test('section: an h2 title and hint when titled, the id passes through, and no h
     $this->blade('<x-ui.section><p>fields</p></x-ui.section>')->assertSee('data-ui-section', false)->assertDontSee('<h2', false);
 });
 
+test('section: a tone swaps the border instead of adding a second one', function () {
+    $this->blade('<x-ui.section tone="danger"><p>x</p></x-ui.section>')->assertSee('border-red-300', false)->assertDontSee('border-zinc-200', false);
+    $this->blade('<x-ui.section tone="accent"><p>x</p></x-ui.section>')->assertSee('border-accent', false)->assertDontSee('border-zinc-200', false);
+    $this->blade('<x-ui.section><p>x</p></x-ui.section>')->assertSee('border-zinc-200', false);
+});
+
 test('form actions: a sticky bar with Cancel before the buttons', function () {
     $this->blade('<x-ui.form-actions cancel="/units"><button>Save</button></x-ui.form-actions>')
         ->assertSee('sticky', false)

@@ -61,6 +61,11 @@ class JournalListReport extends Component implements PackageReport
             'debit' => __('Debit'), 'credit' => __('Credit')];
     }
 
+    protected function headlineFigures(): bool
+    {
+        return true;
+    }
+
     /** @return list<string> */
     protected function numeric(): array
     {

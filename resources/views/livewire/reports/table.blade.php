@@ -1,6 +1,6 @@
 @php
     // Ledger reports show their key totals as figures, read from the total rows the report already built.
-    $isLedger = request()->routeIs('ledger.*');
+    $isLedger = $headlineFigures;
     $totalRows = $isLedger ? array_values(array_filter($rows, fn ($r) => ($r['_kind'] ?? null) === 'total')) : [];
     $figures = [];
     if ($isLedger && count($totalRows) === 1) {
@@ -73,7 +73,7 @@
                 @endforeach
             </flux:table.columns>
             <flux:table.rows>
-                @forelse ($rows as $i => $row)
+                @foreach ($rows as $i => $row)
                     @php
                         $isHeading = ($row['_kind'] ?? null) === 'total' && collect($numeric)->every(fn ($k) => blank($row[$k] ?? null));
                     @endphp
@@ -88,10 +88,11 @@
                             </flux:table.cell>
                         @endforeach
                     </flux:table.row>
-                @empty
-                    <flux:table.row><flux:table.cell :colspan="count($columns)" class="py-8 text-center text-zinc-500">{{ __('Nothing to show.') }}</flux:table.cell></flux:table.row>
-                @endforelse
+                @endforeach
             </flux:table.rows>
         </flux:table>
+        @if ($rows === [])
+            <x-ui.empty :title="__('Nothing to show.')" />
+        @endif
     </x-ui.table>
 </div>

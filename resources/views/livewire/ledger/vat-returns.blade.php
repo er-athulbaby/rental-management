@@ -44,7 +44,7 @@
 
     @if ($reversingId !== null)
         <form wire:submit="reverse">
-            <x-ui.section :title="__('Reverse').' #'.$reversingId" class="max-w-4xl border-red-300 dark:border-red-500/40">
+            <x-ui.section :title="__('Reverse').' #'.$reversingId" tone="danger" class="max-w-4xl">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <x-date-input wire:model="reverseDate" :label="__('Reversal date')" />
                     <flux:input wire:model="reverseReason" :label="__('Reason')" />

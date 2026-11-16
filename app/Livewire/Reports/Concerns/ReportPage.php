@@ -56,6 +56,12 @@ trait ReportPage
         return $this->exporting ? null : Balances::$lineCap;
     }
 
+    /** Ledger reports show their total rows as headline figures; display only. */
+    protected function headlineFigures(): bool
+    {
+        return false;
+    }
+
     protected function dateMode(): string
     {
         return 'range';
@@ -288,6 +294,7 @@ trait ReportPage
             'rows' => $rows = $this->filtersValid() ? $this->rows() : [],
             'charts' => $rows === [] ? [] : $this->charts($rows),
             'capped' => $this->capped,
+            'headlineFigures' => $this->headlineFigures(),
             'numeric' => $this->numeric(),
             'options' => $this->options(),
             'dateMode' => $this->dateMode(),

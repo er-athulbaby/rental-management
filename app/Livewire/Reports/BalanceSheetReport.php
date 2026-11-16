@@ -47,6 +47,11 @@ class BalanceSheetReport extends Component implements PackageReport
         return ['code' => __('Code'), 'account' => __('Account'), 'amount' => __('Amount')];
     }
 
+    protected function headlineFigures(): bool
+    {
+        return true;
+    }
+
     /** @return list<string> */
     protected function numeric(): array
     {

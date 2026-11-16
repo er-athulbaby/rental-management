@@ -68,7 +68,7 @@
     </x-ui.section>
 
     @if ($line !== null)
-        <x-ui.section :title="$line->date->format('d/m/Y').' · '.$line->description.' · '.$line->amount" class="border-accent ring-1 ring-accent/30">
+        <x-ui.section :title="$line->date->format('d/m/Y').' · '.$line->description.' · '.$line->amount" tone="accent">
             <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">{{ __('Suggested entries') }}</h3>
             @forelse ($suggestions as $e)
                 <label class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">

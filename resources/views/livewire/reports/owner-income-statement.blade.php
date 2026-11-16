@@ -21,14 +21,16 @@
     @enderror
 
     @if ($chosen === null)
-        <flux:text>{{ __('Choose an owner to see their statement.') }}</flux:text>
+        <x-ui.section flush><x-ui.empty icon="user" :title="__('Choose an owner to see their statement.')" /></x-ui.section>
     @elseif ($statement !== null)
         @if (\App\Reports\IncomeStatement::isEmpty($statement))
-            <flux:text>{{ __('Nothing in this period.') }}</flux:text>
+            <x-ui.section flush><x-ui.empty :title="__('Nothing in this period.')" /></x-ui.section>
         @else
             @include('livewire.reports.partials.statement-table')
         @endif
     @endif
 
-    <flux:text class="text-sm">{{ $basis === 'billed' ? __('Billed: head lease due, and charges invoiced on the owner\'s units less credit notes, net of VAT, without deposits.') : __('Collected: rent and charges received on the owner\'s units, net of VAT, without deposits, as in the owner ledger. Rent and charges follow the same entries as owner statements; expenses are counted by expense date, so a month can differ from its statement when an expense was posted late.') }}</flux:text>
+    <x-ui.section :title="__('Basis')">
+        <flux:text class="text-sm">{{ $basis === 'billed' ? __('Billed: head lease due, and charges invoiced on the owner\'s units less credit notes, net of VAT, without deposits.') : __('Collected: rent and charges received on the owner\'s units, net of VAT, without deposits, as in the owner ledger. Rent and charges follow the same entries as owner statements; expenses are counted by expense date, so a month can differ from its statement when an expense was posted late.') }}</flux:text>
+    </x-ui.section>
 </div>

@@ -6,6 +6,7 @@ use App\Livewire\Reports\GeneralLedgerReport;
 use App\Livewire\Reports\Index;
 use App\Livewire\Reports\JournalListReport;
 use App\Livewire\Reports\ProfitAndLossReport;
+use App\Livewire\Reports\RentRollReport;
 use App\Livewire\Reports\TrialBalanceReport;
 use App\Models\LedgerAccount;
 use App\Models\LedgerSetting;
@@ -160,7 +161,7 @@ test('a screen capped at N lines says so, keeps the closing balance of the whole
     $component = Livewire::actingAs($f['finance'])->test(GeneralLedgerReport::class)->set('account', $account)->set('from', '2026-10-01')->set('to', '2026-10-20')
         ->assertSee('Too many lines to show: narrow the filters or download Excel.')
         ->assertSee('-348.000')->assertSee('-670.000')->assertDontSee('-370.000');
-    expect(substr_count($component->html(), 'font-semibold'))->toBe(2) // opening and closing only
+    expect(preg_match_all('/bg-zinc-(?:50|100) font-semibold/', $component->html()))->toBe(2) // opening and closing rows only (the headline figures are stats, not rows)
         ->and(count(GeneralLedgerReport::sheet($f['finance'], $settings)['rows']))->toBe(7)
         ->and(GeneralLedgerReport::sheet($f['finance'], $settings)['rows'][6][5])->toBe('-348.000');
 
@@ -187,4 +188,11 @@ test('the sidebar lists the five ledger reports for Finance and not for Manageme
     $this->actingAs($f['finance'])->get(route('dashboard'))->assertOk()->assertSee(route('ledger.balance-sheet'), false)->assertSee(route('ledger.profit-and-loss'), false)
         ->assertSee(route('ledger.trial-balance'), false);
     $this->actingAs($f['management'])->get(route('dashboard'))->assertOk()->assertDontSee(route('ledger.balance-sheet'), false)->assertDontSee(route('ledger.profit-and-loss'), false);
+});
+
+test('the ledger headline figures survive a filter change, and a non-ledger report has none', function () {
+    $f = $this->f;
+    Livewire::actingAs($f['finance'])->test(TrialBalanceReport::class)
+        ->set('to', '2026-10-20')->assertSeeHtml('data-ui-stats');
+    Livewire::actingAs($f['finance'])->test(RentRollReport::class)->set('to', '2026-10-20')->assertDontSeeHtml('data-ui-stats');
 });

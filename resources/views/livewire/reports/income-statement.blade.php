@@ -18,11 +18,13 @@
 
     @if ($statement !== null)
         @if (\App\Reports\IncomeStatement::isEmpty($statement))
-            <flux:text>{{ __('Nothing in this period.') }}</flux:text>
+            <x-ui.section flush><x-ui.empty :title="__('Nothing in this period.')" /></x-ui.section>
         @else
             @include('livewire.reports.partials.statement-table')
         @endif
     @endif
 
-    <flux:text class="text-sm">{{ __('Collected: money received, by posting date, and head lease paid. Billed: invoices issued less credit notes, and head lease due. Amounts are net of VAT; rent on managed units and deposits are left out.') }}</flux:text>
+    <x-ui.section :title="__('Basis')">
+        <flux:text class="text-sm">{{ __('Collected: money received, by posting date, and head lease paid. Billed: invoices issued less credit notes, and head lease due. Amounts are net of VAT; rent on managed units and deposits are left out.') }}</flux:text>
+    </x-ui.section>
 </div>

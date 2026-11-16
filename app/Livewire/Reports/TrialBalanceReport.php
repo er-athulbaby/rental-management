@@ -41,6 +41,11 @@ class TrialBalanceReport extends Component implements PackageReport
         return ['code' => __('Code'), 'account' => __('Account'), 'debit' => __('Debit'), 'credit' => __('Credit')];
     }
 
+    protected function headlineFigures(): bool
+    {
+        return true;
+    }
+
     /** @return list<string> */
     protected function numeric(): array
     {

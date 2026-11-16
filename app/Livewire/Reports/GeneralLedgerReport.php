@@ -53,6 +53,11 @@ class GeneralLedgerReport extends Component implements PackageReport
         return ['date' => __('Date'), 'source' => __('Source'), 'reference' => __('Reference'), 'debit' => __('Debit'), 'credit' => __('Credit'), 'balance' => __('Balance')];
     }
 
+    protected function headlineFigures(): bool
+    {
+        return true;
+    }
+
     /** @return list<string> */
     protected function numeric(): array
     {

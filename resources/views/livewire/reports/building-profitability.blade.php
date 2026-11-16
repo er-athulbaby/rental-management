@@ -52,5 +52,7 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
-    <flux:text class="text-sm">{{ __('Cash basis: income by payment posting, net of VAT; head lease by payment date; expenses by expense date. Billed shows invoices issued less credit notes, for comparison.') }}</flux:text>
+    <x-ui.section :title="__('Basis')">
+        <flux:text class="text-sm">{{ __('Cash basis: income by payment posting, net of VAT; head lease by payment date; expenses by expense date. Billed shows invoices issued less credit notes, for comparison.') }}</flux:text>
+    </x-ui.section>
 </div>
