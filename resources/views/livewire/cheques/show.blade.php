@@ -19,6 +19,9 @@
                 @endif
         @endif
         </x-slot:actions>
+        <x-slot:notices>
+            <flux:error name="outcome" />
+        </x-slot:notices>
         <x-slot:facts>
             <x-ui.fact :label="$cheque->customer_id ? __('Tenant') : ($cheque->vendor_id ? __('Vendor') : __('Owner'))">{{ $cheque->partyName() }}</x-ui.fact>
             <x-ui.fact :label="__('Cheque date / amount')">{{ $cheque->cheque_date->format('d/m/Y') }} · {{ $cheque->amount }}</x-ui.fact>
@@ -30,7 +33,6 @@
             @if ($cheque->replacedBy)<x-ui.fact :label="__('Replaced by')"><flux:link :href="route('cheques.show', $cheque->replacedBy)" wire:navigate>#{{ $cheque->replacedBy->cheque_no }}</flux:link></x-ui.fact>@endif
         </x-slot:facts>
     </x-ui.summary>
-    <flux:error name="outcome" />
 
     <livewire:reminders.record-panel :record="$cheque" :key="'reminders-cheque-'.$cheque->id" />
 

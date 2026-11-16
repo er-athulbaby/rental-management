@@ -98,3 +98,19 @@ test('an Arabic display label keeps its colour', function () {
     $this->blade('<x-status-badge :status="$s" />', ['s' => __('Paid')])->assertSee('data-tone="green"', false)->assertSee(__('Paid'));
     $this->blade('<x-status-badge :status="$s" />', ['s' => __('Overdue')])->assertSee('data-tone="red"', false);
 });
+
+test('stat: a long money figure wraps instead of truncating', function () {
+    $this->blade('<x-ui.stat label="Fee + VAT" value="1,234,567.890 BHD" />')
+        ->assertSee('break-words', false)
+        ->assertDontSee('truncate text-xl', false);
+});
+
+test('summary: notices sit between the header row and the facts', function () {
+    $this->blade('<x-ui.summary title="INV-1"><x-slot:actions><b>Act</b></x-slot:actions><x-slot:notices><i>Notice</i></x-slot:notices><x-slot:facts><x-ui.fact label="Tenant">Sara</x-ui.fact></x-slot:facts></x-ui.summary>')
+        ->assertSeeInOrder(['INV-1', '<b>Act</b>', '<i>Notice</i>', 'Tenant', 'Sara'], false);
+});
+
+test('the amber badge uses the darker text shade for AA contrast on its pale fill', function () {
+    $this->blade('<x-status-badge status="held" />')->assertSee('text-amber-800!', false);
+    $this->blade('<x-status-badge status="paid" />')->assertDontSee('text-amber-800!', false);
+});

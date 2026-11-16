@@ -33,7 +33,7 @@
     @elseif ($chart['type'] === 'bars')
         <ul class="space-y-2" role="img" aria-label="{{ $chart['title'] }}: {{ $summary }}">
             @foreach ($items as $item)
-                @php($v = (float) $item['value'])
+                @php $v = (float) $item['value']; @endphp
                 <li class="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[minmax(0,13rem)_1fr_auto]" aria-hidden="true">
                     <span class="truncate text-zinc-600 dark:text-zinc-300" title="{{ $item['label'] }}">
                         @if (! empty($item['url']))<a href="{{ $item['url'] }}" wire:navigate class="hover:underline" tabindex="-1">{{ $item['label'] }}</a>@else{{ $item['label'] }}@endif
@@ -46,11 +46,11 @@
             @endforeach
         </ul>
     @elseif ($chart['type'] === 'columns')
-        @php($every = max(1, (int) ceil($items->count() / 8)))
+        @php $every = max(1, (int) ceil($items->count() / 8)); @endphp
         <div role="img" aria-label="{{ $chart['title'] }}: {{ $summary }}">
             <div class="flex h-40 items-end gap-0.5 border-b" style="border-color: var(--viz-grid)" aria-hidden="true">
                 @foreach ($items as $item)
-                    @php($v = max(0, (float) $item['value']))
+                    @php $v = max(0, (float) $item['value']); @endphp
                     <div class="group relative flex h-full min-w-0 flex-1 items-end" tabindex="0">
                         <div class="mx-auto w-full max-w-10 rounded-t transition-opacity group-hover:opacity-80" style="height: {{ $v > 0 ? max(1.5, $pct($v, $max)) : 0 }}%; background: var({{ $item['color'] ?? '--viz-1' }})"></div>
                         <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs whitespace-nowrap text-white shadow group-hover:block group-focus:block dark:bg-white dark:text-zinc-900">
@@ -68,7 +68,7 @@
     @else {{-- stack --}}
         <div class="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="{{ $chart['title'] }}: {{ $summary }}">
             @foreach ($items as $item)
-                @php($v = max(0, (float) $item['value']))
+                @php $v = max(0, (float) $item['value']); @endphp
                 @if ($v > 0)
                     <span class="h-full first:rounded-s-full last:rounded-e-full" style="width: {{ $pct($v, $total) }}%; background: var({{ $item['color'] ?? '--viz-1' }})" title="{{ $item['label'] }}: {{ $item['display'] }}"></span>
                 @endif

@@ -1,4 +1,5 @@
 <section class="w-full max-w-3xl space-y-8">
+    @php($lastRejection = $contract->status === \App\Enums\OwnerContractStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null)
     <x-ui.summary :title="$contract->label()" :status="$contract->status" :back="route('owner-contracts.index')">
         <x-slot:actions>
             @if ($contract->type === \App\Enums\OwnerContractType::Managed && auth()->user()->can('finance.view'))
@@ -14,6 +15,14 @@
                 <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this contract for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
             @endif
         </x-slot:actions>
+        <x-slot:notices>
+            <flux:error name="unit_ids" />
+            <flux:error name="status" />
+            <flux:error name="approval" />
+            @if ($lastRejection)
+                <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
+            @endif
+        </x-slot:notices>
         <x-slot:facts>
             <x-ui.fact :label="__('Owner')">{{ $contract->owner->name_en }}</x-ui.fact>
             <x-ui.fact :label="__('Building')">{{ $contract->building->code }} — {{ $contract->building->name }}</x-ui.fact>
@@ -36,15 +45,6 @@
         </x-slot:facts>
     </x-ui.summary>
 
-    <flux:error name="unit_ids" />
-    <flux:error name="status" />
-    <flux:error name="approval" />
-
-    @php($lastRejection = $contract->status === \App\Enums\OwnerContractStatus::Draft ? $approvals->firstWhere('status', \App\Enums\ApprovalStatus::Rejected) : null)
-    @if ($lastRejection)
-        <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
-    @endif
-
     <x-ui.section :title="__('Units (:count)', ['count' => $contract->units->count()])">
         <p class="flex flex-wrap gap-2">
             @foreach ($contract->units as $unit)<flux:badge size="sm">{{ $unit->code }}</flux:badge>@endforeach
@@ -57,10 +57,10 @@
             @if ($terminationPending)
                 <flux:text>{{ __('An early termination is waiting for Management approval.') }}</flux:text>
             @else
-                <form wire:submit="requestTermination" class="space-y-3">
+                <form wire:submit="requestTermination" class="grid gap-4 sm:grid-cols-2">
                     <x-date-input wire:model="terminatedOn" :label="__('Last day of the contract')" />
-                    <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" />
-                    <flux:button type="submit">{{ __('Request early termination') }}</flux:button>
+                    <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" class="sm:col-span-2" />
+                    <flux:button type="submit" class="justify-self-start">{{ __('Request early termination') }}</flux:button>
                 </form>
             @endif
         </x-ui.section>

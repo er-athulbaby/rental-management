@@ -17,13 +17,13 @@
             @if ($reportId)
                 <flux:button wire:click="saveAsCopy">{{ __('Save as copy') }}</flux:button>
                 @if ($canEdit)
-                    @php($shared = App\Models\SavedReport::findOrFail($reportId)->visibility === 'shared')
+                    @php $shared = App\Models\SavedReport::findOrFail($reportId)->visibility === 'shared'; @endphp
                     <flux:button :icon="$shared ? 'users' : 'lock-closed'" wire:click="share({{ $shared ? 'false' : 'true' }})">{{ $shared ? __('Shared') : __('Only me') }}</flux:button>
                     <flux:modal.trigger name="schedule-email"><flux:button icon="envelope">{{ __('Schedule email') }}</flux:button></flux:modal.trigger>
                     <flux:button variant="ghost" icon="trash" wire:click="deleteReport" wire:confirm="{{ __('Delete this report?') }}" :aria-label="__('Delete')" />
                 @endif
             @endif
-            @error('name')<flux:text class="w-full text-sm text-red-600">{{ $message }}</flux:text>@enderror
+            @error('name')<flux:text class="w-full text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>@enderror
         </div>
     </div>
 
@@ -77,15 +77,15 @@
                         </div>
                     @endforeach
                 </div>
-                @error('columns')<flux:text class="text-sm text-red-600">{{ $message }}</flux:text>@enderror
+                @error('columns')<flux:text class="text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>@enderror
             </flux:fieldset>
 
             <flux:fieldset>
                 <flux:legend>{{ __('Filters') }}</flux:legend>
                 <div class="space-y-2">
                     @foreach (is_array($def['filters'] ?? null) ? $def['filters'] : [] as $i => $filter)
-                        @php($filter = is_array($filter) ? $filter : [])
-                        @php($ff = is_string($filter['field'] ?? null) ? ($fields[$filter['field']] ?? null) : null)
+                        @php $filter = is_array($filter) ? $filter : []; @endphp
+                        @php $ff = is_string($filter['field'] ?? null) ? ($fields[$filter['field']] ?? null) : null; @endphp
                         <div class="space-y-1 rounded-lg border border-zinc-200 p-2 dark:border-zinc-700" wire:key="filter-{{ $i }}">
                             <div class="flex gap-1">
                                 <flux:select wire:model.live="def.filters.{{ $i }}.field" size="sm" :aria-label="__('Field')">
@@ -133,7 +133,7 @@
                                 <flux:text class="text-xs text-zinc-500">{{ $ff->label }} {{ $opLabels[$filter['op']] ?? '' }}@if ($ff->type->value === 'enum') {{ __('the ticked values') }}@elseif (! in_array($filter['op'], ['empty', 'not_empty', 'yes', 'no'], true)) …@endif</flux:text>
                             @endif
                             @foreach (['field', 'op', 'value'] as $part)
-                                @isset($defErrors["filters.$i.$part"])<flux:text class="text-xs text-red-600">{{ $defErrors["filters.$i.$part"][0] }}</flux:text>@endisset
+                                @isset($defErrors["filters.$i.$part"])<flux:text class="text-xs text-red-600 dark:text-red-400">{{ $defErrors["filters.$i.$part"][0] }}</flux:text>@endisset
                             @endforeach
                         </div>
                     @endforeach
@@ -154,8 +154,8 @@
             <flux:fieldset>
                 <flux:legend>{{ __('Group by') }}</flux:legend>
                 @foreach ([0, 1] as $level)
-                    @php($g = is_array($def['groups'][$level] ?? null) ? $def['groups'][$level] : null)
-                    @php($gf = is_string($g['field'] ?? null) ? ($fields[$g['field']] ?? null) : null)
+                    @php $g = is_array($def['groups'][$level] ?? null) ? $def['groups'][$level] : null; @endphp
+                    @php $gf = is_string($g['field'] ?? null) ? ($fields[$g['field']] ?? null) : null; @endphp
                     @if ($level === 0 || (is_array($def['groups'][0] ?? null) && is_string($def['groups'][0]['field'] ?? null) && $def['groups'][0]['field'] !== ''))
                         <div class="flex gap-1" wire:key="group-{{ $level }}">
                             <flux:select wire:model.live="def.groups.{{ $level }}.field" size="sm" :aria-label="__('Group level :n', ['n' => $level + 1])">
@@ -229,15 +229,15 @@
                 </div>
                 @if ($chart)<x-report-chart :chart="$chart" />@endif
                 @if ($result->comparison)
-                    @php($cmp = $result->comparison)
-                    @php($tkeys = array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]))
+                    @php $cmp = $result->comparison; @endphp
+                    @php $tkeys = array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]); @endphp
                     @if ($cmp['truncated'])<p class="text-sm text-zinc-500">{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</p>@endif
                     <x-ui.table>
                         <flux:table>
                             <flux:table.columns>
                                 <flux:table.column>{{ __('Compared') }}</flux:table.column>
                                 @foreach ($tkeys as $tk)
-                                    @php($tl = $tk === 'count' ? __('Rows') : (($fields[explode(':', $tk)[0]] ?? null)?->label ?? $tk).' ('.__(explode(':', $tk)[1] ?? '').')')
+                                    @php $tl = $tk === 'count' ? __('Rows') : (($fields[explode(':', $tk)[0]] ?? null)?->label ?? $tk).' ('.__(explode(':', $tk)[1] ?? '').')'; @endphp
                                     <flux:table.column align="end">{{ $tl }}<br><span class="text-xs font-normal">{{ $cmp['label'] }} · {{ $cmp['compareLabel'] }} · {{ __('Change') }}</span></flux:table.column>
                                 @endforeach
                             </flux:table.columns>
@@ -246,10 +246,10 @@
                                     <flux:table.row :key="'c'.$ri">
                                         <flux:table.cell>{{ $cr['label'] }}</flux:table.cell>
                                         @foreach ($tkeys as $tk)
-                                            @php($ch = App\Reports\Builder\Comparison::change($cr['current'][$tk] ?? null, $cr['previous'][$tk] ?? null))
-                                            @php($tf = $tk === 'count' ? null : ($fields[explode(':', $tk)[0]] ?? null))
-                                            @php($tfn = $tk === 'count' ? 'count' : (explode(':', $tk)[1] ?? 'sum'))
-                                            @php($sign = $ch['diff'] === null || bccomp($ch['diff'], '0', 3) === 0 ? 0 : (bccomp($ch['diff'], '0', 3) > 0 ? 1 : -1))
+                                            @php $ch = App\Reports\Builder\Comparison::change($cr['current'][$tk] ?? null, $cr['previous'][$tk] ?? null); @endphp
+                                            @php $tf = $tk === 'count' ? null : ($fields[explode(':', $tk)[0]] ?? null); @endphp
+                                            @php $tfn = $tk === 'count' ? 'count' : (explode(':', $tk)[1] ?? 'sum'); @endphp
+                                            @php $sign = $ch['diff'] === null || bccomp($ch['diff'], '0', 3) === 0 ? 0 : (bccomp($ch['diff'], '0', 3) > 0 ? 1 : -1); @endphp
                                             <flux:table.cell class="text-end tabular-nums whitespace-nowrap">
                                                 {{ Formatter::total($tf, $tfn, $cr['current'][$tk] ?? null) }}
                                                 · {{ Formatter::total($tf, $tfn, $cr['previous'][$tk] ?? null) }}
@@ -271,11 +271,11 @@
                         </flux:table.columns>
                         <flux:table.rows>
                             @if ($result->groups !== [])
-                                @php($deepest = collect($result->groups)->max('level'))
-                                @php($byGroup = App\Reports\Builder\Grouping::rowsByGroup($result->rows))
-                                @php($parent = 0)
+                                @php $deepest = collect($result->groups)->max('level'); @endphp
+                                @php $byGroup = App\Reports\Builder\Grouping::rowsByGroup($result->rows); @endphp
+                                @php $parent = 0; @endphp
                                 @foreach ($result->groups as $gi => $g)
-                                    @php($parent = $g['level'] === 1 ? $gi : $parent)
+                                    @php $parent = $g['level'] === 1 ? $gi : $parent; @endphp
                                     <flux:table.row :key="'g'.$gi" class="bg-zinc-50 font-medium dark:bg-zinc-800/60" data-group-level="{{ $g['level'] }}"
                                         :x-show="$g['level'] === 2 ? '! closed.g'.$parent : 'true'">
                                         @foreach ($result->columns as $ci => $col)

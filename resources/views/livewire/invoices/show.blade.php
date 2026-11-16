@@ -24,6 +24,9 @@
                 <flux:button icon="document-arrow-down" :href="route('invoices.pdf', $invoice)" target="_blank">{{ __('PDF') }}</flux:button>
             @endif
         </x-slot:actions>
+        <x-slot:notices>
+            <flux:error name="invoice" />
+        </x-slot:notices>
         <x-slot:facts>
             <x-ui.fact :label="__('Tenant')">{{ $invoice->customer->name_en }}</x-ui.fact>
             <x-ui.fact :label="__('Agreement')">@if ($invoice->agreement)<flux:link :href="route('agreements.show', $invoice->agreement_id)" wire:navigate>{{ $invoice->agreement->number }}</flux:link>@endif</x-ui.fact>
@@ -35,7 +38,6 @@
             @endif
         </x-slot:facts>
     </x-ui.summary>
-    <flux:error name="invoice" />
 
     <x-ui.table>
         <flux:table>

@@ -17,7 +17,7 @@
             </x-ui.section>
 
             <x-ui.section :title="__('Trades')">
-                <flux:checkbox.group wire:model="form.trades" :label="__('Trades')" class="grid gap-2 sm:grid-cols-2">
+                <flux:checkbox.group wire:model="form.trades" :label="__('Trades')" label:sr-only="true" class="grid gap-2 sm:grid-cols-2">
                     @foreach ($trades as $t)<flux:checkbox :value="$t->value" :label="$t->label()" />@endforeach
                 </flux:checkbox.group>
                 <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />

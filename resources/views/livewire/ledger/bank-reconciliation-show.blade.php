@@ -32,7 +32,7 @@
     </div>
     @foreach (['finish', 'discard', 'reopen', 'line', 'picked'] as $field)
         @foreach ($errors->get($field) as $message)
-            <p class="text-sm text-red-600">{{ $message }}</p>
+            <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @endforeach
     @endforeach
 

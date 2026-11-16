@@ -104,37 +104,41 @@ select:focus[data-flux-control] {
 } */
 
 /*
- * Chart colours (dataviz reference palette, validated light and dark). Charts use roles, never raw hex.
- * Categorical slots go in fixed order; the ageing ramp is one blue hue, least salient for the newest bucket.
+ * Chart colours. The main series and the occupancy ring use the brand gold (brand-700 on white, brand-400 on near-black,
+ * the same AA pairs as buttons and links); the previous period is neutral zinc; the ageing ramp is one gold hue, least
+ * salient for the newest bucket. Charts use roles, never raw hex. Categorical slots go in fixed order (--viz-4 is blue
+ * so it stays apart from the gold first slot).
  */
 .viz {
-    --viz-1: #2a78d6;
+    --viz-1: var(--color-brand-700);
     --viz-2: #eb6834;
     --viz-3: #1baf7a;
-    --viz-4: #eda100;
+    --viz-4: #2a78d6;
     --viz-neg: #e34948;
     --viz-quiet: #c3c2b7;
+    --viz-prev: var(--color-zinc-400);
     --viz-track: #f0efec;
     --viz-grid: #e1e0d9;
-    --viz-age-1: #86b6ef;
-    --viz-age-2: #3987e5;
-    --viz-age-3: #256abf;
-    --viz-age-4: #104281;
+    --viz-age-1: var(--color-brand-300);
+    --viz-age-2: var(--color-brand-500);
+    --viz-age-3: var(--color-brand-700);
+    --viz-age-4: var(--color-brand-900);
 }
 
 .dark .viz {
-    --viz-1: #3987e5;
+    --viz-1: var(--color-brand-400);
     --viz-2: #d95926;
     --viz-3: #199e70;
-    --viz-4: #c98500;
+    --viz-4: #3987e5;
     --viz-neg: #e66767;
     --viz-quiet: #52514e;
+    --viz-prev: var(--color-zinc-500);
     --viz-track: #2c2c2a;
     --viz-grid: #2c2c2a;
-    --viz-age-1: #184f95;
-    --viz-age-2: #2a78d6;
-    --viz-age-3: #6da7ec;
-    --viz-age-4: #b7d3f6;
+    --viz-age-1: var(--color-brand-800);
+    --viz-age-2: var(--color-brand-600);
+    --viz-age-3: var(--color-brand-400);
+    --viz-age-4: var(--color-brand-200);
 }
 
 /* Occupancy ring: a native <progress> drawn as a ring (conic gradient + mask), so screen readers get the real value. */
@@ -207,12 +211,12 @@ progress.viz-ring::-moz-progress-bar {
 }
 
 /* Design pass §6: a required field's label ends in a red asterisk; aria-required marks server-required fields without changing how the form submits (plan ruling 8). */
-[data-flux-field]:has(:is(input, select, textarea):is([required], [aria-required='true'])) [data-flux-label]::after {
+[data-flux-field]:has(:is(input, select, textarea, [role='radiogroup']):is([required], [aria-required='true'])) [data-flux-label]::after {
     content: ' *' / '';
     color: var(--color-red-600);
 }
 
 /* Written by hand: @apply dark: on a pseudo-element compiles to a selector that matches nothing. */
-:where(.dark, .dark *) [data-flux-field]:has(:is(input, select, textarea):is([required], [aria-required='true'])) [data-flux-label]::after {
+:where(.dark, .dark *) [data-flux-field]:has(:is(input, select, textarea, [role='radiogroup']):is([required], [aria-required='true'])) [data-flux-label]::after {
     color: var(--color-red-400);
 }

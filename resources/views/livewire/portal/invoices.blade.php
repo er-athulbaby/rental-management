@@ -5,7 +5,7 @@
         @foreach ($tabs as $key => $label)
             <button type="button" role="tab" aria-selected="{{ $currentTab === $key ? 'true' : 'false' }}" wire:click="$set('tab', '{{ $key }}')"
                 @class([
-                    'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium',
+                    'inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-sm font-medium',
                     'bg-accent text-accent-foreground' => $currentTab === $key,
                     'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700' => $currentTab !== $key,
                 ])>{{ $label }}</button>

@@ -145,4 +145,13 @@ test('the portal sign-in page is the same card, in Arabic too', function () {
     CompanySetting::factory()->create(['name_en' => 'Gulf Homes', 'name_ar' => 'بيوت الخليج']);
 
     $this->get(route('portal.login'))->assertOk()->assertSee('data-ui-auth-card', false)->assertSee('Sign in to the portal');
+
+    $this->post(route('portal.locale'), ['locale' => 'ar'])->assertRedirect();
+    $this->get(route('portal.login'))->assertOk()->assertSee('dir="rtl"', false)->assertSee('بيوت الخليج')->assertSee('إدارة الإيجارات');
+});
+
+test('the staff sign-in page renders before any company settings exist', function () {
+    expect(CompanySetting::query()->count())->toBe(0);
+
+    $this->get(route('login'))->assertOk()->assertSee('data-ui-auth-card', false)->assertSee(config('app.name'));
 });

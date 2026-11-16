@@ -20,4 +20,5 @@
         default => 'zinc', // draft, closed, renewed, ended, replaced, returned, cancelled, credit note
     };
 @endphp
-<flux:badge size="sm" :color="$color" data-tone="{{ $color }}" {{ $attributes }}>{{ $label }}</flux:badge>
+{{-- Flux's amber text (amber-700 on its pale amber fill) is 4.4:1; amber-800 is 6.2:1. Set here, vendor Flux untouched. --}}
+<flux:badge size="sm" :color="$color" data-tone="{{ $color }}" :class="$color === 'amber' ? 'text-amber-800! dark:text-amber-200!' : ''" {{ $attributes }}>{{ $label }}</flux:badge>

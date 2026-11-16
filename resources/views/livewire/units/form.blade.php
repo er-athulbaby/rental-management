@@ -15,7 +15,7 @@
     <form wire:submit="save" class="space-y-6">
         <fieldset @disabled(! $canEdit) class="space-y-6">
             <x-ui.section :title="__('Location')">
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid items-end gap-4 sm:grid-cols-2">
                     <flux:select wire:model="form.building_id" :label="__('Building')" :disabled="(bool) $unit" aria-required="true" class="sm:col-span-2">
                         <option value="">{{ __('Choose…') }}</option>
                         @foreach ($buildings as $building)

@@ -8,7 +8,7 @@
     <form wire:submit="save" class="space-y-6">
         <x-ui.section>
             @foreach ($types as $type => [$label, $daysLabel])
-                <flux:fieldset wire:key="reminder-{{ $type }}" class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <flux:fieldset wire:key="reminder-{{ $type }}" class="border-t border-zinc-200 pt-4 first:border-t-0 first:pt-0 dark:border-zinc-700">
                     <flux:legend>{{ $label }}</flux:legend>
                     <div class="space-y-4">
                         <flux:switch wire:model="settings.{{ $type }}.enabled" :label="__('Send automatically')" />

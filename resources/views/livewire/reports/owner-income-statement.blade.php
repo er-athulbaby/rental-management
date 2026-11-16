@@ -17,7 +17,7 @@
     </x-ui.filters>
 
     @error('owner')
-        <flux:text class="text-sm text-red-600">{{ $message }}</flux:text>
+        <flux:text class="text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
     @enderror
 
     @if ($chosen === null)

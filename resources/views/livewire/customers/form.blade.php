@@ -10,8 +10,8 @@
 <section class="w-full max-w-4xl space-y-6">
     @if ($customer)
         <x-ui.summary :title="$customer->name_en" :back="route('customers.index')">
+            @if ($account)
             <x-slot:actions>
-                @if ($account)
                     @if ($account['canRecord'])
                         <flux:button variant="primary" :href="route('payments.create', ['customer' => $customer->id])" wire:navigate>{{ __('Record payment') }}</flux:button>
                     @endif
@@ -19,8 +19,8 @@
                     @can('create', App\Models\Invoice::class)
                         <flux:button :href="route('invoices.create', ['customer' => $customer->id])" wire:navigate>{{ __('Manual invoice') }}</flux:button>
                     @endcan
-                @endif
             </x-slot:actions>
+            @endif
             <x-slot:facts>
                 @if ($account)
                     <x-ui.fact :label="__('Outstanding')">{{ $account['outstanding'] }}</x-ui.fact>

@@ -56,9 +56,9 @@
                     @for ($h = 0; $h < 24; $h++)<option value="{{ $h }}">{{ sprintf('%02d:00', $h) }}</option>@endfor
                 </flux:select>
             </div>
-            @error('schedule.frequency')<flux:text class="text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
-            @error('schedule.day')<flux:text class="text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
-            @error('schedule.hour')<flux:text class="text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
+            @error('schedule.frequency')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
+            @error('schedule.day')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
+            @error('schedule.hour')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
 
             <fieldset class="space-y-2">
                 <legend class="mb-1 text-sm font-medium">{{ __('Send to') }}</legend>
@@ -72,7 +72,7 @@
                         <flux:text class="text-sm">{{ __('No staff found.') }}</flux:text>
                     @endforelse
                 </div>
-                @foreach ($errors->get('schedule.recipients*') as $messages)@foreach ($messages as $m)<flux:text class="text-sm text-red-600" role="alert">{{ $m }}</flux:text>@endforeach @endforeach
+                @foreach ($errors->get('schedule.recipients*') as $messages)@foreach ($messages as $m)<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $m }}</flux:text>@endforeach @endforeach
             </fieldset>
             <div class="flex justify-end"><flux:button variant="primary" wire:click="addSchedule">{{ __('Add schedule') }}</flux:button></div>
         </div>

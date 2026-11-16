@@ -29,7 +29,7 @@
 
         <x-ui.section :title="__('Charge to')">
             <div class="grid gap-4 sm:grid-cols-2">
-                <flux:radio.group wire:model.live="form.charge_to" :label="__('Charge to')" variant="segmented" class="sm:col-span-2">
+                <flux:radio.group wire:model.live="form.charge_to" :label="__('Charge to')" label:sr-only="true" variant="segmented" class="sm:col-span-2">
                     <flux:radio value="company" :label="__('Company')" />
                     <flux:radio value="owner" :label="__('Owner')" />
                     @if ($canChargeTenant)

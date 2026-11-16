@@ -42,7 +42,7 @@
                             @foreach ([['portal.home', __('Tenant'), ! $ownerSide], ['portal.owner.home', __('Owner'), $ownerSide]] as [$route, $label, $current])
                                 <a href="{{ route($route) }}" @if ($current) aria-current="page" @endif
                                     @class([
-                                        'block rounded-md px-3 py-1.5 text-sm font-medium',
+                                        'inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium',
                                         'bg-brand-400 text-charcoal' => $current,
                                         'text-zinc-300 hover:bg-charcoal-raised hover:text-white' => ! $current,
                                     ])>{{ $label }}</a>
@@ -70,7 +70,7 @@
                             <li class="shrink-0">
                                 <a href="{{ route($route) }}" @if (request()->routeIs($route.'*')) aria-current="page" @endif
                                     @class([
-                                        'block rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap',
+                                        'inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap',
                                         'bg-brand-400 text-charcoal' => request()->routeIs($route.'*'),
                                         'text-zinc-300 hover:bg-charcoal-raised hover:text-white' => ! request()->routeIs($route.'*'),
                                     ])>{{ $label }}</a>

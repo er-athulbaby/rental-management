@@ -15,7 +15,7 @@
         'transition hover:border-accent' => $href,
     ]) }} data-ui-stat data-tone="{{ $tone ?? 'neutral' }}">
     <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">{{ $label }}</span>
-    <span class="mt-1 block truncate text-xl font-semibold tabular-nums sm:text-2xl {{ $valueClass }}">{{ $value }}</span>
+    <span class="mt-1 block break-words text-xl font-semibold tabular-nums sm:text-2xl {{ $valueClass }}">{{ $value }}</span>
     @if (filled($hint))
         <span class="mt-0.5 block truncate text-xs text-zinc-500 tabular-nums dark:text-zinc-400">{{ $hint }}</span>
     @endif

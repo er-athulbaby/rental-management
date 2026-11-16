@@ -31,7 +31,7 @@
             </x-ui.section>
 
             <x-ui.section :title="__('Facilities')">
-                <flux:checkbox.group wire:model="form.facility_ids" :label="__('Facilities')">
+                <flux:checkbox.group wire:model="form.facility_ids" :label="__('Facilities')" label:sr-only="true">
                     <div class="grid gap-2 sm:grid-cols-2">
                         @forelse ($facilities as $facility)
                             <flux:checkbox :value="(string) $facility->id" :label="$facility->name.($facility->active ? '' : ' ('.__('no longer offered').')')" />

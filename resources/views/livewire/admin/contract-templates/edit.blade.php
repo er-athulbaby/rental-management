@@ -14,7 +14,7 @@
             <flux:error name="clauses" />
 
             @foreach ($clauses as $i => $clause)
-                <flux:card class="space-y-3" wire:key="clause-{{ $i }}">
+                <div class="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700" wire:key="clause-{{ $i }}">
                     <div class="flex items-center justify-between gap-2">
                         <flux:heading>{{ $i + 1 }}.</flux:heading>
                         <div class="flex gap-1">
@@ -32,7 +32,7 @@
                     <flux:error name="clauses.{{ $i }}.heading_ar" />
                     <flux:error name="clauses.{{ $i }}.body_en" />
                     <flux:error name="clauses.{{ $i }}.body_ar" />
-                </flux:card>
+                </div>
             @endforeach
 
             <div class="flex flex-wrap gap-2">

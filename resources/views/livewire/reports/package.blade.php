@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="min-w-0 flex-1">
             <flux:input wire:model.blur="name" :placeholder="__('Untitled package')" :aria-label="__('Package name')" aria-describedby="package-name-error" :aria-invalid="$errors->has('name') ? 'true' : null" class="max-w-md" :disabled="! $canEdit" />
-            @error('name')<flux:text id="package-name-error" class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
+            @error('name')<flux:text id="package-name-error" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @if ($canEdit)
@@ -25,7 +25,7 @@
     @endif
 
     <flux:text>{{ __('One Excel workbook, one sheet per report, in this order. Periods are worked out again on every run.') }}</flux:text>
-    @error('items')<flux:text class="text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
+    @error('items')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
 
     <ol class="space-y-3">
         @forelse ($rows as $n => $row)
@@ -64,7 +64,7 @@
                 @endif
                 @php($itemErrors = [...$errors->get('items.'.$row['index']), ...collect($errors->get('items.'.$row['index'].'.*'))->flatten()->all()])
                 @foreach ($itemErrors as $message)
-                    <flux:text class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</flux:text>
+                    <flux:text class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>
                 @endforeach
             </li>
         @empty
@@ -87,6 +87,6 @@
             </flux:select>
             <flux:button icon="plus" wire:click="addItem">{{ __('Add') }}</flux:button>
         </div>
-        @error('add')<flux:text class="text-sm text-red-600" role="alert">{{ $message }}</flux:text>@enderror
+        @error('add')<flux:text class="text-sm text-red-600 dark:text-red-400" role="alert">{{ $message }}</flux:text>@enderror
     @endif
 </div>
