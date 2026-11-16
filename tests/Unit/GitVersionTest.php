@@ -32,3 +32,19 @@ test('CRLF line endings in HEAD and packed-refs still give the short hash', func
 
     expect(GitVersion::read(gitDir(['.git/HEAD' => "ref: refs/heads/main\r\n", '.git/packed-refs' => "# pack-refs\r\n{$hash} refs/heads/main\r\n"])))->toBe('ab12cd3');
 });
+
+test('a packed ref matches whole names only, and Windows line endings are tolerated', function () {
+    $a = str_repeat('a', 40);
+    $b = str_repeat('b', 40);
+    $packed = "# pack-refs
+{$a} refs/heads/feature/x
+{$b} refs/heads/feature/x1
+";
+
+    expect(GitVersion::read(gitDir(['.git/HEAD' => 'ref: refs/heads/feature/x1
+', '.git/packed-refs' => $packed])))->toBe('bbbbbbb')
+        ->and(GitVersion::read(gitDir(['.git/HEAD' => 'ref: refs/heads/feature/x
+', '.git/packed-refs' => $packed])))->toBe('aaaaaaa')
+        ->and(GitVersion::read(gitDir(['.git/HEAD' => 'ref: refs/heads/feature
+', '.git/packed-refs' => $packed])))->toBeNull();
+});

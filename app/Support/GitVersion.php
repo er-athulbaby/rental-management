@@ -37,7 +37,7 @@ final class GitVersion
         }
 
         // The ref may only exist packed.
-        if (is_file($common.'/packed-refs') && preg_match('/^([0-9a-f]{40}) '.preg_quote($ref, '/').'?$/m', (string) @file_get_contents($common.'/packed-refs'), $m) === 1) {
+        if (is_file($common.'/packed-refs') && preg_match('/^([0-9a-f]{40}) '.preg_quote($ref, '/').'\r?$/m', (string) @file_get_contents($common.'/packed-refs'), $m) === 1) {
             return self::short($m[1]);
         }
 
