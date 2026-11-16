@@ -9,7 +9,7 @@
                     <flux:text>{{ $customerLabel }}</flux:text>
                 @endif
                 <div>
-                    <flux:input wire:model.live.debounce.300ms="customerSearch" :placeholder="__('Name, mobile, ID number or unit code')" icon="magnifying-glass" aria-required="true" />
+                    <flux:input wire:model.live.debounce.300ms="customerSearch" :placeholder="__('Name, mobile, ID number or unit code')" icon="magnifying-glass" aria-required="true" :aria-label="__('Tenant')" />
                     @if ($customerResults->isNotEmpty())
                         <ul class="mt-2 divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
                             @foreach ($customerResults as $c)

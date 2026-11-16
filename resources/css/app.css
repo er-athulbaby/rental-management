@@ -106,14 +106,14 @@ select:focus[data-flux-control] {
 /*
  * Chart colours. The main series and the occupancy ring use the brand gold (brand-700 on white, brand-400 on near-black,
  * the same AA pairs as buttons and links); the previous period is neutral zinc; the ageing ramp is one gold hue, least
- * salient for the newest bucket. Charts use roles, never raw hex. Categorical slots go in fixed order (--viz-4 is blue
- * so it stays apart from the gold first slot).
+ * salient for the newest bucket. Charts use roles, never raw hex. Categorical slots go in fixed order (--viz-2 is blue,
+ * so the two series most often stacked together, gold and blue, differ in hue and not only in lightness).
  */
 .viz {
     --viz-1: var(--color-brand-700);
-    --viz-2: #eb6834;
+    --viz-2: #2a78d6;
     --viz-3: #1baf7a;
-    --viz-4: #2a78d6;
+    --viz-4: #eb6834;
     --viz-neg: #e34948;
     --viz-quiet: #c3c2b7;
     --viz-prev: var(--color-zinc-400);
@@ -127,9 +127,9 @@ select:focus[data-flux-control] {
 
 .dark .viz {
     --viz-1: var(--color-brand-400);
-    --viz-2: #d95926;
+    --viz-2: #3987e5;
     --viz-3: #199e70;
-    --viz-4: #3987e5;
+    --viz-4: #d95926;
     --viz-neg: #e66767;
     --viz-quiet: #52514e;
     --viz-prev: var(--color-zinc-500);
@@ -219,4 +219,9 @@ progress.viz-ring::-moz-progress-bar {
 /* Written by hand: @apply dark: on a pseudo-element compiles to a selector that matches nothing. */
 :where(.dark, .dark *) [data-flux-field]:has(:is(input, select, textarea, [role='radiogroup']):is([required], [aria-required='true'])) [data-flux-label]::after {
     color: var(--color-red-400);
+}
+
+/* The sticky Save bar (ui.form-actions) must not cover a field or error that keyboard focus scrolls to. */
+html {
+    scroll-padding-bottom: 5rem;
 }

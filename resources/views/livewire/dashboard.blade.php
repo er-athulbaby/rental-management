@@ -65,7 +65,7 @@
     @if ($urgent)
         <x-ui.section :title="__('Urgent maintenance')">
             <x-slot:actions>
-                <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" wire:navigate class="text-xs">{{ __('Open: :n', ['n' => $urgent['count']]) }}</flux:link>
+                <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" wire:navigate class="text-xs">{{ __('Urgent: :n', ['n' => $urgent['count']]) }}</flux:link>
             </x-slot:actions>
             @if ($urgent['requests']->isEmpty())
                 <flux:text class="text-sm">{{ __('No urgent requests.') }}</flux:text>

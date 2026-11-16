@@ -159,6 +159,7 @@
     "Trades": "التخصصات",
     "Bank details": "البيانات المصرفية",
     "Urgent, not started": "عاجلة لم تبدأ",
+    "Urgent: :n": "عاجلة: :n",
     "Approvals for you to decide": "موافقات بانتظار قرارك",
     "Rental management": "إدارة الإيجارات",
     "Running total": "المجموع الجاري",

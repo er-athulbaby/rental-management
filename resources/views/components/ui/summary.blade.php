@@ -24,7 +24,7 @@
         @endisset
     </div>
     @isset($notices)
-        <div class="space-y-2 px-4 has-[*]:pb-4 sm:px-6 sm:has-[*]:pb-6">{{ $notices }}</div>
+        <div class="space-y-2 px-4 has-[>:not(.hidden)]:pb-4 sm:px-6 sm:has-[>:not(.hidden)]:pb-6">{{ $notices }}</div>
     @endisset
     @isset($facts)
         <dl class="grid gap-x-6 gap-y-4 border-t border-zinc-200 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 dark:border-zinc-700">{{ $facts }}</dl>

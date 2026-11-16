@@ -66,7 +66,7 @@
                         <flux:table.cell>
                             <flux:link :href="route('maintenance.requests.show', $r)" wire:navigate>{{ $r->number }}</flux:link>
                             @if ($r->channel === \App\Enums\MaintenanceChannel::Portal)
-                                <flux:badge size="sm" color="sky" class="ms-1">{{ __('Portal') }}</flux:badge>
+                                <flux:badge size="sm" color="blue" class="ms-1">{{ __('Portal') }}</flux:badge>
                             @endif
                             <div class="text-xs text-zinc-500">{{ $r->summary() }}</div>
                         </flux:table.cell>

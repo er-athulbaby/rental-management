@@ -86,13 +86,14 @@ test('a failed overlap re-check on approval shows as an approval error and leave
 test('approval figures: how many wait, and how many this approver may decide', function () {
     app(SubmitOwnerContract::class)->handle($this->finance, $this->contract);
 
-    Livewire::actingAs($this->management)->test(Index::class)
-        ->assertSeeInOrder(['Waiting', '1', 'For you to decide', '1']);
+    // Each figure is read next to its own label: a stray digit elsewhere in the page cannot satisfy it.
+    $html = Livewire::actingAs($this->management)->test(Index::class)->html();
+    expect($html)->toMatch('/Waiting<\/span>\s*<span[^>]*>\s*1\s*</')->toMatch('/For you to decide<\/span>\s*<span[^>]*>\s*1\s*</');
 });
 
 test('approval figures differ for the requester: one waiting, none for them to decide', function () {
     app(SubmitOwnerContract::class)->handle($this->finance, $this->contract);
 
-    Livewire::actingAs($this->finance)->test(Index::class)
-        ->assertSeeInOrder(['Waiting', '1', 'For you to decide', '0']);
+    $html = Livewire::actingAs($this->finance)->test(Index::class)->html();
+    expect($html)->toMatch('/Waiting<\/span>\s*<span[^>]*>\s*1\s*</')->toMatch('/For you to decide<\/span>\s*<span[^>]*>\s*0\s*</');
 });

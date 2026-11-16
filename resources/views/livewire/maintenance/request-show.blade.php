@@ -4,7 +4,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 <flux:badge size="sm" :color="$request->priority->color()">{{ $request->priority->label() }}</flux:badge>
                 @if ($request->channel === \App\Enums\MaintenanceChannel::Portal)
-                    <flux:badge size="sm" color="sky">{{ __('Portal') }}</flux:badge>
+                    <flux:badge size="sm" color="blue">{{ __('Portal') }}</flux:badge>
                 @endif
                 <flux:text class="text-sm">{{ $request->category->label() }} · {{ $request->place() }}</flux:text>
             </div>
