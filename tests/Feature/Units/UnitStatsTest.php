@@ -30,3 +30,11 @@ test('unit figures: occupied today, vacant and blocked, in the viewer\'s buildin
         ->assertSeeInOrder(['Occupied', '1', 'Vacant', '1', 'Blocked', '1'])
         ->set('search', 'A3')->assertViewHas('stats', ['occupied' => 0, 'vacant' => 1, 'blocked' => 0]);
 });
+
+test('a unit that is blocked and let counts as occupied, not blocked', function () {
+    $both = Unit::factory()->for($this->a)->create(['code' => 'A1', 'blocked' => true, 'blocked_reason' => 'Repairs']);
+    activeAgreement(['start_date' => '2026-01-01', 'end_date' => '2026-12-31'], [$both]);
+
+    Livewire::actingAs($this->leasing)->test(Index::class)
+        ->assertViewHas('stats', ['occupied' => 1, 'vacant' => 0, 'blocked' => 0]);
+});

@@ -13,7 +13,7 @@
     <x-ui.stats :cols="3">
         <x-ui.stat :label="__('Open')" :value="$counts['open']" />
         <x-ui.stat :label="__('In progress')" :value="$counts['in_progress']" />
-        <x-ui.stat :label="__('Urgent')" :value="$urgent" :tone="$urgent > 0 ? 'danger' : null" :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" />
+        <x-ui.stat :label="__('Urgent, not started')" :value="$urgent" :tone="$urgent > 0 ? 'danger' : null" :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" />
     </x-ui.stats>
 
     <div class="border-b border-zinc-200 dark:border-zinc-700">

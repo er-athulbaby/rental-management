@@ -25,7 +25,7 @@ beforeEach(function () {
     $this->vendor = maintenanceVendor(['trades' => ['plumbing']]);
 });
 
-test('request figures: open and in progress (the tab counts) and urgent, in the viewer\'s buildings, under the filters', function () {
+test('request figures: open and in progress (the tab counts) and urgent not started, in the viewer\'s buildings, under the filters', function () {
     maintenanceRequest($this->pm, $this->unitA, ['priority' => 'urgent']);                    // urgent, open
     $busy = maintenanceRequest($this->pm, $this->unitA, ['priority' => 'urgent']);
     workOrderFor($this->pm, $busy, $this->vendor);                                            // urgent, in progress
@@ -34,9 +34,13 @@ test('request figures: open and in progress (the tab counts) and urgent, in the 
 
     Livewire::actingAs($this->leasing)->test(Requests::class)
         ->assertViewHas('counts', fn (array $c) => $c['open'] === 2 && $c['in_progress'] === 1)
-        ->assertViewHas('urgent', 2)
-        ->assertSeeInOrder(['Open', '2', 'In progress', '1', 'Urgent', '2'])
+        ->assertViewHas('urgent', 1) // not started only: the in-progress one is left out, as the Open tab shows
+        ->assertSeeInOrder(['Open', '2', 'In progress', '1', 'Urgent, not started', '1'])
         ->set('category', 'electrical')->assertViewHas('urgent', 0);
+
+    // The figure and its link agree: the Open tab filtered to urgent lists exactly that many.
+    Livewire::actingAs($this->leasing)->withQueryParams(['tab' => 'open', 'priority' => 'urgent'])->test(Requests::class)
+        ->assertViewHas('requests', fn ($r) => $r->total() === 1);
 });
 
 test('work order figures: open, and overdue (scheduled before today, still open), under every filter but the status', function () {

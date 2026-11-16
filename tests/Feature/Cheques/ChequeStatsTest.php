@@ -52,3 +52,16 @@ test('cheque figures: held (count and amount), to deposit this week and bounced,
         ->set('search', '')->set('building', Building::factory()->create()->id) // a building none of them is in
         ->assertViewHas('stats', ['held' => 0, 'held_amount' => '0.000', 'week' => 0, 'bounced' => 0]);
 });
+
+test('cheque figures follow a building-limited user: only tenants of their buildings', function () {
+    $a = Building::factory()->create();
+    $other = Customer::factory()->create();
+    $otherAgreement = activeAgreement(['customer_id' => $other->id, 'start_date' => '2026-10-01', 'end_date' => '2027-03-31'], [Unit::factory()->for(Building::factory()->create())->create()]);
+    $mine = activeAgreement(['customer_id' => Customer::factory()->create()->id, 'start_date' => '2026-10-01', 'end_date' => '2027-03-31'], [Unit::factory()->for($a)->create()]);
+    foreach ([[$this->agreement, '601'], [$otherAgreement, '602'], [$mine, '603']] as [$agreement, $no]) {
+        (new Cheque)->forceFill(['direction' => 'received', 'bank_name' => 'NBB', 'created_by' => $this->finance->id, 'customer_id' => $agreement->customer_id, 'agreement_id' => $agreement->id, 'cheque_no' => $no, 'cheque_date' => '2026-10-07', 'amount' => '300.000', 'status' => 'held'])->save();
+    }
+
+    Livewire::actingAs(matrixUser(RoleName::Leasing, $a))->test(Index::class)
+        ->assertViewHas('stats', ['held' => 1, 'held_amount' => '300.000', 'week' => 1, 'bounced' => 0]);
+});

@@ -47,3 +47,45 @@ test('needs attention says so when nothing is waiting', function () {
     expect(Dashboard::attention($leasing))->toBe([]);
     Livewire::actingAs($leasing)->test(Dashboard::class)->assertSee('Nothing needs attention.');
 });
+
+test('needs attention counts only the viewer\'s buildings, and urgent means not started', function () {
+    $other = Building::factory()->create();
+    $mine = Unit::factory()->for($this->building)->create();
+    $theirs = Unit::factory()->for($other)->create();
+    activeAgreement(['start_date' => '2026-01-01', 'end_date' => '2026-11-30'], [$mine]);
+    activeAgreement(['start_date' => '2026-01-01', 'end_date' => '2026-11-30'], [$theirs]); // building not assigned
+    $pm = matrixUser(RoleName::PropertyManager, $this->building);
+    $leasing = matrixUser(RoleName::Leasing, $this->building);
+    maintenanceRequest($pm, $mine, ['priority' => 'urgent']);
+    $started = maintenanceRequest($pm, $mine, ['priority' => 'urgent']);
+    workOrderFor($pm, $started, maintenanceVendor(['trades' => ['plumbing']])); // in progress: not "not started"
+    maintenanceRequest($pm, $theirs, ['priority' => 'urgent']);
+
+    expect(Dashboard::attention($leasing))->toBe([
+        ['label' => 'Agreements expiring in 60 days', 'count' => 1, 'url' => route('agreements.index', ['expiring' => 60])],
+        ['label' => 'Urgent, not started', 'count' => 1, 'url' => route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])],
+    ]);
+});
+
+test('a Property manager sees no finance items in needs attention', function () {
+    $pm = matrixUser(RoleName::PropertyManager, $this->building);
+    issuedInvoice(Customer::factory()->create(), [['net' => '100.000']], '2026-09-01'); // overdue, but not theirs to see
+    activeAgreement(['start_date' => '2026-01-01', 'end_date' => '2026-11-30'], [Unit::factory()->for($this->building)->create()]);
+
+    $labels = collect(Dashboard::attention($pm))->pluck('label')->all();
+
+    expect($labels)->toBe(['Agreements expiring in 60 days'])
+        ->and($labels)->not->toContain('Overdue invoices', 'Bounced cheques', 'Cheques to deposit this week', 'Approvals for you to decide');
+});
+
+test('needs attention reuses the counts the tiles already computed instead of querying them again', function () {
+    $management = User::factory()->withTwoFactor()->create()->assignRole(RoleName::Management);
+    $tiles = Dashboard::tiles($management);
+
+    DB::enableQueryLog();
+    $items = Dashboard::attention($management, $tiles);
+    $queries = collect(DB::getQueryLog())->pluck('query')->filter(fn (string $q) => str_contains($q, '`approvals`'))->count();
+    DB::disableQueryLog();
+
+    expect($queries)->toBe(0)->and($items)->toBe(Dashboard::attention($management));
+});

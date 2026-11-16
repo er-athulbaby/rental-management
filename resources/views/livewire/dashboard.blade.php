@@ -25,7 +25,7 @@
                                 <span>{{ $item['label'] }}</span>
                                 <span class="flex items-center gap-1 font-semibold tabular-nums">
                                     {{ $item['count'] }}
-                                    <flux:icon.chevron-right variant="micro" class="text-zinc-400 rtl:rotate-180" />
+                                    <flux:icon.chevron-right variant="micro" class="text-zinc-400 dark:text-zinc-500 rtl:rotate-180" />
                                 </span>
                             </a>
                         </li>

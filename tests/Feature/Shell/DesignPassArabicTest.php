@@ -24,6 +24,8 @@ test('every string the design pass adds has an Arabic translation', function () 
         // Task 8: key screens B
         'Running total', 'Owed now', 'Open invoices', 'This payment', 'Allocated by hand', 'All monthly charges', 'Total deposit', 'Terms',
         'Owner and building', 'Remove unit', 'Remove charge', 'BHD',
+        // Task 13: final pass
+        'Facilities', 'Charge to', 'Reported by', 'Trades', 'Bank details', 'Urgent, not started', 'Approvals for you to decide', 'Rental management',
     ];
 
     expect(array_values(array_diff($keys, array_keys($ar))))->toBe([]);

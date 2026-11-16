@@ -261,7 +261,7 @@ class Builder extends Component
                 $items[] = $cell($g['label'], $g['totals'][$total]);
             } else {
                 $items[] = $cell($g['label'], $g['current']);
-                $items[] = $cell($g['label'].' ('.__('previous').')', $g['previous'], ['color' => '--viz-age-1']);
+                $items[] = $cell($g['label'].' ('.__('previous').')', $g['previous'], ['color' => '--viz-prev']);
             }
         }
         $n = $cmp === null ? count($items) : intdiv(count($items), 2);
@@ -273,7 +273,7 @@ class Builder extends Component
             'items' => $items,
         ] + ($capped || $result->groupsTruncated
             ? ['caption' => __('Chart shows the first :n groups — see the table for all', ['n' => Number::format($n)])] : [])
-          + ($cmp === null ? [] : ['legend' => [['label' => $cmp['label'], 'color' => '--viz-1'], ['label' => $cmp['compareLabel'], 'color' => '--viz-age-1']]]);
+          + ($cmp === null ? [] : ['legend' => [['label' => $cmp['label'], 'color' => '--viz-1'], ['label' => $cmp['compareLabel'], 'color' => '--viz-prev']]]);
     }
 
     /** @return list<string> */
