@@ -1,7 +1,6 @@
 @props(['requests'])
 {{-- Spec 2026-10-17 maintenance §5: the "Maintenance" section on the unit and tenant pages, latest first. --}}
-<div class="space-y-3">
-    <flux:heading size="lg">{{ __('Maintenance') }}</flux:heading>
+<x-ui.section :title="__('Maintenance')">
     @if ($requests->isEmpty())
         <flux:text>{{ __('No maintenance requests.') }}</flux:text>
     @else
@@ -17,4 +16,4 @@
             @endforeach
         </ul>
     @endif
-</div>
+</x-ui.section>

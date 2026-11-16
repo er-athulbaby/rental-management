@@ -1,5 +1,4 @@
-<div class="space-y-4" x-data="{ src: '', image: false, name: '' }">
-    <flux:heading size="lg">{{ __('Documents') }}</flux:heading>
+<x-ui.section :title="__('Documents')" x-data="{ src: '', image: false, name: '' }">
 
     <flux:modal name="doc-preview-{{ $this->getId() }}" class="w-full max-w-5xl" x-on:close="src = ''">
         <div class="space-y-3">
@@ -71,4 +70,4 @@
             <flux:button type="submit" variant="primary">{{ __('Upload') }}</flux:button>
         </form>
     @endif
-</div>
+</x-ui.section>

@@ -1,10 +1,6 @@
 <section class="w-full max-w-4xl space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ $invoice->label() }}</flux:heading>
-            <x-status-badge :status="$invoice->displayLabel()" />
-        </div>
-        <div class="flex flex-wrap gap-2">
+    <x-ui.summary :title="$invoice->label()" :status="$invoice->displayLabel()" :back="route('invoices.index')">
+        <x-slot:actions>
             @if ($canEdit && $invoice->type->value === 'manual')
                 <flux:button :href="route('invoices.edit', $invoice)" wire:navigate>{{ __('Edit') }}</flux:button>
             @endif
@@ -27,22 +23,21 @@
             @if ($invoice->status->value === 'issued')
                 <flux:button icon="document-arrow-down" :href="route('invoices.pdf', $invoice)" target="_blank">{{ __('PDF') }}</flux:button>
             @endif
-        </div>
-    </div>
+        </x-slot:actions>
+        <x-slot:facts>
+            <x-ui.fact :label="__('Tenant')">{{ $invoice->customer->name_en }}</x-ui.fact>
+            <x-ui.fact :label="__('Agreement')">@if ($invoice->agreement)<flux:link :href="route('agreements.show', $invoice->agreement_id)" wire:navigate>{{ $invoice->agreement->number }}</flux:link>@endif</x-ui.fact>
+            <x-ui.fact :label="__('Type')">{{ $invoice->type->label() }}</x-ui.fact>
+            <x-ui.fact :label="__('Issue date')">{{ $invoice->issue_date->format('d/m/Y') }}</x-ui.fact>
+            <x-ui.fact :label="__('Due / grace until')">{{ $invoice->due_date->format('d/m/Y') }}{{ $invoice->grace_until ? ' / '.$invoice->grace_until->format('d/m/Y') : '' }}</x-ui.fact>
+            @if ($invoice->issuer)
+                <x-ui.fact :label="__('Issued by')">{{ $invoice->issuer->name }}</x-ui.fact>
+            @endif
+        </x-slot:facts>
+    </x-ui.summary>
     <flux:error name="invoice" />
 
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd>{{ $invoice->customer->name_en }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Agreement') }}</dt><dd>@if ($invoice->agreement)<flux:link :href="route('agreements.show', $invoice->agreement_id)" wire:navigate>{{ $invoice->agreement->number }}</flux:link>@endif</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Type') }}</dt><dd>{{ $invoice->type->label() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Issue date') }}</dt><dd>{{ $invoice->issue_date->format('d/m/Y') }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Due / grace until') }}</dt><dd>{{ $invoice->due_date->format('d/m/Y') }}{{ $invoice->grace_until ? ' / '.$invoice->grace_until->format('d/m/Y') : '' }}</dd></div>
-        @if ($invoice->issuer)
-            <div><dt class="text-sm text-zinc-500">{{ __('Issued by') }}</dt><dd>{{ $invoice->issuer->name }}</dd></div>
-        @endif
-    </dl>
-
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Line') }}</flux:table.column>
@@ -63,7 +58,7 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 
     <dl class="ms-auto grid max-w-xs grid-cols-2 gap-y-1 tabular-nums">
         <dt>{{ __('Subtotal') }}</dt><dd class="text-end">{{ $invoice->subtotal }}</dd>
@@ -75,8 +70,7 @@
         @endif
     </dl>
     @if ($payments->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="sm">{{ __('Payments received') }}</flux:heading>
+        <x-ui.section :title="__('Payments received')">
             <ul class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-700 dark:border-zinc-700">
                 @foreach ($payments as $p)
                     <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
@@ -85,18 +79,17 @@
                     </li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.section>
     @endif
     @if ($invoice->relatedInvoice)
         <flux:text>{{ __('Credits') }} <flux:link :href="route('invoices.show', $invoice->related_invoice_id)" wire:navigate>{{ $invoice->relatedInvoice->label() }}</flux:link>. {{ $invoice->credit_reason }}</flux:text>
     @endif
     @if ($invoice->creditNotes->isNotEmpty())
-        <div class="space-y-1">
-            <flux:heading size="sm">{{ __('Credit notes') }}</flux:heading>
+        <x-ui.section :title="__('Credit notes')">
             @foreach ($invoice->creditNotes as $cn)
                 <div class="flex items-center gap-2 text-sm"><flux:link :href="route('invoices.show', $cn)" wire:navigate>{{ $cn->number ?? __('Credit note #:id', ['id' => $cn->id]) }}</flux:link> <span class="tabular-nums">{{ $cn->total }}</span> <x-status-badge :status="$cn->status" /></div>
             @endforeach
-        </div>
+        </x-ui.section>
     @endif
 
     <livewire:reminders.record-panel :record="$invoice" :key="'reminders-invoice-'.$invoice->id" />

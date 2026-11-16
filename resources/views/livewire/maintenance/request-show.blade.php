@@ -1,47 +1,43 @@
 <section class="w-full max-w-4xl space-y-8">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ $request->number }}</flux:heading>
+    <x-ui.summary :title="$request->number" :status="$request->status" :back="route('maintenance.requests.index')">
+        <x-slot:meta>
             <div class="flex flex-wrap items-center gap-2">
-                <x-status-badge :status="$request->status" />
                 <flux:badge size="sm" :color="$request->priority->color()">{{ $request->priority->label() }}</flux:badge>
                 @if ($request->channel === \App\Enums\MaintenanceChannel::Portal)
                     <flux:badge size="sm" color="sky">{{ __('Portal') }}</flux:badge>
                 @endif
                 <flux:text class="text-sm">{{ $request->category->label() }} · {{ $request->place() }}</flux:text>
             </div>
-        </div>
-        @if ($canManage && $open)
-            <div class="flex flex-wrap gap-2">
+        </x-slot:meta>
+        <x-slot:actions>
+            @if ($canManage && $open)
                 <flux:modal.trigger name="add-work-order"><flux:button variant="primary">{{ __('Add work order') }}</flux:button></flux:modal.trigger>
                 @if ($canResolve)
                     <flux:button wire:click="resolve" wire:confirm="{{ __('Mark this request resolved?') }}">{{ __('Resolve') }}</flux:button>
                 @endif
                 <flux:modal.trigger name="cancel-request"><flux:button variant="ghost">{{ __('Cancel request') }}</flux:button></flux:modal.trigger>
-            </div>
-        @endif
-    </div>
+            @endif
+        </x-slot:actions>
+        <x-slot:facts>
+            <x-ui.fact :label="__('Building / unit')">{{ $request->building->code }} / {{ $request->unit?->code ?? __('Common area') }}</x-ui.fact>
+            <x-ui.fact :label="__('Tenant')">{{ $request->customer ? $request->customer->name_en.' · '.$request->customer->mobile : '—' }}</x-ui.fact>
+            <x-ui.fact :label="__('Reported by')">{{ $request->reported_by_name }} · {{ $request->channel->label() }}</x-ui.fact>
+            <x-ui.fact :label="__('Logged')">{{ $request->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }} · {{ $request->creatorName() }}</x-ui.fact>
+            <x-ui.fact :label="__('Entry permitted')">{{ $request->entry_permitted ? __('Yes') : __('No') }}</x-ui.fact>
+            @if ($request->resolved_at)
+                <x-ui.fact :label="__('Resolved')">{{ $request->resolved_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</x-ui.fact>
+            @endif
+            @if ($request->cancel_reason)
+                <x-ui.fact :label="__('Cancelled')" class="sm:col-span-2 lg:col-span-3">{{ $request->cancel_reason }}</x-ui.fact>
+            @endif
+            <x-ui.fact :label="__('Problem')" class="whitespace-pre-line sm:col-span-2 lg:col-span-3">{{ $request->description }}</x-ui.fact>
+        </x-slot:facts>
+    </x-ui.summary>
     <flux:error name="request" />
-
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <div><dt class="text-sm text-zinc-500">{{ __('Building / unit') }}</dt><dd>{{ $request->building->code }} / {{ $request->unit?->code ?? __('Common area') }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd>{{ $request->customer ? $request->customer->name_en.' · '.$request->customer->mobile : '—' }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Reported by') }}</dt><dd>{{ $request->reported_by_name }} · {{ $request->channel->label() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Logged') }}</dt><dd>{{ $request->created_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }} · {{ $request->creatorName() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Entry permitted') }}</dt><dd>{{ $request->entry_permitted ? __('Yes') : __('No') }}</dd></div>
-        @if ($request->resolved_at)
-            <div><dt class="text-sm text-zinc-500">{{ __('Resolved') }}</dt><dd>{{ $request->resolved_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</dd></div>
-        @endif
-        @if ($request->cancel_reason)
-            <div class="sm:col-span-2"><dt class="text-sm text-zinc-500">{{ __('Cancelled') }}</dt><dd>{{ $request->cancel_reason }}</dd></div>
-        @endif
-        <div class="sm:col-span-2"><dt class="text-sm text-zinc-500">{{ __('Problem') }}</dt><dd class="whitespace-pre-line">{{ $request->description }}</dd></div>
-    </dl>
 
     <livewire:documents.panel :documentable="$request" :key="'docs-request-'.$request->id" />
 
-    <div class="space-y-3">
-        <flux:heading size="lg" level="2">{{ __('Work orders') }}</flux:heading>
+    <x-ui.section :title="__('Work orders')">
         <flux:error name="workOrders" />
         @forelse ($request->workOrders as $wo)
             <div wire:key="wo-{{ $wo->id }}" class="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
@@ -88,11 +84,10 @@
         @empty
             <flux:text>{{ __('No work orders yet.') }}</flux:text>
         @endforelse
-    </div>
+    </x-ui.section>
 
     @if ($canSeeExpenses && $expenses->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg" level="2">{{ __('Expenses') }}</flux:heading>
+        <x-ui.section :title="__('Expenses')">
             <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($expenses as $expense)
                     <li wire:key="exp-{{ $expense->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
@@ -105,11 +100,10 @@
             @if ($expenses->contains(fn ($e) => $e->status !== \App\Enums\ExpenseStatus::Recorded))
                 <flux:text class="text-sm">{{ __('Reversed expenses are not counted in the total.') }}</flux:text>
             @endif
-        </div>
+        </x-ui.section>
     @endif
 
-    <div class="space-y-3">
-        <flux:heading size="lg" level="2">{{ __('Timeline') }}</flux:heading>
+    <x-ui.section :title="__('Timeline')">
         <ol class="space-y-2">
             @foreach ($request->events as $event)
                 <li wire:key="ev-{{ $event->id }}" class="text-sm">
@@ -124,7 +118,7 @@
                 <flux:button type="submit" size="sm">{{ __('Add note') }}</flux:button>
             </form>
         @endif
-    </div>
+    </x-ui.section>
 
     @if ($canManage && $open)
         <flux:modal name="add-work-order" class="md:w-[32rem]">

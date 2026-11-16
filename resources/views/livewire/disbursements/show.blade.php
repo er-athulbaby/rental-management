@@ -1,10 +1,6 @@
 <section class="w-full max-w-3xl space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ $out->label() }}</flux:heading>
-            <x-status-badge :status="$out->status" />
-        </div>
-        <div class="flex flex-wrap gap-2">
+    <x-ui.summary :title="$out->label()" :status="$out->status" :back="route('disbursements.index')">
+        <x-slot:actions>
             @if ($canPay)
                 <flux:modal.trigger name="pay"><flux:button variant="primary">{{ __('Record as paid') }}</flux:button></flux:modal.trigger>
             @endif
@@ -13,23 +9,22 @@
             @elseif ($canReverse)
                 <flux:modal.trigger name="reverse"><flux:button variant="danger">{{ __('Request reversal') }}</flux:button></flux:modal.trigger>
             @endif
-        </div>
-    </div>
-
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Payee') }}</dt><dd>{{ $out->payeeName() }} ({{ $out->payee_type->value === 'customer' ? __('tenant') : ($out->payee_type->value === 'vendor' ? __('vendor') : __('owner')) }})</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Purpose') }}</dt><dd>{{ $out->purpose->label() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Amount') }}</dt><dd class="tabular-nums">{{ $out->amount }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Method') }}</dt><dd>{{ $out->method->label() }}{{ $out->reference ? ' · '.$out->reference : '' }}</dd></div>
-        @if ($out->paid_on)<div><dt class="text-sm text-zinc-500">{{ __('Paid on') }}</dt><dd>{{ $out->paid_on->format('d/m/Y') }} · {{ $out->recorder?->name }}</dd></div>@endif
-        @if ($out->source_type === 'payment')<div><dt class="text-sm text-zinc-500">{{ __('Refunds credit of') }}</dt><dd><flux:link :href="route('payments.show', $out->source_id)" wire:navigate>{{ $out->source()?->number }}</flux:link></dd></div>@endif
-        @if ($out->reason)<div class="sm:col-span-3"><dt class="text-sm text-zinc-500">{{ __('Reason') }}</dt><dd>{{ $out->reason }}</dd></div>@endif
-        <div><dt class="text-sm text-zinc-500">{{ __('Requested by') }}</dt><dd>{{ $out->creator->name }}</dd></div>
-        @if ($out->reversed_at)<div><dt class="text-sm text-zinc-500">{{ __('Reversed') }}</dt><dd>{{ $out->reversed_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</dd></div>@endif
-    </dl>
+        </x-slot:actions>
+        <x-slot:facts>
+            <x-ui.fact :label="__('Payee')">{{ $out->payeeName() }} ({{ $out->payee_type->value === 'customer' ? __('tenant') : ($out->payee_type->value === 'vendor' ? __('vendor') : __('owner')) }})</x-ui.fact>
+            <x-ui.fact :label="__('Purpose')">{{ $out->purpose->label() }}</x-ui.fact>
+            <x-ui.fact :label="__('Amount')">{{ $out->amount }}</x-ui.fact>
+            <x-ui.fact :label="__('Method')">{{ $out->method->label() }}{{ $out->reference ? ' · '.$out->reference : '' }}</x-ui.fact>
+            @if ($out->paid_on)<x-ui.fact :label="__('Paid on')">{{ $out->paid_on->format('d/m/Y') }} · {{ $out->recorder?->name }}</x-ui.fact>@endif
+            @if ($out->source_type === 'payment')<x-ui.fact :label="__('Refunds credit of')"><flux:link :href="route('payments.show', $out->source_id)" wire:navigate>{{ $out->source()?->number }}</flux:link></x-ui.fact>@endif
+            @if ($out->reason)<x-ui.fact :label="__('Reason')" class="sm:col-span-2 lg:col-span-3">{{ $out->reason }}</x-ui.fact>@endif
+            <x-ui.fact :label="__('Requested by')">{{ $out->creator->name }}</x-ui.fact>
+            @if ($out->reversed_at)<x-ui.fact :label="__('Reversed')">{{ $out->reversed_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</x-ui.fact>@endif
+        </x-slot:facts>
+    </x-ui.summary>
 
     @if ($out->purpose->value === 'vendor_bill')
-        <div class="overflow-x-auto">
+        <x-ui.table>
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -46,7 +41,7 @@
                     @endforeach
                 </flux:table.rows>
             </flux:table>
-        </div>
+        </x-ui.table>
     @endif
 
     @if ($out->cheque)

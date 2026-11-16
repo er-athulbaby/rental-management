@@ -1,8 +1,7 @@
 @use('App\Models\ReminderSend')
 @use('App\Models\ReminderSetting')
-<div class="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <flux:heading size="sm">{{ __('Reminders') }}</flux:heading>
+<x-ui.section :title="__('Reminders')">
+    <x-slot:actions>
         @if ($sendable)
             @if ($refusal === null)
                 <flux:modal.trigger name="send-reminder">
@@ -12,7 +11,7 @@
                 <flux:button size="sm" icon="envelope" disabled>{{ __('Send reminder') }}</flux:button>
             @endif
         @endif
-    </div>
+    </x-slot:actions>
     @if ($sendable && $refusal !== null)
         <flux:text size="sm">{{ __('Can\'t send: :reason', ['reason' => $refusal]) }}</flux:text>
     @endif
@@ -54,4 +53,4 @@
             </div>
         </flux:modal>
     @endif
-</div>
+</x-ui.section>

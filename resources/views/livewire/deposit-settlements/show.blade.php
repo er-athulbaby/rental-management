@@ -1,16 +1,13 @@
 <section class="w-full max-w-4xl space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ __('Deposit settlement :n', ['n' => $s->label()]) }}</flux:heading>
-            <x-status-badge :status="$s->status" />
-        </div>
-        @if ($canRefund)
-            <flux:modal.trigger name="refund"><flux:button variant="primary">{{ __('Pay refund (:c BHD left)', ['c' => $left]) }}</flux:button></flux:modal.trigger>
-        @endif
-    </div>
-    <flux:text>{{ $s->agreement->label() }} · {{ $s->agreement->customer->name_en }}</flux:text>
+    <x-ui.summary :title="__('Deposit settlement :n', ['n' => $s->label()])" :status="$s->status" :subtitle="$s->agreement->label().' · '.$s->agreement->customer->name_en" :back="route('deposit-settlements.index')">
+        <x-slot:actions>
+            @if ($canRefund)
+                <flux:modal.trigger name="refund"><flux:button variant="primary">{{ __('Pay refund (:c BHD left)', ['c' => $left]) }}</flux:button></flux:modal.trigger>
+            @endif
+        </x-slot:actions>
+    </x-ui.summary>
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Unit') }}</flux:table.column>
@@ -29,9 +26,9 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 
-    <flux:heading size="lg">{{ __('Deductions') }}</flux:heading>
+    <x-ui.section :title="__('Deductions')">
     @foreach ($lines as $i => $line)
         <flux:card class="space-y-3" wire:key="ded-{{ $i }}">
             <div class="grid gap-3 sm:grid-cols-4">
@@ -63,6 +60,7 @@
             <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Send this settlement for Management approval?') }}">{{ __('Send for approval') }}</flux:button>
         </div>
     @endif
+    </x-ui.section>
 
     @if ($s->deductionsInvoice)
         <flux:text>{{ __('Deductions invoice') }} <flux:link :href="route('invoices.show', $s->deductionsInvoice)" wire:navigate>{{ $s->deductionsInvoice->label() }}</flux:link>@if ($s->payment) · {{ __('deposit applied') }} <flux:link :href="route('payments.show', $s->payment)" wire:navigate>{{ $s->payment->number }}</flux:link>@endif</flux:text>

@@ -1,10 +1,6 @@
 <section class="w-full max-w-3xl space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ $payment->number }}</flux:heading>
-            <x-status-badge :status="$payment->status" />
-        </div>
-        <div class="flex flex-wrap gap-2">
+    <x-ui.summary :title="$payment->number" :status="$payment->status" :back="route('payments.index')">
+        <x-slot:actions>
             <flux:button icon="document-arrow-down" :href="route('payments.receipt', $payment)" target="_blank">{{ __('Receipt') }}</flux:button>
             @if ($canRefund)
                 <flux:modal.trigger name="refund-credit"><flux:button>{{ __('Refund credit') }}</flux:button></flux:modal.trigger>
@@ -15,18 +11,17 @@
                 <flux:modal.trigger name="reverse-payment"><flux:button variant="danger">{{ __('Request reversal') }}</flux:button></flux:modal.trigger>
             @endif
             @if ($payment->cheque_id)<flux:button :href="route('cheques.show', $payment->cheque_id)" wire:navigate>{{ __('Cheque') }}</flux:button>@endif
-        </div>
-    </div>
+        </x-slot:actions>
+        <x-slot:facts>
+            <x-ui.fact :label="__('Tenant')"><flux:link :href="route('customers.edit', $payment->customer)" wire:navigate>{{ $payment->customer->name_en }}</flux:link></x-ui.fact>
+            <x-ui.fact :label="__('Received')">{{ $payment->received_on->format('d/m/Y') }} · {{ $payment->methodSummary() }}</x-ui.fact>
+            <x-ui.fact :label="__('Amount / credit left')">{{ $payment->amount }} / {{ $credit }}</x-ui.fact>
+            @if ($payment->reference)<x-ui.fact :label="__('Reference')">{{ $payment->reference }}</x-ui.fact>@endif
+            <x-ui.fact :label="__('Recorded by')">{{ $payment->recorder->name }}</x-ui.fact>
+        </x-slot:facts>
+    </x-ui.summary>
 
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        <div><dt class="text-sm text-zinc-500">{{ __('Tenant') }}</dt><dd><flux:link :href="route('customers.edit', $payment->customer)" wire:navigate>{{ $payment->customer->name_en }}</flux:link></dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Received') }}</dt><dd>{{ $payment->received_on->format('d/m/Y') }} · {{ $payment->methodSummary() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Amount / credit left') }}</dt><dd class="tabular-nums">{{ $payment->amount }} / {{ $credit }}</dd></div>
-        @if ($payment->reference)<div><dt class="text-sm text-zinc-500">{{ __('Reference') }}</dt><dd>{{ $payment->reference }}</dd></div>@endif
-        <div><dt class="text-sm text-zinc-500">{{ __('Recorded by') }}</dt><dd>{{ $payment->recorder->name }}</dd></div>
-    </dl>
-
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Invoice') }}</flux:table.column>
@@ -45,7 +40,7 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
     <flux:modal name="reverse-payment" class="md:w-96">
         <form wire:submit="requestReversal" class="space-y-4">
             <flux:heading size="lg">{{ __('Reverse :n', ['n' => $payment->number]) }}</flux:heading>

@@ -1,10 +1,6 @@
 <section class="w-full max-w-3xl space-y-8">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="space-y-1">
-            <flux:heading size="xl" level="1">{{ $contract->label() }}</flux:heading>
-            <x-status-badge :status="$contract->status" />
-        </div>
-        <div class="flex flex-wrap gap-2">
+    <x-ui.summary :title="$contract->label()" :status="$contract->status" :back="route('owner-contracts.index')">
+        <x-slot:actions>
             @if ($contract->type === \App\Enums\OwnerContractType::Managed && auth()->user()->can('finance.view'))
                 <flux:button size="sm" :href="route('owner-statements.index', ['contract' => $contract->id])" wire:navigate>{{ __('Statements') }}</flux:button>
             @endif
@@ -17,8 +13,28 @@
             @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Draft)
                 <flux:button variant="primary" wire:click="submit" wire:confirm="{{ __('Submit this contract for Management approval?') }}">{{ __('Submit for approval') }}</flux:button>
             @endif
-        </div>
-    </div>
+        </x-slot:actions>
+        <x-slot:facts>
+            <x-ui.fact :label="__('Owner')">{{ $contract->owner->name_en }}</x-ui.fact>
+            <x-ui.fact :label="__('Building')">{{ $contract->building->code }} — {{ $contract->building->name }}</x-ui.fact>
+            <x-ui.fact :label="__('Arrangement')">{{ str($contract->type->value)->headline() }}</x-ui.fact>
+            <x-ui.fact :label="__('Dates')">{{ $contract->start_date->format('d/m/Y') }} – {{ $contract->end_date->format('d/m/Y') }}</x-ui.fact>
+            @if ($contract->type === \App\Enums\OwnerContractType::Leased)
+                <x-ui.fact :label="__('Rent')">{{ $contract->rent_amount }} BHD, {{ str($contract->payment_frequency?->value)->headline() }}</x-ui.fact>
+            @else
+                <x-ui.fact :label="__('Fee')">{{ $contract->fee_value }} ({{ str($contract->fee_type?->value)->headline() }})</x-ui.fact>
+                <x-ui.fact :label="__('Owner approval above')">{{ $contract->expense_approval_limit ?? __('No limit') }}</x-ui.fact>
+                <x-ui.fact :label="__('Deposits held by')">{{ str($contract->deposits_held_by?->value)->headline() }}</x-ui.fact>
+            @endif
+            @if ($contract->previous)
+                <x-ui.fact :label="__('Replaces')"><flux:link :href="route('owner-contracts.show', $contract->previous_contract_id)" wire:navigate>{{ $contract->previous->number }}</flux:link></x-ui.fact>
+            @endif
+            @if ($contract->terminated_on)
+                <x-ui.fact :label="__('Terminated on')">{{ $contract->terminated_on->format('d/m/Y') }} — {{ $contract->termination_reason }}</x-ui.fact>
+            @endif
+            <x-ui.fact :label="__('Created by')">{{ $contract->creator->name }}</x-ui.fact>
+        </x-slot:facts>
+    </x-ui.summary>
 
     <flux:error name="unit_ids" />
     <flux:error name="status" />
@@ -29,53 +45,29 @@
         <flux:callout variant="warning" icon="exclamation-triangle" :heading="__('Rejected by :name', ['name' => $lastRejection->decider?->name])" :text="$lastRejection->comment" />
     @endif
 
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <div><dt class="text-sm text-zinc-500">{{ __('Owner') }}</dt><dd>{{ $contract->owner->name_en }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Building') }}</dt><dd>{{ $contract->building->code }} — {{ $contract->building->name }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Arrangement') }}</dt><dd>{{ str($contract->type->value)->headline() }}</dd></div>
-        <div><dt class="text-sm text-zinc-500">{{ __('Dates') }}</dt><dd>{{ $contract->start_date->format('d/m/Y') }} – {{ $contract->end_date->format('d/m/Y') }}</dd></div>
-        @if ($contract->type === \App\Enums\OwnerContractType::Leased)
-            <div><dt class="text-sm text-zinc-500">{{ __('Rent') }}</dt><dd class="tabular-nums">{{ $contract->rent_amount }} BHD, {{ str($contract->payment_frequency?->value)->headline() }}</dd></div>
-        @else
-            <div><dt class="text-sm text-zinc-500">{{ __('Fee') }}</dt><dd class="tabular-nums">{{ $contract->fee_value }} ({{ str($contract->fee_type?->value)->headline() }})</dd></div>
-            <div><dt class="text-sm text-zinc-500">{{ __('Owner approval above') }}</dt><dd class="tabular-nums">{{ $contract->expense_approval_limit ?? __('No limit') }}</dd></div>
-            <div><dt class="text-sm text-zinc-500">{{ __('Deposits held by') }}</dt><dd>{{ str($contract->deposits_held_by?->value)->headline() }}</dd></div>
-        @endif
-        @if ($contract->previous)
-            <div><dt class="text-sm text-zinc-500">{{ __('Replaces') }}</dt><dd><flux:link :href="route('owner-contracts.show', $contract->previous_contract_id)" wire:navigate>{{ $contract->previous->number }}</flux:link></dd></div>
-        @endif
-        @if ($contract->terminated_on)
-            <div><dt class="text-sm text-zinc-500">{{ __('Terminated on') }}</dt><dd>{{ $contract->terminated_on->format('d/m/Y') }} — {{ $contract->termination_reason }}</dd></div>
-        @endif
-        <div><dt class="text-sm text-zinc-500">{{ __('Created by') }}</dt><dd>{{ $contract->creator->name }}</dd></div>
-    </dl>
-
-    <div>
-        <flux:heading size="lg">{{ __('Units (:count)', ['count' => $contract->units->count()]) }}</flux:heading>
-        <p class="mt-2 flex flex-wrap gap-2">
+    <x-ui.section :title="__('Units (:count)', ['count' => $contract->units->count()])">
+        <p class="flex flex-wrap gap-2">
             @foreach ($contract->units as $unit)<flux:badge size="sm">{{ $unit->code }}</flux:badge>@endforeach
         </p>
-    </div>
+    </x-ui.section>
 
     @php($terminationPending = $approvals->contains(fn ($a) => $a->action === \App\Enums\ApprovalAction::OwnerContractTermination && $a->status === \App\Enums\ApprovalStatus::Pending))
     @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Active && ! $contract->terminated_on)
-        <flux:fieldset>
-            <flux:legend>{{ __('Early termination') }}</flux:legend>
+        <x-ui.section :title="__('Early termination')">
             @if ($terminationPending)
                 <flux:text>{{ __('An early termination is waiting for Management approval.') }}</flux:text>
             @else
-                <form wire:submit="requestTermination" class="mt-2 space-y-3">
+                <form wire:submit="requestTermination" class="space-y-3">
                     <x-date-input wire:model="terminatedOn" :label="__('Last day of the contract')" />
                     <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" />
                     <flux:button type="submit">{{ __('Request early termination') }}</flux:button>
                 </form>
             @endif
-        </flux:fieldset>
+        </x-ui.section>
     @endif
 
     @if ($approvals->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Approval history') }}</flux:heading>
+        <x-ui.section :title="__('Approval history')">
             <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($approvals as $approval)
                     <li class="py-2 text-sm">
@@ -86,13 +78,12 @@
                     </li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.section>
     @endif
 
     @if ($payables->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Head-lease payments') }}</flux:heading>
-            <div class="overflow-x-auto">
+        <x-ui.section :title="__('Head-lease payments')">
+            <x-ui.table>
                 <flux:table>
                     <flux:table.columns>
                         <flux:table.column>{{ __('Period') }}</flux:table.column>
@@ -116,8 +107,8 @@
                         @endforeach
                     </flux:table.rows>
                 </flux:table>
-            </div>
-        </div>
+            </x-ui.table>
+        </x-ui.section>
     @endif
 
     <livewire:documents.panel :documentable="$contract" :key="'docs-oc-'.$contract->id" />

@@ -1,30 +1,27 @@
 <div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <flux:heading size="xl">{{ $statement->label() }}</flux:heading>
+    <x-ui.summary :title="$statement->label()" :status="$statement->status" :back="route('owner-statements.index')">
+        <x-slot:meta>
             <flux:text>{{ $statement->contract->owner->name_en }} · <flux:link :href="route('owner-contracts.show', $statement->owner_contract_id)" wire:navigate>{{ $statement->contract->number }}</flux:link> · {{ $statement->period_start->format('d/m/Y') }} – {{ $statement->period_end->format('d/m/Y') }}</flux:text>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <x-status-badge :status="$statement->status" />
+        </x-slot:meta>
+        <x-slot:actions>
             <flux:button size="sm" :href="route('owner-statements.pdf', $statement)" target="_blank">{{ __('PDF') }}</flux:button>
             <flux:button size="sm" :href="route('owner-statements.export', $statement)">{{ __('Excel') }}</flux:button>
             @if ($canSubmit)
                 <flux:button size="sm" variant="primary" wire:click="submit">{{ __('Submit for approval') }}</flux:button>
             @endif
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.summary>
     <flux:error name="statement" />
 
-    <div class="grid gap-3 sm:grid-cols-4">
-        <flux:card><flux:text>{{ __('Opening') }}</flux:text><flux:heading class="tabular-nums">{{ $statement->opening_balance }}</flux:heading></flux:card>
-        <flux:card><flux:text>{{ __('Fee base') }}</flux:text><flux:heading class="tabular-nums">{{ $statement->fee_base }}</flux:heading></flux:card>
-        <flux:card><flux:text>{{ __('Fee + VAT') }}</flux:text><flux:heading class="tabular-nums">{{ $statement->fee_amount }} + {{ $statement->fee_tax }}</flux:heading></flux:card>
-        <flux:card><flux:text>{{ __('Closing') }}</flux:text><flux:heading class="tabular-nums">{{ $statement->closing_balance }}</flux:heading></flux:card>
-    </div>
+    <x-ui.stats :cols="4">
+        <x-ui.stat :label="__('Opening')" :value="$statement->opening_balance" />
+        <x-ui.stat :label="__('Fee base')" :value="$statement->fee_base" />
+        <x-ui.stat :label="__('Fee + VAT')" :value="$statement->fee_amount.' + '.$statement->fee_tax" />
+        <x-ui.stat :label="__('Closing')" :value="$statement->closing_balance" />
+    </x-ui.stats>
 
     @if ($canRemit)
-        <flux:card class="space-y-4">
-            <flux:heading size="lg">{{ __('Pay the owner') }}</flux:heading>
+        <x-ui.section :title="__('Pay the owner')">
             <flux:text>{{ __('Owner ledger balance now: :b BHD', ['b' => \App\Support\Fils::toDecimal($live)]) }}</flux:text>
             <flux:text>{{ $statement->contract->owner->bank_name }} · {{ $statement->contract->owner->maskedIban() }} · {{ $statement->contract->owner->account_name }}</flux:text>
             @if ($statement->contract->owner->bankChangedRecently())
@@ -49,10 +46,10 @@
                 <flux:error name="remittance.owner_statement_id" />
                 <div class="sm:col-span-2 flex justify-end"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>
             </form>
-        </flux:card>
+        </x-ui.section>
     @endif
 
-    <div class="overflow-x-auto">
+    <x-ui.table>
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -75,11 +72,10 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </x-ui.table>
 
     @if ($approvals->isNotEmpty())
-        <div class="space-y-2">
-            <flux:heading size="lg">{{ __('Approval history') }}</flux:heading>
+        <x-ui.section :title="__('Approval history')">
             <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($approvals as $approval)
                     <li class="py-2 text-sm">
@@ -90,6 +86,6 @@
                     </li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.section>
     @endif
 </div>

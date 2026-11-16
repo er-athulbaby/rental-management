@@ -1,21 +1,23 @@
 @php($money = fn (int $fils) => App\Support\Fils::toDecimal($fils))
 <section class="w-full max-w-4xl space-y-6">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-        <flux:heading size="xl" level="1">{{ __('Statement — :n', ['n' => $customer->name_en]) }}</flux:heading>
-        <div class="flex flex-wrap items-end gap-2">
-            <x-date-input wire:model.live="from" :label="__('From')" />
-            <x-date-input wire:model.live="to" :label="__('To')" />
+    <x-ui.page-header :title="__('Statement — :n', ['n' => $customer->name_en])" :back="route('customers.edit', $customer)">
+        <x-slot:actions>
             @if ($valid)
                 <flux:button icon="document-arrow-down" :href="route('customers.statement.pdf', ['customer' => $customer, 'from' => $from, 'to' => $to])" target="_blank">{{ __('PDF') }}</flux:button>
             @endif
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.filters>
+        <x-date-input wire:model.live="from" :label="__('From')" />
+        <x-date-input wire:model.live="to" :label="__('To')" />
+    </x-ui.filters>
 
     @if (! $valid)
         <flux:text>{{ __('Choose a valid date range.') }}</flux:text>
     @else
         <flux:heading size="lg">{{ __('Account') }}</flux:heading>
-        <div class="overflow-x-auto">
+        <x-ui.table>
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -42,12 +44,12 @@
                     @endforeach
                 </flux:table.rows>
             </flux:table>
-        </div>
+        </x-ui.table>
         <flux:text>{{ __('Closing balance :b BHD (negative means the tenant is in credit).', ['b' => $money($receivables['closing'])]) }}</flux:text>
 
         @foreach ($deposits as $d => $deposit)
             <flux:heading size="lg" wire:key="dep-{{ $d }}">{{ __('Deposit — :u', ['u' => $deposit['unit']]) }}</flux:heading>
-            <div class="overflow-x-auto">
+            <x-ui.table>
                 <flux:table>
                     <flux:table.columns>
                         <flux:table.column>{{ __('Date') }}</flux:table.column>
@@ -66,7 +68,7 @@
                         @endforeach
                     </flux:table.rows>
                 </flux:table>
-            </div>
+            </x-ui.table>
         @endforeach
     @endif
 </section>
