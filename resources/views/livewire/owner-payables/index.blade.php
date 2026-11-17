@@ -13,7 +13,7 @@
 
     <x-ui.stats :cols="2">
         <x-ui.stat :label="__('Due now')" :value="__(':amount BHD', ['amount' => $sum($dueNow)])" :hint="__(':n payments', ['n' => $dueNow->count()])" :tone="$dueNow->isNotEmpty() ? 'warning' : null" />
-        <x-ui.stat :label="__('Total due')" :value="__(':amount BHD', ['amount' => $sum($rows)])" :hint="__(':n payments', ['n' => $rows->count()])" />
+        <x-ui.stat :label="__('Total due')" :value="__(':amount BHD', ['amount' => $sum($rows)])" :hint="__(':n payments', ['n' => $rows->count()]).' · '.__('Up to the Due by date')" />
     </x-ui.stats>
 
     <x-ui.filters :clear="$filtered ? route('owner-payables.index') : null">

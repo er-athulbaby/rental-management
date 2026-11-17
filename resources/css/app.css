@@ -207,9 +207,25 @@ progress.viz-ring::-moz-progress-bar {
 }
 
 /* A section whose only content is a table: the table drops its own card so there is no card inside a card. */
-.ui-section-flush > .ui-table {
+.ui-section-flush .ui-table {
     border-width: 0;
     border-radius: 0;
+}
+
+/* A section embedded in a card that already has a frame (documents inside a work order): no second card. */
+.ui-inline-section > [data-ui-section] {
+    border-width: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.ui-inline-section > [data-ui-section] > header {
+    border-bottom-width: 0;
+    padding: 0 0 0.5rem;
+}
+
+.ui-inline-section > [data-ui-section] > div {
+    padding: 0;
 }
 
 [data-ui-section]:has(> .ui-section-flush) {

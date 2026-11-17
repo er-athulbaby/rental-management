@@ -60,10 +60,10 @@
                 @endif
                 <fieldset @disabled(! $canEditBank) class="grid gap-4 sm:grid-cols-2">
                     <x-bank-select wire:model="form.bank_name" :current="$owner?->bank_name" />
-                    <flux:input wire:model="form.account_name" :label="__('Account name')" />
                     <div class="sm:col-span-2">
                         <flux:input wire:model="form.iban" :label="__('IBAN')" />
                     </div>
+                    <flux:input wire:model="form.account_name" :label="__('Account name')" />
                 </fieldset>
             </x-ui.section>
         @endif

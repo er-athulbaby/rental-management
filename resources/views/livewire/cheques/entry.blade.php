@@ -21,9 +21,11 @@
                         <flux:input wire:model="rows.{{ $i }}.cheque_no" :label="__('Cheque no.')" aria-required="true" />
                         <x-date-input wire:model="rows.{{ $i }}.cheque_date" :label="__('Cheque date')" aria-required="true" />
                         <flux:input wire:model="rows.{{ $i }}.amount" inputmode="decimal" :label="__('Amount')" aria-required="true" class="text-end tabular-nums" />
-                        <div class="sm:col-span-4 empty:hidden">
-                            @foreach (['cheque_no', 'cheque_date', 'amount', 'invoice_id'] as $f)<flux:error name="rows.{{ $i }}.{{ $f }}" />@endforeach
-                        </div>
+                        @if (collect(['cheque_no', 'cheque_date', 'amount', 'invoice_id'])->contains(fn ($f) => $errors->has('rows.'.$i.'.'.$f)))
+                            <div class="sm:col-span-4">
+                                @foreach (['cheque_no', 'cheque_date', 'amount', 'invoice_id'] as $f)<flux:error name="rows.{{ $i }}.{{ $f }}" />@endforeach
+                            </div>
+                        @endif
                     </div>
                 @empty
                     <flux:text class="px-4 py-3 sm:px-6">{{ __('Every open invoice already has a cheque.') }}</flux:text>

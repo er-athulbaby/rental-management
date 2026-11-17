@@ -13,7 +13,7 @@
     <x-ui.stats :cols="3">
         <x-ui.stat :label="__('Held')" :value="__(':amount BHD', ['amount' => $sumOf('held_amount')])" />
         <x-ui.stat :label="__('Applied')" :value="__(':amount BHD', ['amount' => $sumOf('applied_amount')])" />
-        <x-ui.stat :label="__('Refund')" :value="__(':amount BHD', ['amount' => $sumOf('refund_amount')])" :tone="$canRefund ? 'success' : null" />
+        <x-ui.stat :label="__('Refund')" :value="__(':amount BHD', ['amount' => $sumOf('refund_amount')])" :tone="\App\Support\Fils::fromDecimal($sumOf('refund_amount')) > 0 ? 'success' : null" />
     </x-ui.stats>
 
     <x-ui.section :title="__('Units')" flush>

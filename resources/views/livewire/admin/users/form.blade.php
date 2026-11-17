@@ -13,10 +13,12 @@
             </x-ui.section>
 
             <x-ui.section :title="__('Roles')" :hint="__('What this user is allowed to do.')">
-                <flux:checkbox.group wire:model="roles" :label="__('Roles')" label:sr-only class="sm:grid-cols-2">
-                    @foreach ($roleOptions as $role)
-                        <flux:checkbox :value="$role->value" :label="$role->label()" />
-                    @endforeach
+                <flux:checkbox.group wire:model="roles" :label="__('Roles')" label:sr-only>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        @foreach ($roleOptions as $role)
+                            <flux:checkbox :value="$role->value" :label="$role->label()" />
+                        @endforeach
+                    </div>
                 </flux:checkbox.group>
                 <flux:error name="roles" />
             </x-ui.section>
@@ -37,8 +39,8 @@
         </form>
     @endif
 
-    @if ($subject)
-        <x-ui.section :title="__('Account')" :hint="__('Deactivating or resetting two-factor signs the user out everywhere.')" tone="danger">
+    @if ($subject && (auth()->user()->can('deactivate', $subject) || auth()->user()->can('reactivate', $subject) || auth()->user()->can('resetTwoFactor', $subject)))
+        <x-ui.section :title="__('Account')" :hint="auth()->user()->can('reactivate', $subject) && ! auth()->user()->can('deactivate', $subject) && ! auth()->user()->can('resetTwoFactor', $subject) ? null : __('Deactivating or resetting two-factor signs the user out everywhere.')" tone="danger">
             <div class="flex flex-wrap gap-3">
             @can('deactivate', $subject)
                 <flux:button variant="danger" wire:click="deactivate" wire:confirm="{{ __('Deactivate this user and sign them out everywhere?') }}">{{ __('Deactivate') }}</flux:button>

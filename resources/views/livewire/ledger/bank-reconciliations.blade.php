@@ -72,8 +72,8 @@
                             <flux:select.option :value="(string) $n">{{ $letter }}</flux:select.option>
                         @endforeach
                     </flux:select>
+                    <div class="sm:col-span-3"><x-file-button wire:model="file" accept=".csv,.xlsx" :label="__('Choose statement file')" /></div>
                 </div>
-                <div class="sm:col-span-3"><x-file-button wire:model="file" accept=".csv,.xlsx" :label="__('Choose statement file')" /></div>
                 @foreach (['header_row', 'date_column', 'date_format', 'description_column', 'reference_column', 'amount_mode', 'amount_column', 'debit_column', 'credit_column', 'balance_column', 'file'] as $field)
                     <flux:error name="{{ $field }}" />
                 @endforeach
@@ -85,10 +85,10 @@
         @endif
 
         @if ($result !== null)
-            <flux:callout icon="information-circle" color="zinc" class="space-y-1 text-sm">
-                <p>{{ __('Imported :imported, skipped as duplicates :skipped, failed :failed.', ['imported' => $result['imported'], 'skipped' => $result['skipped'], 'failed' => count($result['failures'])]) }}</p>
+            <flux:callout icon="information-circle" color="zinc">
+                <flux:callout.text>{{ __('Imported :imported, skipped as duplicates :skipped, failed :failed.', ['imported' => $result['imported'], 'skipped' => $result['skipped'], 'failed' => count($result['failures'])]) }}</flux:callout.text>
                 @foreach ($result['failures'] as $failure)
-                    <p>{{ __('Row :row: :reason', ['row' => $failure['row'], 'reason' => $failure['reason']]) }}</p>
+                    <flux:callout.text>{{ __('Row :row: :reason', ['row' => $failure['row'], 'reason' => $failure['reason']]) }}</flux:callout.text>
                 @endforeach
             </flux:callout>
         @endif

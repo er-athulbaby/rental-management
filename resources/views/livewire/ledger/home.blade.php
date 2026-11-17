@@ -2,7 +2,7 @@
     $mismatches = collect($health)->where('ok', false)->count();
 @endphp
 <section class="w-full max-w-6xl space-y-6" @if ($settings->rebuilding()) wire:poll.2s @endif>
-    <x-ui.page-header :title="__('Ledger')" :hint="$settings->start_date ? null : __('Not set up yet: Admin sets the start date.')" />
+    <x-ui.page-header :title="__('Ledger')" />
 
     @if (! $settings->start_date)
         <x-ui.section>
@@ -14,10 +14,10 @@
         <x-ui.stat :label="__('Start date')" :value="$settings->start_date ? $settings->start_date->format('d/m/Y') : '—'" />
         <x-ui.stat :label="__('Locked up to')" :value="$settings->locked_until ? $settings->locked_until->format('d/m/Y') : __('Nothing is locked.')" />
         <x-ui.stat :label="__('Last checked')" :value="$settings->health_checked_at ? $settings->health_checked_at->format('d/m/Y H:i') : __('Not checked yet.')" />
-        <x-ui.stat :label="__('Checks with a difference')" :value="(string) $mismatches" :tone="$mismatches > 0 ? 'danger' : null" />
+        <x-ui.stat :label="__('Checks with a difference')" :value="$settings->health_checked_at ? (string) $mismatches : '—'" :tone="$mismatches > 0 ? 'danger' : null" />
     </x-ui.stats>
 
-    <x-ui.section :title="__('Ledger health')" :hint="$settings->health_checked_at ? __('Last checked :when', ['when' => $settings->health_checked_at->format('d/m/Y H:i')]) : __('Not checked yet.')" flush>
+    <x-ui.section :title="__('Ledger health')" flush>
         <x-slot:actions>
             <flux:button size="sm" wire:click="checkNow">{{ __('Check now') }}</flux:button>
         </x-slot:actions>

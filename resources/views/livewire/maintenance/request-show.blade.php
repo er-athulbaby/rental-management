@@ -77,7 +77,9 @@
                         <div class="col-span-2 sm:col-span-4"><dt class="text-zinc-500 dark:text-zinc-400">{{ __('Cancelled') }}</dt><dd>{{ $wo->cancel_reason }}</dd></div>
                     @endif
                 </dl>
-                <livewire:documents.panel :documentable="$wo" :key="'docs-wo-'.$wo->id" />
+                <div class="ui-inline-section border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                    <livewire:documents.panel :documentable="$wo" :key="'docs-wo-'.$wo->id" />
+                </div>
             </div>
         @empty
             <x-ui.empty :title="__('No work orders yet.')" />
