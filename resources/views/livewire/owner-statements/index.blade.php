@@ -32,7 +32,7 @@
                 @forelse ($statements as $s)
                     <flux:table.row :key="'os-'.$s->id">
                         <flux:table.cell class="whitespace-nowrap">{{ $s->period_start->format('M Y') }}</flux:table.cell>
-                        <flux:table.cell><flux:link :href="route('owner-statements.show', $s)" wire:navigate>{{ $s->label() }}</flux:link> <span class="text-zinc-500">{{ $s->contract->number }}</span></flux:table.cell>
+                        <flux:table.cell><flux:link :href="route('owner-statements.show', $s)" wire:navigate>{{ $s->label() }}</flux:link> <span class="text-zinc-500 dark:text-zinc-400">{{ $s->contract->number }}</span></flux:table.cell>
                         <flux:table.cell>{{ $s->contract->owner->name_en }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $s->closing_balance }}</flux:table.cell>
                         <flux:table.cell><x-status-badge :status="$s->status" /></flux:table.cell>

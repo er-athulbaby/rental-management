@@ -10,9 +10,9 @@
 
     <x-ui.section :title="__('Details')">
         <dl class="grid gap-4 sm:grid-cols-2">
-            <div><dt class="text-sm text-zinc-500">{{ __('Sent') }}</dt><dd class="tabular-nums">{{ $request->created_at->format('d/m/Y') }}</dd></div>
-            <div><dt class="text-sm text-zinc-500">{{ __('Entry permitted') }}</dt><dd>{{ $request->entry_permitted ? __('Yes') : __('No') }}</dd></div>
-            <div class="sm:col-span-2"><dt class="text-sm text-zinc-500">{{ __('Problem') }}</dt><dd class="whitespace-pre-line">{{ $request->description }}</dd></div>
+            <div><dt class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Sent') }}</dt><dd class="tabular-nums">{{ $request->created_at->format('d/m/Y') }}</dd></div>
+            <div><dt class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Entry permitted') }}</dt><dd>{{ $request->entry_permitted ? __('Yes') : __('No') }}</dd></div>
+            <div class="sm:col-span-2"><dt class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Problem') }}</dt><dd class="whitespace-pre-line">{{ $request->description }}</dd></div>
         </dl>
     </x-ui.section>
 
@@ -20,7 +20,7 @@
         <ol class="space-y-3 border-s-2 border-zinc-200 ps-4 dark:border-zinc-700">
             @foreach ($timeline as $i => $step)
                 <li wire:key="step-{{ $i }}" class="text-sm">
-                    <time class="text-zinc-500 tabular-nums" datetime="{{ $step['at']->toIso8601String() }}">{{ $step['at']->format('d/m/Y H:i') }}</time>
+                    <time class="text-zinc-500 dark:text-zinc-400 tabular-nums" datetime="{{ $step['at']->toIso8601String() }}">{{ $step['at']->format('d/m/Y H:i') }}</time>
                     · {{ $step['label'] }}
                 </li>
             @endforeach

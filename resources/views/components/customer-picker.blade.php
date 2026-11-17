@@ -13,7 +13,7 @@
                 <li wire:key="pick-{{ $c->id }}">
                     <button type="button" wire:click="{{ $action }}({{ $c->id }})" class="w-full px-3 py-2 text-start text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
                         <span class="font-medium">{{ $c->name_en }}</span>
-                        <span class="text-zinc-500">· {{ $c->mobile }} · {{ $c->maskedId() }}</span>
+                        <span class="text-zinc-500 dark:text-zinc-400">· {{ $c->mobile }} · {{ $c->maskedId() }}</span>
                     </button>
                 </li>
             @endforeach

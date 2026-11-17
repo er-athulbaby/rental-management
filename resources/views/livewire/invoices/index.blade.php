@@ -39,7 +39,7 @@
                     @class([
                         'flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
                         'border-accent text-accent-content' => $currentTab === $key,
-                        'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' => $currentTab !== $key,
+                        'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200' => $currentTab !== $key,
                     ])>
                     {{ $label }}
                     @if ($key !== 'all')
@@ -72,7 +72,7 @@
             <flux:table.rows>
                 @foreach ($invoices as $invoice)
                     <flux:table.row :key="$invoice->id">
-                        <flux:table.cell><flux:link :href="route('invoices.show', $invoice)" wire:navigate>{{ $invoice->label() }}</flux:link> <span class="text-xs text-zinc-500">{{ $invoice->type->label() }}</span></flux:table.cell>
+                        <flux:table.cell><flux:link :href="route('invoices.show', $invoice)" wire:navigate>{{ $invoice->label() }}</flux:link> <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $invoice->type->label() }}</span></flux:table.cell>
                         <flux:table.cell>{{ $invoice->customer->name_en }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $invoice->period_start?->format('d/m/Y') }}{{ $invoice->period_start ? ' – '.$invoice->period_end?->format('d/m/Y') : '' }} · {{ __('due :d', ['d' => $invoice->due_date->format('d/m/Y')]) }}@if ($currentTab === 'overdue') · <span class="text-red-600 dark:text-red-400">{{ trans_choice(':n day overdue|:n days overdue', $n = (int) $invoice->due_date->diffInDays(now('Asia/Bahrain')->startOfDay()), ['n' => $n]) }}</span>@endif</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $invoice->total }}</flux:table.cell>

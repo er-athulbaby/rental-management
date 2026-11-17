@@ -63,7 +63,7 @@
             </flux:table.rows>
         </flux:table></x-ui.table>
         @if ($unmatchedCount > $unmatched->count())
-            <p class="px-4 py-2 text-sm text-zinc-500">{{ __('Showing :shown of :total', ['shown' => $unmatched->count(), 'total' => $unmatchedCount]) }}</p>
+            <p class="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">{{ __('Showing :shown of :total', ['shown' => $unmatched->count(), 'total' => $unmatchedCount]) }}</p>
         @endif
     </x-ui.section>
 

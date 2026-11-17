@@ -23,9 +23,9 @@
                     {{ __('Issued :date', ['date' => $i->issue_date->format('d/m/Y')]) }} · {{ __('Due :date', ['date' => $i->due_date->format('d/m/Y')]) }}
                 </div>
                 <dl class="grid grid-cols-3 gap-2 rounded-lg bg-zinc-50 p-3 text-sm tabular-nums dark:bg-zinc-800/60">
-                    <div><dt class="text-zinc-500">{{ __('Total') }}</dt><dd>{{ App\Support\Fils::grouped(App\Support\Fils::fromDecimal($i->total)) }}</dd></div>
-                    <div><dt class="text-zinc-500">{{ __('Paid') }}</dt><dd>{{ App\Support\Fils::grouped(App\Support\Fils::fromDecimal($i->total) - App\Support\Fils::fromDecimal($i->balance)) }}</dd></div>
-                    <div><dt class="text-zinc-500">{{ __('Balance') }}</dt><dd class="font-semibold">{{ App\Support\Fils::grouped(App\Support\Fils::fromDecimal($i->balance)) }}</dd></div>
+                    <div><dt class="text-zinc-500 dark:text-zinc-400">{{ __('Total') }}</dt><dd>{{ App\Support\Fils::grouped(App\Support\Fils::fromDecimal($i->total)) }}</dd></div>
+                    <div><dt class="text-zinc-500 dark:text-zinc-400">{{ __('Paid') }}</dt><dd>{{ App\Support\Fils::grouped(App\Support\Fils::fromDecimal($i->total) - App\Support\Fils::fromDecimal($i->balance)) }}</dd></div>
+                    <div><dt class="text-zinc-500 dark:text-zinc-400">{{ __('Balance') }}</dt><dd class="font-semibold">{{ App\Support\Fils::grouped(App\Support\Fils::fromDecimal($i->balance)) }}</dd></div>
                 </dl>
                 <flux:link :href="route('portal.invoices.pdf', $i)" class="inline-flex min-h-11 items-center text-sm">{{ __('Invoice PDF') }}</flux:link>
             </li>

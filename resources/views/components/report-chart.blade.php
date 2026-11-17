@@ -17,7 +17,7 @@
 <figure class="viz min-w-0 space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
     <figcaption class="flex flex-wrap items-baseline justify-between gap-2">
         <span class="text-sm font-medium text-zinc-800 dark:text-white">{{ $chart['title'] }}</span>
-        @isset($chart['caption'])<span class="text-xs text-zinc-500">{{ $chart['caption'] }}</span>@endisset
+        @isset($chart['caption'])<span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $chart['caption'] }}</span>@endisset
     </figcaption>
 
     @isset($chart['legend'])
@@ -29,7 +29,7 @@
     @endisset
 
     @if ($items->isEmpty() || $total <= 0 && ($chart['type'] ?? '') !== 'bars')
-        <p class="py-6 text-center text-sm text-zinc-500">{{ __('Nothing to chart yet.') }}</p>
+        <p class="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">{{ __('Nothing to chart yet.') }}</p>
     @elseif ($chart['type'] === 'bars')
         <ul class="space-y-2" role="img" aria-label="{{ $chart['title'] }}: {{ $summary }}">
             @foreach ($items as $item)
@@ -59,7 +59,7 @@
                     </div>
                 @endforeach
             </div>
-            <div class="mt-1 flex gap-0.5 text-[11px] text-zinc-500" aria-hidden="true">
+            <div class="mt-1 flex gap-0.5 text-[11px] text-zinc-500 dark:text-zinc-400" aria-hidden="true">
                 @foreach ($items as $i => $item)
                     <span class="min-w-0 flex-1 truncate text-center">{{ $i % $every === 0 ? ($item['short'] ?? $item['label']) : '' }}</span>
                 @endforeach
@@ -80,7 +80,7 @@
                     <span class="size-2.5 shrink-0 rounded-sm" style="background: var({{ $item['color'] ?? '--viz-1' }})"></span>
                     <span class="truncate text-zinc-600 dark:text-zinc-300">{{ $item['label'] }}</span>
                     <span class="ms-auto font-medium text-zinc-800 tabular-nums dark:text-white">{{ $item['display'] }}</span>
-                    <span class="w-12 text-end text-xs text-zinc-500 tabular-nums">{{ number_format($pct(max(0, (float) $item['value']), $total), 0) }}%</span>
+                    <span class="w-12 text-end text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{{ number_format($pct(max(0, (float) $item['value']), $total), 0) }}%</span>
                 </li>
             @endforeach
         </ul>

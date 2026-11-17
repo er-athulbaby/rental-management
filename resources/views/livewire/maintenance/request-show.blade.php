@@ -46,7 +46,7 @@
                         @if ($wo->isOverdue())
                             <flux:badge size="sm" color="red">{{ __('Overdue') }}</flux:badge>
                         @endif
-                        <span class="text-sm text-zinc-500">{{ $wo->vendor->name }}</span>
+                        <span class="text-sm text-zinc-500 dark:text-zinc-400">{{ $wo->vendor->name }}</span>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <flux:button size="sm" variant="ghost" icon="printer" :href="route('maintenance.work-orders.sheet', $wo)" target="_blank" :aria-label="__('Sheet :number', ['number' => $wo->number])">{{ __('Sheet') }}</flux:button>

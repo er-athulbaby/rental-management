@@ -23,7 +23,7 @@
                     @class([
                         'flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
                         'border-accent text-accent-content' => $currentTab === $key,
-                        'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' => $currentTab !== $key,
+                        'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200' => $currentTab !== $key,
                     ])>
                     {{ $label }}
                     <flux:badge size="sm">{{ $counts[$key] }}</flux:badge>
@@ -68,7 +68,7 @@
                             @if ($r->channel === \App\Enums\MaintenanceChannel::Portal)
                                 <flux:badge size="sm" color="blue" class="ms-1">{{ __('Portal') }}</flux:badge>
                             @endif
-                            <div class="text-xs text-zinc-500">{{ $r->summary() }}</div>
+                            <div class="text-xs text-zinc-500 dark:text-zinc-400">{{ $r->summary() }}</div>
                         </flux:table.cell>
                         <flux:table.cell>{{ $r->building->code }} / {{ $r->unit?->code ?? __('Common area') }}</flux:table.cell>
                         <flux:table.cell>{{ $r->category->label() }}</flux:table.cell>

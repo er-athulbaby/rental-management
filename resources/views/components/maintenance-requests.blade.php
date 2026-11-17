@@ -9,7 +9,7 @@
                 <li wire:key="mr-{{ $r->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                     <span><flux:link :href="route('maintenance.requests.show', $r)" wire:navigate>{{ $r->number }}</flux:link> · {{ $r->category->label() }} · {{ $r->summary() }}</span>
                     <span class="flex items-center gap-2">
-                        <span class="text-zinc-500">{{ $r->created_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</span>
+                        <span class="text-zinc-500 dark:text-zinc-400">{{ $r->created_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</span>
                         <x-status-badge :status="$r->status" />
                     </span>
                 </li>

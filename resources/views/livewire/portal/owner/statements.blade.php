@@ -10,7 +10,7 @@
                 <dl class="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-zinc-50 p-3 text-sm sm:grid-cols-3 dark:bg-zinc-800/60">
                     @foreach (['opening' => __('Opening balance'), 'income' => __('Income'), 'charges' => __('Charges'), 'fees' => __('Fees'), 'paid' => __('Paid to you'), 'closing' => __('Closing balance')] as $key => $label)
                         <div>
-                            <dt class="text-zinc-500">{{ $label }}</dt>
+                            <dt class="text-zinc-500 dark:text-zinc-400">{{ $label }}</dt>
                             <dd @class(['tabular-nums', 'font-semibold' => $key === 'closing'])>{{ __(':amount BHD', ['amount' => App\Support\Fils::grouped($row[$key])]) }}</dd>
                         </div>
                     @endforeach

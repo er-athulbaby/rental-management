@@ -8,7 +8,7 @@
         {{ $label }}
         <input type="file" {{ $attributes }} class="sr-only" x-on:change="name = $event.target.files[0]?.name ?? ''" />
     </label>
-    <span wire:loading wire:target="{{ $model }}" class="text-sm text-zinc-500">{{ __('Uploading…') }}</span>
+    <span wire:loading wire:target="{{ $model }}" class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Uploading…') }}</span>
     <span wire:loading.remove wire:target="{{ $model }}" class="truncate text-sm text-zinc-600 dark:text-zinc-300"
         x-text="$wire.$get(@js($model)) ? name : @js(__('No file chosen'))"></span>
 </div>

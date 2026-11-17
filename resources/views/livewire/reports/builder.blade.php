@@ -67,7 +67,7 @@
                 <div class="max-h-96 space-y-4 overflow-y-auto pe-1">
                     @foreach ($sections as $section => $sectionFields)
                         <div>
-                            <div class="mb-1 border-b border-zinc-200 pb-1 text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400">{{ $section }}</div>
+                            <div class="mb-1 border-b border-zinc-200 pb-1 text-xs font-semibold tracking-wide text-zinc-500 dark:text-zinc-400 uppercase dark:border-zinc-700 dark:text-zinc-400">{{ $section }}</div>
                             @foreach ($sectionFields as $f)
                                 @continue($f->archived && ! in_array($f->key, is_array($def['columns'] ?? null) ? $def['columns'] : [], true))
                                 <label class="flex items-center gap-2 py-1 text-sm">
@@ -136,7 +136,7 @@
                                 @endif
                             @endif
                             @if ($ff && ($filter['op'] ?? '') !== '')
-                                <flux:text class="text-xs text-zinc-500">{{ $ff->label }} {{ $opLabels[$filter['op']] ?? '' }}@if ($ff->type->value === 'enum') {{ __('the ticked values') }}@elseif (! in_array($filter['op'], ['empty', 'not_empty', 'yes', 'no'], true)) …@endif</flux:text>
+                                <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">{{ $ff->label }} {{ $opLabels[$filter['op']] ?? '' }}@if ($ff->type->value === 'enum') {{ __('the ticked values') }}@elseif (! in_array($filter['op'], ['empty', 'not_empty', 'yes', 'no'], true)) …@endif</flux:text>
                             @endif
                             @foreach (['field', 'op', 'value'] as $part)
                                 @isset($defErrors["filters.$i.$part"])<flux:text class="text-xs text-red-600 dark:text-red-400">{{ $defErrors["filters.$i.$part"][0] }}</flux:text>@endisset
@@ -242,7 +242,7 @@
                 @if ($result->comparison)
                     @php $cmp = $result->comparison; @endphp
                     @php $tkeys = array_keys($cmp['rows'][0]['current'] ?? ['count' => 0]); @endphp
-                    @if ($cmp['truncated'])<p class="text-sm text-zinc-500">{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</p>@endif
+                    @if ($cmp['truncated'])<p class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Showing the first :n groups — export for all', ['n' => Illuminate\Support\Number::format(App\Reports\Builder\Aggregator::GROUP_LIMIT)]) }}</p>@endif
                     <x-ui.table>
                         <flux:table>
                             <flux:table.columns>
@@ -295,8 +295,8 @@
                                                     <button type="button" class="inline-flex items-center gap-1 rounded text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                                                         @click="closed.g{{ $gi }} = ! closed.g{{ $gi }}" :aria-expanded="(! closed.g{{ $gi }}).toString()"
                                                         :aria-label="closed.g{{ $gi }} ? @js(__('Expand :label', ['label' => $g['label']])) : @js(__('Collapse :label', ['label' => $g['label']]))">
-                                                        <span class="inline-block w-3 text-zinc-500" aria-hidden="true" x-text="closed.g{{ $gi }} ? '▸' : '▾'"></span>{{ $g['label'] }}</button>
-                                                    <span class="text-xs font-normal text-zinc-500">({{ number_format($g['totals']['count']) }})</span>
+                                                        <span class="inline-block w-3 text-zinc-500 dark:text-zinc-400" aria-hidden="true" x-text="closed.g{{ $gi }} ? '▸' : '▾'"></span>{{ $g['label'] }}</button>
+                                                    <span class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ number_format($g['totals']['count']) }})</span>
                                                 @else
                                                     @foreach ($g['totals'] as $tk => $tv)@if (str_starts_with($tk, $col->key.':')){{ Formatter::total($col, explode(':', $tk)[1], $tv) }}@endif @endforeach
                                                 @endif
@@ -321,7 +321,7 @@
                                         @endforeach
                                     </flux:table.row>
                                 @empty
-                                    <flux:table.row><flux:table.cell :colspan="count($result->columns)" class="py-8 text-center text-zinc-500">{{ __('No rows match.') }}</flux:table.cell></flux:table.row>
+                                    <flux:table.row><flux:table.cell :colspan="count($result->columns)" class="py-8 text-center text-zinc-500 dark:text-zinc-400">{{ __('No rows match.') }}</flux:table.cell></flux:table.row>
                                 @endforelse
                             @endif
                             @if ($result->rows !== [] || $result->groups !== [])

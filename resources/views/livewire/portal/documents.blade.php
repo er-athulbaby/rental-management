@@ -5,7 +5,7 @@
             <li wire:key="doc-{{ $document->id }}" class="space-y-2 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <flux:badge size="sm">{{ $document->category->label() }}</flux:badge>
-                    <span class="text-sm text-zinc-500 tabular-nums">{{ $document->created_at->format('d/m/Y') }}</span>
+                    <span class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">{{ $document->created_at->format('d/m/Y') }}</span>
                 </div>
                 <flux:link :href="route('portal.documents.download', $document)" class="inline-flex min-h-11 max-w-full items-center break-all font-medium">{{ $document->original_name }}</flux:link>
             </li>

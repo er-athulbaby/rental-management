@@ -4,7 +4,7 @@
     <div class="flex flex-wrap items-start justify-between gap-4 p-4 sm:p-6">
         <div class="min-w-0 space-y-1">
             @if ($back)
-                <a href="{{ $back }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-accent-content dark:text-zinc-400">
+                <a href="{{ $back }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-accent-content dark:text-zinc-400">
                     <flux:icon.chevron-left variant="micro" class="rtl:rotate-180" />{{ __('Back') }}
                 </a>
             @endif

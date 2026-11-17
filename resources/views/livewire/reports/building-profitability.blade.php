@@ -43,7 +43,7 @@
             <flux:table.rows>
                 @foreach ($rows as $r)
                     <flux:table.row :key="'b-'.$r['building']->id">
-                        <flux:table.cell>{{ $r['building']->code }} <span class="text-zinc-500">{{ $r['building']->name }}</span></flux:table.cell>
+                        <flux:table.cell>{{ $r['building']->code }} <span class="text-zinc-500 dark:text-zinc-400">{{ $r['building']->name }}</span></flux:table.cell>
                         @foreach (['collected', 'fees', 'income', 'billed', 'head_lease', 'expenses', 'result'] as $k)
                             <flux:table.cell class="text-end tabular-nums">{{ \App\Support\Fils::toDecimal($r['figures'][$k]) }}</flux:table.cell>
                         @endforeach

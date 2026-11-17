@@ -52,11 +52,11 @@
                             <span class="absolute text-xl font-semibold text-zinc-900 dark:text-white">{{ $occupancy['units'] > 0 ? number_format($occupancy['percent'], 1).'%' : '—' }}</span>
                         </div>
                         <dl class="space-y-2 text-sm">
-                            <div class="flex items-center gap-2"><span class="size-2.5 rounded-sm" style="background: var(--viz-1)"></span><dt class="text-zinc-500">{{ __('Occupied') }}</dt><dd class="ms-auto ps-3 font-medium text-zinc-900 dark:text-white">{{ $occupancy['occupied'] }}</dd></div>
-                            <div class="flex items-center gap-2"><span class="size-2.5 rounded-sm" style="background: var(--viz-track)"></span><dt class="text-zinc-500">{{ __('Vacant') }}</dt><dd class="ms-auto ps-3 font-medium text-zinc-900 dark:text-white">{{ $occupancy['units'] - $occupancy['occupied'] }}</dd></div>
+                            <div class="flex items-center gap-2"><span class="size-2.5 rounded-sm" style="background: var(--viz-1)"></span><dt class="text-zinc-500 dark:text-zinc-400">{{ __('Occupied') }}</dt><dd class="ms-auto ps-3 font-medium text-zinc-900 dark:text-white">{{ $occupancy['occupied'] }}</dd></div>
+                            <div class="flex items-center gap-2"><span class="size-2.5 rounded-sm" style="background: var(--viz-track)"></span><dt class="text-zinc-500 dark:text-zinc-400">{{ __('Vacant') }}</dt><dd class="ms-auto ps-3 font-medium text-zinc-900 dark:text-white">{{ $occupancy['units'] - $occupancy['occupied'] }}</dd></div>
                         </dl>
                     </div>
-                    <p class="text-xs text-zinc-500">{{ __('Of :n units that can be let (blocked units left out).', ['n' => $occupancy['units']]) }}</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Of :n units that can be let (blocked units left out).', ['n' => $occupancy['units']]) }}</p>
                 </figure>
             @endif
         </div>
@@ -74,7 +74,7 @@
                     @foreach ($urgent['requests'] as $r)
                         <li wire:key="urgent-{{ $r->id }}" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                             <span><flux:link :href="route('maintenance.requests.show', $r)" wire:navigate>{{ $r->number }}</flux:link> · {{ $r->place() }} · {{ $r->summary() }}</span>
-                            <span class="text-zinc-500">{{ $r->created_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</span>
+                            <span class="text-zinc-500 dark:text-zinc-400">{{ $r->created_at->timezone('Asia/Bahrain')->format('d/m/Y') }}</span>
                         </li>
                     @endforeach
                 </ul>

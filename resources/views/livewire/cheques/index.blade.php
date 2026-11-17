@@ -34,7 +34,7 @@
                             <li wire:key="pick-{{ $a->id }}">
                                 <button type="button" wire:click="startEntry({{ $a->id }})" class="w-full px-3 py-2 text-start text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
                                     <span class="font-medium">{{ $a->label() }}</span>
-                                    <span class="text-zinc-500">· {{ $a->customer->name_en }} · {{ $a->customer->mobile }}</span>
+                                    <span class="text-zinc-500 dark:text-zinc-400">· {{ $a->customer->name_en }} · {{ $a->customer->mobile }}</span>
                                 </button>
                             </li>
                         @endforeach

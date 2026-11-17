@@ -32,7 +32,7 @@
                             <span>{{ __('Due :date', ['date' => $r->due_date->format('d/m/Y')]) }} · {{ $r->contract->building->name }}</span>
                             <span class="font-semibold tabular-nums">{{ __(':amount BHD', ['amount' => App\Support\Fils::grouped(App\Support\Fils::fromDecimal($r->amount))]) }}</span>
                         </div>
-                        <div class="text-zinc-500">{{ $r->status === App\Enums\OwnerPayableStatus::Paid ? __('Paid') : __('Not paid yet') }}</div>
+                        <div class="text-zinc-500 dark:text-zinc-400">{{ $r->status === App\Enums\OwnerPayableStatus::Paid ? __('Paid') : __('Not paid yet') }}</div>
                     </li>
                 @endforeach
             </ul>

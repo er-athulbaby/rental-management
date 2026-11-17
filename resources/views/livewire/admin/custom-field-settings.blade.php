@@ -8,7 +8,7 @@
                     @class([
                         'shrink-0 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
                         'border-accent text-accent-content' => $k === $kind,
-                        'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' => $k !== $kind,
+                        'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200' => $k !== $kind,
                     ])>{{ $k->label() }}</button>
             @endforeach
         </div>

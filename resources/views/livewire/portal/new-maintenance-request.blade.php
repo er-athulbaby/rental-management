@@ -27,7 +27,7 @@
                 <flux:field>
                     <flux:label>{{ __('Photos (up to 5; JPG, PNG or WEBP; 10 MB each)') }}</flux:label>
                     <input type="file" wire:model="photos" multiple accept="image/jpeg,image/png,image/webp" class="block w-full rounded-lg border border-dashed border-zinc-300 p-3 text-sm file:me-3 file:min-h-11 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:text-sm file:font-medium dark:border-zinc-600 dark:file:bg-zinc-800" />
-                    <span wire:loading wire:target="photos" class="text-sm text-zinc-500">{{ __('Uploading…') }}</span>
+                    <span wire:loading wire:target="photos" class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Uploading…') }}</span>
                     <flux:error name="photos" />
                     @foreach (range(0, 4) as $i)
                         <flux:error name="photos.{{ $i }}" />

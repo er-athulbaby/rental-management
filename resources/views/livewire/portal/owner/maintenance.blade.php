@@ -8,7 +8,7 @@
                     <x-status-badge :status="$r->status" />
                 </div>
                 <div class="text-sm text-zinc-600 dark:text-zinc-300">{{ $r->place() }} · {{ $r->category->label() }}</div>
-                <div class="text-sm text-zinc-500 tabular-nums">
+                <div class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">
                     {{ __('Sent :date', ['date' => $r->created_at->format('d/m/Y')]) }}
                     @if ($r->resolved_at)
                         · {{ __('Completed :date', ['date' => $r->resolved_at->format('d/m/Y')]) }}

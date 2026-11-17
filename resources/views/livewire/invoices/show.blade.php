@@ -54,7 +54,7 @@
                     <flux:table.row :key="$line->id">
                         <flux:table.cell>{{ $line->description }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $line->net }}</flux:table.cell>
-                        <flux:table.cell class="text-end tabular-nums">{{ $line->tax_amount }} <span class="text-xs text-zinc-500">{{ $line->tax_category->label() }}{{ (float) $line->tax_rate > 0 ? ' '.$line->tax_rate.'%' : '' }}</span></flux:table.cell>
+                        <flux:table.cell class="text-end tabular-nums">{{ $line->tax_amount }} <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $line->tax_category->label() }}{{ (float) $line->tax_rate > 0 ? ' '.$line->tax_rate.'%' : '' }}</span></flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $line->total }}</flux:table.cell>
                         <flux:table.cell>{{ $line->ownerContract?->number ?? '—' }}</flux:table.cell>
                     </flux:table.row>
@@ -76,7 +76,7 @@
             <ul class="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
                 @foreach ($payments as $p)
                     <li class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
-                        <span><flux:link :href="route('payments.show', $p['payment'])" wire:navigate>{{ $p['payment']->number }}</flux:link> <span class="text-zinc-500">· {{ $p['payment']->received_on->format('d/m/Y') }} · {{ $p['payment']->method->label() }}</span>@if ($p['payment']->status->value === 'reversed') <flux:badge size="sm" color="red">{{ __('Reversed') }}</flux:badge>@endif</span>
+                        <span><flux:link :href="route('payments.show', $p['payment'])" wire:navigate>{{ $p['payment']->number }}</flux:link> <span class="text-zinc-500 dark:text-zinc-400">· {{ $p['payment']->received_on->format('d/m/Y') }} · {{ $p['payment']->method->label() }}</span>@if ($p['payment']->status->value === 'reversed') <flux:badge size="sm" color="red">{{ __('Reversed') }}</flux:badge>@endif</span>
                         <span class="ms-auto font-medium tabular-nums">{{ $p['amount'] }}</span>
                     </li>
                 @endforeach

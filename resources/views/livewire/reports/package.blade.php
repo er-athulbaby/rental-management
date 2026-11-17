@@ -33,7 +33,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-2">
                     <div class="min-w-0">
                         <span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ $n + 1 }}. {{ $row['title'] }}</span>
-                        <span class="block text-sm text-zinc-500">{{ $row['kind'] }}</span>
+                        <span class="block text-sm text-zinc-500 dark:text-zinc-400">{{ $row['kind'] }}</span>
                     </div>
                     @if ($canEdit)
                         <div class="flex shrink-0 gap-1">

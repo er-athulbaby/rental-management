@@ -30,7 +30,7 @@
                         <flux:table.cell><x-status-badge :status="$row->status" /></flux:table.cell>
                     </flux:table.row>
                 @empty
-                    <flux:table.row><flux:table.cell colspan="4" class="whitespace-normal text-zinc-500">{{ __('Nothing to settle. A settlement opens by itself when a tenant moves out or an agreement ends, to work out the deposit refund less any deductions.') }}</flux:table.cell></flux:table.row>
+                    <flux:table.row><flux:table.cell colspan="4" class="whitespace-normal text-zinc-500 dark:text-zinc-400">{{ __('Nothing to settle. A settlement opens by itself when a tenant moves out or an agreement ends, to work out the deposit refund less any deductions.') }}</flux:table.cell></flux:table.row>
                 @endforelse
             </flux:table.rows>
         </flux:table>

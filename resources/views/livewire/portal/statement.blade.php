@@ -33,7 +33,7 @@
                             <span><span class="tabular-nums">{{ \Carbon\CarbonImmutable::parse($row['date'])->format('d/m/Y') }}</span> · {{ __($row['kind']) }} {{ $row['reference'] }}</span>
                             <span class="tabular-nums" dir="ltr">{{ $row['debit'] ? App\Support\Fils::grouped($row['debit']) : '−'.App\Support\Fils::grouped($row['credit']) }}</span>
                         </div>
-                        <div class="text-end text-zinc-500 tabular-nums">{{ __('Balance :amount', ['amount' => App\Support\Fils::grouped($row['balance'])]) }}</div>
+                        <div class="text-end text-zinc-500 dark:text-zinc-400 tabular-nums">{{ __('Balance :amount', ['amount' => App\Support\Fils::grouped($row['balance'])]) }}</div>
                     </li>
                 @endforeach
             </ul>

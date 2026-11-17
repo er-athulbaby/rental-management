@@ -24,8 +24,8 @@
                         <div>{{ __('Next run') }}: {{ $s->next_run_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}
                             @if ($s->paused_at)<flux:badge size="sm" color="amber">{{ __('Paused') }}</flux:badge>@endif
                         </div>
-                        <div class="text-zinc-500">{{ $s->recipients->pluck('name')->join(', ') }}</div>
-                        @if (isset($lastDelivery[$s->id]))<div class="text-zinc-500">{{ __('Last send') }}: {{ $statusLabels[$lastDelivery[$s->id]->status] ?? $lastDelivery[$s->id]->status }} · {{ $lastDelivery[$s->id]->due_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</div>@endif
+                        <div class="text-zinc-500 dark:text-zinc-400">{{ $s->recipients->pluck('name')->join(', ') }}</div>
+                        @if (isset($lastDelivery[$s->id]))<div class="text-zinc-500 dark:text-zinc-400">{{ __('Last send') }}: {{ $statusLabels[$lastDelivery[$s->id]->status] ?? $lastDelivery[$s->id]->status }} · {{ $lastDelivery[$s->id]->due_at->timezone('Asia/Bahrain')->format('d/m/Y H:i') }}</div>@endif
                     </div>
                     <div class="flex shrink-0 gap-1">
                         @if ($s->paused_at)<flux:button size="sm" wire:click="resumeSchedule({{ $s->id }})">{{ __('Resume') }}</flux:button>@endif
@@ -66,7 +66,7 @@
                 <div class="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
                     @forelse ($staff as $u)
                         <label class="flex items-center gap-2 text-sm" wire:key="staff-{{ $u->id }}">
-                            <input type="checkbox" value="{{ $u->id }}" wire:model="schedule.recipients"> {{ $u->name }} <span class="text-zinc-500">{{ $u->email }}</span>
+                            <input type="checkbox" value="{{ $u->id }}" wire:model="schedule.recipients"> {{ $u->name }} <span class="text-zinc-500 dark:text-zinc-400">{{ $u->email }}</span>
                         </label>
                     @empty
                         <flux:text class="text-sm">{{ __('No staff found.') }}</flux:text>

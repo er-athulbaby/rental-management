@@ -6,7 +6,7 @@
         <x-ui.fact :label="__('Category')">{{ str($expense->category->value)->headline() }}</x-ui.fact>
         <x-ui.fact :label="__('Charged to')">{{ str($expense->charge_to->value)->headline() }}{{ $expense->ownerContract ? ' ('.$expense->ownerContract->number.')' : '' }}</x-ui.fact>
         @if ($expense->invoice_id)
-            <x-ui.fact :label="__('Tenant invoice')"><flux:link :href="route('invoices.show', $expense->invoice_id)" wire:navigate>{{ $expense->invoice?->label() }}</flux:link> <span class="text-xs text-zinc-500">{{ __('(corrected only by a credit note)') }}</span></x-ui.fact>
+            <x-ui.fact :label="__('Tenant invoice')"><flux:link :href="route('invoices.show', $expense->invoice_id)" wire:navigate>{{ $expense->invoice?->label() }}</flux:link> <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('(corrected only by a credit note)') }}</span></x-ui.fact>
         @endif
         <x-ui.fact :label="__('Net / VAT / total (BHD)')">{{ $expense->net }} / {{ $expense->tax_amount }} / {{ $expense->total }}</x-ui.fact>
         <x-ui.fact :label="__('Recorded by')">{{ $expense->recorder->name }}</x-ui.fact>

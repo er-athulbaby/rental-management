@@ -105,7 +105,7 @@
                         <flux:table.cell class="whitespace-nowrap">{{ $au->start_date->format('d/m/Y') }} – {{ $au->end_date->format('d/m/Y') }}</flux:table.cell>
                         <flux:table.cell>
                             @foreach ($au->charges as $c)
-                                <div class="tabular-nums">{{ $c->type->label() }}: {{ $c->monthly_amount }} <span class="text-xs text-zinc-500">{{ $c->tax_category->label() }}</span></div>
+                                <div class="tabular-nums">{{ $c->type->label() }}: {{ $c->monthly_amount }} <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $c->tax_category->label() }}</span></div>
                             @endforeach
                         </flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $au->list_rent }}</flux:table.cell>
@@ -161,7 +161,7 @@
         <x-ui.section :title="__('Notice and move-out')" :hint="__('Record the tenant\'s notice, or the day they hand back the keys.')" id="notice">
         <details wire:ignore.self class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" @if ($errors->hasAny(['noticeTarget', 'noticeDate', 'plannedExit'])) open @endif>
             <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
-                <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record notice') }}</span><span class="block text-xs text-zinc-500">{{ __('The tenant has said they are leaving, and when.') }}</span></span>
+                <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record notice') }}</span><span class="block text-xs text-zinc-500 dark:text-zinc-400">{{ __('The tenant has said they are leaving, and when.') }}</span></span>
                 <flux:icon.chevron-down variant="mini" class="text-zinc-400 transition group-open:rotate-180" />
             </summary>
             <form wire:submit="recordNotice" class="grid gap-3 border-t border-zinc-200 p-4 sm:grid-cols-3 sm:items-end dark:border-zinc-700">
@@ -176,7 +176,7 @@
         </details>
         <details wire:ignore.self class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" @if ($errors->hasAny(['moveOutTarget', 'moveOutDate', 'moveOutReadings', 'moveOutNotes'])) open @endif>
             <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
-                <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record move-out') }}</span><span class="block text-xs text-zinc-500">{{ __('The tenant has handed back the keys. This opens their deposit settlement.') }}</span></span>
+                <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record move-out') }}</span><span class="block text-xs text-zinc-500 dark:text-zinc-400">{{ __('The tenant has handed back the keys. This opens their deposit settlement.') }}</span></span>
                 <flux:icon.chevron-down variant="mini" class="text-zinc-400 transition group-open:rotate-180" />
             </summary>
             <form wire:submit="recordMoveOut" class="grid gap-3 border-t border-zinc-200 p-4 sm:grid-cols-2 sm:items-end dark:border-zinc-700">

@@ -40,7 +40,7 @@
                 @forelse ($rows as $p)
                     <flux:table.row :key="'op-'.$p->id">
                         <flux:table.cell class="whitespace-nowrap">{{ $p->due_date->format('d/m/Y') }}</flux:table.cell>
-                        <flux:table.cell><flux:link :href="route('owner-contracts.show', $p->owner_contract_id)" wire:navigate>{{ $p->contract->number }}</flux:link> <span class="text-zinc-500">{{ $p->contract->building->code }}</span></flux:table.cell>
+                        <flux:table.cell><flux:link :href="route('owner-contracts.show', $p->owner_contract_id)" wire:navigate>{{ $p->contract->number }}</flux:link> <span class="text-zinc-500 dark:text-zinc-400">{{ $p->contract->building->code }}</span></flux:table.cell>
                         <flux:table.cell>{{ $p->contract->owner->name_en }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">{{ $p->period_start->format('d/m/Y') }} – {{ $p->period_end->format('d/m/Y') }}</flux:table.cell>
                         <flux:table.cell class="text-end tabular-nums">{{ $p->amount }}</flux:table.cell>

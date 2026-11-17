@@ -50,7 +50,7 @@
                         <flux:table.cell>
                             <x-status-badge :status="$unit->status()" />
                             @if ($next = $unit->nextTenantFrom())
-                                <span class="text-xs text-zinc-500">{{ __('next tenant from :date', ['date' => $next->format('d/m/Y')]) }}</span>
+                                <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('next tenant from :date', ['date' => $next->format('d/m/Y')]) }}</span>
                             @endif
                         </flux:table.cell>
                     </flux:table.row>

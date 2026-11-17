@@ -29,9 +29,9 @@
                         <span>· <flux:link :href="$s->itemUrl()" wire:navigate>{{ $s->itemLabel() }}</flux:link></span>
                     @endif
                     <flux:badge size="sm" :color="$s->statusColor()">{{ $s->statusLabel() }}</flux:badge>
-                    <span class="text-zinc-500">{{ $s->manual ? __('Manual · :name', ['name' => $s->sender?->name]) : __('Automatic') }}</span>
+                    <span class="text-zinc-500 dark:text-zinc-400">{{ $s->manual ? __('Manual · :name', ['name' => $s->sender?->name]) : __('Automatic') }}</span>
                     @if ($s->reason !== null)
-                        <span class="text-zinc-500">· {{ ReminderSend::reasonText($s->reason) }}</span>
+                        <span class="text-zinc-500 dark:text-zinc-400">· {{ ReminderSend::reasonText($s->reason) }}</span>
                     @endif
                 </li>
             @endforeach

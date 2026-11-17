@@ -18,11 +18,12 @@ test('every string the design pass adds has an Arabic translation', function () 
         // Task 5: forms A
         'Location', 'Details', 'Money', 'Availability', 'Management and notes', 'Identity', 'Contact',
         // Task 7: key screens A
-        // Final round
-        'Banks', 'Unit types', 'Offered', 'Switched off', 'Assigned buildings', 'Subtotal', 'Credited', 'Tax is calculated when the invoice is issued.', 'Post-dated cheques are entered against an active agreement, one cheque per rent invoice.', 'Up to the Due by date',
         'Hello, :name', 'Needs attention', 'Nothing needs attention.', 'Cheques to deposit this week', 'Bounced cheques', 'Approvals waiting',
         'Agreements expiring in 60 days', 'Urgent maintenance requests', 'Reminders', 'Reminders and notes', 'Amendments', 'Notice and move-out',
         'Approval history', 'ID',
+        // Final round
+        'Banks', 'Unit types', 'Offered', 'Switched off', 'Assigned buildings', 'Subtotal', 'Credited', 'Tax is calculated when the invoice is issued.', 'Post-dated cheques are entered against an active agreement, one cheque per rent invoice.', 'Up to the Due by date',
+        'Switch between light and dark', 'Theme', 'Urgent: :n',
         // Task 8: key screens B
         'Running total', 'Owed now', 'Open invoices', 'This payment', 'Allocated by hand', 'All monthly charges', 'Total deposit', 'Terms',
         'Owner and building', 'Remove unit', 'Remove charge', 'BHD',
