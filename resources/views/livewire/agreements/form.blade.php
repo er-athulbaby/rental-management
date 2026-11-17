@@ -55,7 +55,7 @@
                 <flux:error name="units" />
 
                 @foreach ($units as $i => $line)
-                    <flux:card class="space-y-3" wire:key="unit-{{ $line['unit_id'] }}">
+                    <div class="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700" wire:key="unit-{{ $line['unit_id'] }}">
                         <div class="flex items-center justify-between">
                             <flux:heading>{{ $line['label'] }}</flux:heading>
                             <flux:button size="sm" variant="ghost" icon="trash" wire:click="removeUnit({{ $i }})" :aria-label="__('Remove unit')" />
@@ -85,7 +85,7 @@
                         @endforeach
                         <flux:error name="units.{{ $i }}.charges" />
                         <flux:button size="sm" wire:click="addCharge({{ $i }})" icon="plus">{{ __('Add charge') }}</flux:button>
-                    </flux:card>
+                    </div>
                 @endforeach
             </x-ui.section>
 

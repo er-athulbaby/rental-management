@@ -1,15 +1,14 @@
-@props(['items', 'fileRoute' => 'documents.view'])
-{{-- Spec 2026-10-21 custom fields §4–§5: read-only "More details", escaped; long text keeps its line breaks, never HTML (plan ruling 12). --}}
+@props(['items', 'fileRoute' => 'documents.view', 'inline' => false])
+{{-- Spec 2026-10-21 custom fields §4–§5: read-only "More details", escaped; long text keeps its line breaks, never HTML (plan ruling 12). `inline` drops the card when the block already sits inside one. --}}
 @if ($items !== [])
-    <flux:card class="space-y-2">
-        <flux:heading size="lg" level="2">{{ __('More details') }}</flux:heading>
-        <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            @foreach ($items as $item)
-                <div class="min-w-0">
-                    <dt class="text-zinc-500 dark:text-zinc-400">{{ $item['label'] }}</dt>
-                    <dd class="break-words whitespace-pre-line">@if ($item['document'])<flux:link :href="route($fileRoute, $item['document'])">{{ $item['text'] }}</flux:link>@else{{ $item['text'] }}@endif</dd>
-                </div>
-            @endforeach
-        </dl>
-    </flux:card>
+    @if ($inline)
+        <div class="space-y-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+            <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ __('More details') }}</p>
+            @include('components.custom-fields.display-list')
+        </div>
+    @else
+        <x-ui.section :title="__('More details')">
+            @include('components.custom-fields.display-list')
+        </x-ui.section>
+    @endif
 @endif

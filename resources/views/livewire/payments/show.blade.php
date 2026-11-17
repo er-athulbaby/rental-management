@@ -61,18 +61,23 @@
 
     <flux:modal name="refund-credit" class="md:w-[32rem]">
         <form wire:submit="refundCredit" class="space-y-4">
-            <flux:heading size="lg">{{ __('Refund credit — up to :c BHD', ['c' => $credit]) }}</flux:heading>
-            <flux:input wire:model="refund.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
-            <flux:select wire:model.live="refund.method" :label="__('Method')">
-                @foreach (\App\Enums\DisbursementMethod::cases() as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
-            </flux:select>
-            <x-date-input wire:model="refund.paid_on" :label="__('Paid on')" />
-            <flux:input wire:model="refund.reference" :label="__('Reference')" />
-            @if (($refund['method'] ?? '') === 'cheque')
-                <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
-                <x-bank-select wire:model="refund.bank_name" />
-                <x-date-input wire:model="refund.cheque_date" :label="__('Cheque date')" />
-            @endif
+            <div>
+                <flux:heading size="lg">{{ __('Refund credit — up to :c BHD', ['c' => $credit]) }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('Pay the tenant back from the credit they hold.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <flux:input wire:model="refund.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
+                <flux:select wire:model.live="refund.method" :label="__('Method')">
+                    @foreach (\App\Enums\DisbursementMethod::cases() as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
+                </flux:select>
+                <x-date-input wire:model="refund.paid_on" :label="__('Paid on')" />
+                <flux:input wire:model="refund.reference" :label="__('Reference')" />
+                @if (($refund['method'] ?? '') === 'cheque')
+                    <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
+                    <x-date-input wire:model="refund.cheque_date" :label="__('Cheque date')" />
+                    <div class="sm:col-span-2"><x-bank-select wire:model="refund.bank_name" /></div>
+                @endif
+            </div>
             @foreach (['amount', 'method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="refund.{{ $f }}" />@endforeach
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>

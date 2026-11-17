@@ -1,7 +1,7 @@
 @php
     $brand = \App\Models\CompanySetting::brand();
 @endphp
-<section class="flex justify-center">
+<section class="flex justify-center sm:pt-10">
     <x-ui.auth-card :name="$brand['name']" :logo="$brand['logo']">
         <div class="space-y-6">
             <flux:heading size="xl" level="1">{{ __('Sign in to the portal') }}</flux:heading>
