@@ -38,39 +38,63 @@
 
     <livewire:documents.panel :documentable="$cheque" />
 
-    <flux:modal name="clear" class="md:w-96">
+    <flux:modal name="clear" class="md:w-[32rem]">
         <form wire:submit="clear" class="space-y-4">
-            <flux:heading size="lg">{{ __('Cheque cleared') }}</flux:heading>
-            <x-date-input wire:model="clearedOn" :label="__('Cleared on')" />
+            <div>
+                <flux:heading size="lg">{{ __('Cheque cleared') }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('The bank paid this cheque: a payment is recorded against its invoice.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-date-input wire:model="clearedOn" :label="__('Cleared on')" />
+            </div>
             <flux:error name="cleared_on" />
-            <flux:button variant="primary" type="submit">{{ __('Record payment') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="primary" type="submit">{{ __('Record payment') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 
-    <flux:modal name="bounce" class="md:w-96">
+    <flux:modal name="bounce" class="md:w-[32rem]">
         <form wire:submit="bounce" class="space-y-4">
-            <flux:heading size="lg">{{ __('Cheque bounced') }}</flux:heading>
+            <div>
+                <flux:heading size="lg">{{ __('Cheque bounced') }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('The bank returned this cheque. Say when and why.') }}</flux:text>
+            </div>
             @if ($cheque->status->value === 'cleared')
                 <flux:text>{{ __('This cheque has cleared: its payment will be reversed once Management approves.') }}</flux:text>
             @endif
-            <x-date-input wire:model="bouncedOn" :label="__('Bounced on')" />
-            <flux:textarea wire:model="bounceReason" :label="__('Reason')" rows="2" />
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-date-input wire:model="bouncedOn" :label="__('Bounced on')" />
+                <flux:textarea wire:model="bounceReason" :label="__('Reason')" rows="2" class="sm:col-span-2" />
+            </div>
             <flux:error name="bounceReason" />
             <flux:error name="approval" />
-            <flux:button variant="danger" type="submit">{{ __('Confirm') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="danger" type="submit">{{ __('Confirm') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 
-    <flux:modal name="replace" class="md:w-96">
+    <flux:modal name="replace" class="md:w-[32rem]">
         <form wire:submit="replace" class="space-y-4">
-            <flux:heading size="lg">{{ __('Replacement cheque') }}</flux:heading>
-            <flux:input wire:model="replacement.cheque_no" :label="__('Cheque no.')" />
-            <x-bank-select wire:model="replacement.bank_name" />
-            <x-date-input wire:model="replacement.cheque_date" :label="__('Cheque date')" />
-            <flux:input wire:model="replacement.amount" inputmode="decimal" :label="__('Amount')" />
+            <div>
+                <flux:heading size="lg">{{ __('Replacement cheque') }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('Enter the cheque the tenant gave instead of the bounced one.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <flux:input wire:model="replacement.cheque_no" :label="__('Cheque no.')" />
+                <x-bank-select wire:model="replacement.bank_name" />
+                <x-date-input wire:model="replacement.cheque_date" :label="__('Cheque date')" />
+                <flux:input wire:model="replacement.amount" inputmode="decimal" :label="__('Amount')" />
+            </div>
             <flux:error name="cheque_no" />
             @foreach (['cheque_no', 'bank_name', 'cheque_date', 'amount', 'invoice_id'] as $f)<flux:error name="rows.0.{{ $f }}" />@endforeach
-            <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 </section>

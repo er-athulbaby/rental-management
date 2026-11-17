@@ -1,12 +1,20 @@
 @php
     $filtered = (bool) $building;
+    $today = now('Asia/Bahrain')->startOfDay();
+    $dueNow = $rows->filter(fn ($p) => $p->due_date->lte($today));
+    $sum = fn ($list) => \App\Support\Fils::toDecimal($list->sum(fn ($p) => \App\Support\Fils::fromDecimal((string) $p->amount)));
 @endphp
-<div class="space-y-4">
+<div class="space-y-6">
     <x-ui.page-header :title="__('Head-lease payments due')">
         <x-slot:actions>
             @can('reports.financial')<flux:button wire:click="export">{{ __('Export to Excel') }}</flux:button>@endcan
         </x-slot:actions>
     </x-ui.page-header>
+
+    <x-ui.stats :cols="2">
+        <x-ui.stat :label="__('Due now')" :value="__(':amount BHD', ['amount' => $sum($dueNow)])" :hint="__(':n payments', ['n' => $dueNow->count()])" :tone="$dueNow->isNotEmpty() ? 'warning' : null" />
+        <x-ui.stat :label="__('Total due')" :value="__(':amount BHD', ['amount' => $sum($rows)])" :hint="__(':n payments', ['n' => $rows->count()])" />
+    </x-ui.stats>
 
     <x-ui.filters :clear="$filtered ? route('owner-payables.index') : null">
         <flux:select wire:model.live="building" :label="__('Building')">
@@ -49,24 +57,32 @@
         </flux:table>
     </x-ui.table>
 
-    <flux:modal name="pay-head-lease" class="md:w-96">
+    <flux:modal name="pay-head-lease" class="md:w-[32rem]">
         <form wire:submit="pay" class="space-y-4">
-            <flux:heading size="lg">{{ __('Pay head-lease') }}</flux:heading>
-            <flux:input wire:model="form.amount" :label="__('Amount (BHD)')" inputmode="decimal" />
-            <flux:select wire:model.live="form.method" :label="__('Method')">
-                @foreach ($methods as $m)
-                    <flux:select.option :value="$m->value">{{ $m->label() }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <x-date-input wire:model="form.paid_on" :label="__('Paid on')" />
-            <flux:input wire:model="form.reference" :label="__('Reference')" />
-            @if (($form['method'] ?? null) === 'cheque')
-                <flux:input wire:model="form.cheque_no" :label="__('Cheque number')" />
-                <x-bank-select wire:model="form.bank_name" />
-                <x-date-input wire:model="form.cheque_date" :label="__('Cheque date')" />
-            @endif
+            <div>
+                <flux:heading size="lg">{{ __('Pay head-lease') }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('Record the instalment you paid the owner for this head-lease.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <flux:input wire:model="form.amount" :label="__('Amount (BHD)')" inputmode="decimal" />
+                <flux:select wire:model.live="form.method" :label="__('Method')">
+                    @foreach ($methods as $m)
+                        <flux:select.option :value="$m->value">{{ $m->label() }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <x-date-input wire:model="form.paid_on" :label="__('Paid on')" />
+                <flux:input wire:model="form.reference" :label="__('Reference')" />
+                @if (($form['method'] ?? null) === 'cheque')
+                    <flux:input wire:model="form.cheque_no" :label="__('Cheque number')" />
+                    <x-bank-select wire:model="form.bank_name" />
+                    <x-date-input wire:model="form.cheque_date" :label="__('Cheque date')" />
+                @endif
+            </div>
             <flux:error name="form.owner_payable_id" />
-            <div class="flex justify-end"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 </div>

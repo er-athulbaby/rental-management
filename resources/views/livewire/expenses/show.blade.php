@@ -1,4 +1,4 @@
-<section class="w-full max-w-2xl space-y-8">
+<section class="w-full max-w-2xl space-y-6">
     <x-ui.summary :title="$expense->description" :status="$expense->status" :back="route('expenses.index')">
       <x-slot:facts>
         <x-ui.fact :label="__('Date')">{{ $expense->expense_date->format('d/m/Y') }}</x-ui.fact>
@@ -33,7 +33,7 @@
     </x-ui.summary>
 
     @if ($canReverse)
-      <x-ui.section :title="__('Reverse expense')">
+      <x-ui.section :title="__('Reverse expense')" :hint="__('Marks this expense as reversed. This cannot be undone.')" tone="danger">
         <form wire:submit="reverse" class="grid gap-4 sm:grid-cols-2">
             <flux:textarea wire:model="reason" :label="__('Reason')" rows="2" class="sm:col-span-2" />
             <flux:button type="submit" variant="danger" class="justify-self-start" wire:confirm="{{ __('Reverse this expense? This cannot be undone.') }}">{{ __('Reverse') }}</flux:button>

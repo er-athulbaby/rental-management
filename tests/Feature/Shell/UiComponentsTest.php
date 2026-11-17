@@ -120,3 +120,11 @@ test('the amber badge uses the darker text shade for AA contrast on its pale fil
     $this->blade('<x-status-badge status="held" />')->assertSee('text-amber-800!', false);
     $this->blade('<x-status-badge status="paid" />')->assertDontSee('text-amber-800!', false);
 });
+
+test('totals: rows render label and value, strong rows are emphasised, a row without value shows only its label', function () {
+    $this->blade('<x-ui.totals :rows="$r" />', ['r' => [['Subtotal', '10.000'], ['Total (BHD)', '10.500', true], ['Total: 3 BHD', null, true]]])
+        ->assertSeeInOrder(['Subtotal', '10.000', 'Total (BHD)', '10.500', 'Total: 3 BHD'])
+        ->assertSee('data-ui-totals', false)
+        ->assertSee('font-semibold', false)
+        ->assertSee('tabular-nums', false);
+});

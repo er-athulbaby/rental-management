@@ -7,6 +7,16 @@
         </x-slot:actions>
     </x-ui.summary>
 
+    @php
+        $sumOf = fn (string $col) => \App\Support\Fils::toDecimal($s->units->sum(fn ($u) => \App\Support\Fils::fromDecimal((string) ($u->{$col} ?? '0'))));
+    @endphp
+    <x-ui.stats :cols="3">
+        <x-ui.stat :label="__('Held')" :value="__(':amount BHD', ['amount' => $sumOf('held_amount')])" />
+        <x-ui.stat :label="__('Applied')" :value="__(':amount BHD', ['amount' => $sumOf('applied_amount')])" />
+        <x-ui.stat :label="__('Refund')" :value="__(':amount BHD', ['amount' => $sumOf('refund_amount')])" :tone="$canRefund ? 'success' : null" />
+    </x-ui.stats>
+
+    <x-ui.section :title="__('Units')" flush>
     <x-ui.table>
         <flux:table>
             <flux:table.columns>
@@ -27,10 +37,11 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
+    </x-ui.section>
 
-    <x-ui.section :title="__('Deductions')">
+    <x-ui.section :title="__('Deductions')" :hint="__('Amounts kept from the deposit, for example unpaid rent or damage.')">
     @foreach ($lines as $i => $line)
-        <flux:card class="space-y-3" wire:key="ded-{{ $i }}">
+        <div class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/40" wire:key="ded-{{ $i }}">
             <div class="grid gap-3 sm:grid-cols-4">
                 <flux:select wire:model="lines.{{ $i }}.agreement_unit_id" :label="__('Unit')" :disabled="! $canEdit">
                     <option value="">{{ __('Choose…') }}</option>
@@ -50,7 +61,7 @@
             <flux:input wire:model="lines.{{ $i }}.description" :label="__('Reason')" :disabled="! $canEdit" />
             @foreach (['agreement_unit_id', 'type', 'description', 'amount', 'invoice_line_id'] as $f)<flux:error name="lines.{{ $i }}.{{ $f }}" />@endforeach
             @if ($canEdit)<flux:button size="sm" variant="ghost" wire:click="removeLine({{ $i }})">{{ __('Remove') }}</flux:button>@endif
-        </flux:card>
+        </div>
     @endforeach
     <flux:error name="lines" />
     @if ($canEdit)
@@ -63,25 +74,35 @@
     </x-ui.section>
 
     @if ($s->deductionsInvoice)
+        <x-ui.section>
         <flux:text>{{ __('Deductions invoice') }} <flux:link :href="route('invoices.show', $s->deductionsInvoice)" wire:navigate>{{ $s->deductionsInvoice->label() }}</flux:link>@if ($s->payment) · {{ __('deposit applied') }} <flux:link :href="route('payments.show', $s->payment)" wire:navigate>{{ $s->payment->number }}</flux:link>@endif</flux:text>
+        </x-ui.section>
     @endif
 
-    <flux:modal name="refund" class="md:w-96">
+    <flux:modal name="refund" class="md:w-[32rem]">
         <form wire:submit="payRefund" class="space-y-4">
-            <flux:heading size="lg">{{ __('Refund the deposit') }}</flux:heading>
-            <flux:input wire:model="refund.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
-            <flux:select wire:model.live="refund.method" :label="__('Method')">
-                @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
-            </flux:select>
-            <x-date-input wire:model="refund.paid_on" :label="__('Paid on')" />
-            <flux:input wire:model="refund.reference" :label="__('Reference')" />
-            @if (($refund['method'] ?? '') === 'cheque')
-                <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
-                <x-bank-select wire:model="refund.bank_name" />
-                <x-date-input wire:model="refund.cheque_date" :label="__('Cheque date')" />
-            @endif
+            <div>
+                <flux:heading size="lg">{{ __('Refund the deposit') }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('Pay the tenant the deposit left after the deductions.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <flux:input wire:model="refund.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
+                <flux:select wire:model.live="refund.method" :label="__('Method')">
+                    @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
+                </flux:select>
+                <x-date-input wire:model="refund.paid_on" :label="__('Paid on')" />
+                <flux:input wire:model="refund.reference" :label="__('Reference')" />
+                @if (($refund['method'] ?? '') === 'cheque')
+                    <flux:input wire:model="refund.cheque_no" :label="__('Cheque no.')" />
+                    <x-bank-select wire:model="refund.bank_name" />
+                    <x-date-input wire:model="refund.cheque_date" :label="__('Cheque date')" />
+                @endif
+            </div>
             @foreach (['amount', 'method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="refund.{{ $f }}" />@endforeach
-            <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="payRefund">{{ __('Pay refund') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="payRefund">{{ __('Pay refund') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 </section>

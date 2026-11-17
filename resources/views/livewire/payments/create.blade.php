@@ -3,7 +3,7 @@
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <form wire:submit="save" class="space-y-6">
-            <x-ui.section>
+            <x-ui.section :title="__('Details')" :hint="__('How and when the money came in.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <flux:select wire:model.live="form.method" :label="__('Method')" aria-required="true">
                         @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
@@ -21,8 +21,7 @@
             </x-ui.section>
 
             @if ($isSplit)
-                <x-ui.section :title="__('Paid by')">
-                    <flux:text size="sm">{{ __('One line per method, e.g. card 300 and cash 200. The payment is their total, on one receipt.') }}</flux:text>
+                <x-ui.section :title="__('Paid by')" :hint="__('One line per method, e.g. card 300 and cash 200. The payment is their total, on one receipt.')">
                     <div class="space-y-2">
                         @foreach ($tenders as $i => $t)
                             <div class="flex flex-wrap items-start gap-2" wire:key="tender-{{ $i }}">
@@ -46,13 +45,12 @@
                 </x-ui.section>
             @endif
 
-            <x-ui.section :title="__('Allocate to')">
-                <flux:text size="sm">{{ __('Leave every amount blank to pay the oldest invoices first. Anything not allocated stays as tenant credit.') }}</flux:text>
+            <x-ui.section :title="__('Allocate to')" :hint="__('Leave every amount blank to pay the oldest invoices first. Anything not allocated stays as tenant credit.')">
                 <div class="divide-y divide-zinc-200 dark:divide-zinc-700">
                     @forelse ($open as $invoice)
                         <div class="flex flex-wrap items-center justify-between gap-2 py-2" wire:key="open-{{ $invoice->id }}">
-                            <div class="text-sm">{{ $invoice->number }} · {{ __('due :d', ['d' => $invoice->due_date->format('d/m/Y')]) }} · {{ __('balance :b', ['b' => $invoice->balance]) }}</div>
-                            <flux:input wire:model="split.{{ $invoice->id }}" inputmode="decimal" :placeholder="__('BHD')" class="max-w-32" />
+                            <div class="text-sm"><span class="font-medium text-zinc-900 dark:text-white">{{ $invoice->number }}</span> <span class="tabular-nums text-zinc-500 dark:text-zinc-400">· {{ __('due :d', ['d' => $invoice->due_date->format('d/m/Y')]) }} · {{ __('balance :b', ['b' => $invoice->balance]) }}</span></div>
+                            <flux:input wire:model="split.{{ $invoice->id }}" inputmode="decimal" :placeholder="__('BHD')" class="max-w-32 text-end tabular-nums" />
                         </div>
                     @empty
                         <flux:text>{{ __('Nothing is owed: the whole payment will be credit.') }}</flux:text>

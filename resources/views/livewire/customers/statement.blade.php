@@ -14,9 +14,14 @@
     </x-ui.filters>
 
     @if (! $valid)
-        <flux:text>{{ __('Choose a valid date range.') }}</flux:text>
+        <x-ui.section><flux:text>{{ __('Choose a valid date range.') }}</flux:text></x-ui.section>
     @else
-        <flux:heading size="lg">{{ __('Account') }}</flux:heading>
+        <x-ui.stats :cols="2">
+            <x-ui.stat :label="__('Opening balance')" :value="__(':amount BHD', ['amount' => $money($receivables['opening'])])" />
+            <x-ui.stat :label="__('Closing balance')" :value="__(':amount BHD', ['amount' => $money($receivables['closing'])])" :tone="$receivables['closing'] > 0 ? 'danger' : null" />
+        </x-ui.stats>
+
+        <x-ui.section :title="__('Account')" flush>
         <x-ui.table>
             <flux:table>
                 <flux:table.columns>
@@ -45,10 +50,11 @@
                 </flux:table.rows>
             </flux:table>
         </x-ui.table>
-        <flux:text>{{ __('Closing balance :b BHD (negative means the tenant is in credit).', ['b' => $money($receivables['closing'])]) }}</flux:text>
+        <p class="border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-sm tabular-nums text-zinc-600 sm:px-6 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">{{ __('Closing balance :b BHD (negative means the tenant is in credit).', ['b' => $money($receivables['closing'])]) }}</p>
+        </x-ui.section>
 
         @foreach ($deposits as $d => $deposit)
-            <flux:heading size="lg" wire:key="dep-{{ $d }}">{{ __('Deposit — :u', ['u' => $deposit['unit']]) }}</flux:heading>
+            <x-ui.section :title="__('Deposit — :u', ['u' => $deposit['unit']])" flush wire:key="dep-{{ $d }}">
             <x-ui.table>
                 <flux:table>
                     <flux:table.columns>
@@ -69,6 +75,7 @@
                     </flux:table.rows>
                 </flux:table>
             </x-ui.table>
+            </x-ui.section>
         @endforeach
     @endif
 </section>

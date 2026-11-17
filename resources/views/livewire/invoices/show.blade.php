@@ -39,6 +39,7 @@
         </x-slot:facts>
     </x-ui.summary>
 
+    <x-ui.section :title="__('Lines')" flush>
     <x-ui.table>
         <flux:table>
             <flux:table.columns>
@@ -61,36 +62,39 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
+        <x-ui.totals :rows="array_values(array_filter([
+            [__('Subtotal'), $invoice->subtotal],
+            [__('Tax'), $invoice->tax_total],
+            [__('Total (BHD)'), $invoice->total, true],
+            (float) $invoice->credited > 0 ? [__('Credited'), $invoice->credited] : null,
+            $invoice->status->value === 'issued' ? [__('Balance'), $invoice->balance, true] : null,
+        ]))" />
+    </x-ui.section>
 
-    <dl class="ms-auto grid max-w-xs grid-cols-2 gap-y-1 tabular-nums">
-        <dt>{{ __('Subtotal') }}</dt><dd class="text-end">{{ $invoice->subtotal }}</dd>
-        <dt>{{ __('Tax') }}</dt><dd class="text-end">{{ $invoice->tax_total }}</dd>
-        <dt class="font-semibold">{{ __('Total (BHD)') }}</dt><dd class="text-end font-semibold">{{ $invoice->total }}</dd>
-        @if ((float) $invoice->credited > 0)<dt>{{ __('Credited') }}</dt><dd class="text-end">{{ $invoice->credited }}</dd>@endif
-        @if ($invoice->status->value === 'issued')
-            <dt>{{ __('Balance') }}</dt><dd class="text-end">{{ $invoice->balance }}</dd>
-        @endif
-    </dl>
     @if ($payments->isNotEmpty())
-        <x-ui.section :title="__('Payments received')">
-            <ul class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-700 dark:border-zinc-700">
+        <x-ui.section :title="__('Payments received')" flush>
+            <ul class="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
                 @foreach ($payments as $p)
-                    <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                    <li class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
                         <span><flux:link :href="route('payments.show', $p['payment'])" wire:navigate>{{ $p['payment']->number }}</flux:link> <span class="text-zinc-500">· {{ $p['payment']->received_on->format('d/m/Y') }} · {{ $p['payment']->method->label() }}</span>@if ($p['payment']->status->value === 'reversed') <flux:badge size="sm" color="red">{{ __('Reversed') }}</flux:badge>@endif</span>
-                        <span class="font-medium tabular-nums">{{ $p['amount'] }}</span>
+                        <span class="ms-auto font-medium tabular-nums">{{ $p['amount'] }}</span>
                     </li>
                 @endforeach
             </ul>
         </x-ui.section>
     @endif
     @if ($invoice->relatedInvoice)
-        <flux:text>{{ __('Credits') }} <flux:link :href="route('invoices.show', $invoice->related_invoice_id)" wire:navigate>{{ $invoice->relatedInvoice->label() }}</flux:link>. {{ $invoice->credit_reason }}</flux:text>
+        <x-ui.section>
+            <flux:text>{{ __('Credits') }} <flux:link :href="route('invoices.show', $invoice->related_invoice_id)" wire:navigate>{{ $invoice->relatedInvoice->label() }}</flux:link>. {{ $invoice->credit_reason }}</flux:text>
+        </x-ui.section>
     @endif
     @if ($invoice->creditNotes->isNotEmpty())
-        <x-ui.section :title="__('Credit notes')">
+        <x-ui.section :title="__('Credit notes')" flush>
+            <ul class="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
             @foreach ($invoice->creditNotes as $cn)
-                <div class="flex items-center gap-2 text-sm"><flux:link :href="route('invoices.show', $cn)" wire:navigate>{{ $cn->number ?? __('Credit note #:id', ['id' => $cn->id]) }}</flux:link> <span class="tabular-nums">{{ $cn->total }}</span> <x-status-badge :status="$cn->status" /></div>
+                <li class="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6"><flux:link :href="route('invoices.show', $cn)" wire:navigate>{{ $cn->number ?? __('Credit note #:id', ['id' => $cn->id]) }}</flux:link> <span class="ms-auto tabular-nums">{{ $cn->total }}</span> <x-status-badge :status="$cn->status" /></li>
             @endforeach
+            </ul>
         </x-ui.section>
     @endif
 

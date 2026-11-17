@@ -53,13 +53,21 @@
         <flux:input wire:model.live.debounce.300ms="search" :placeholder="__('Cheque no., tenant or mobile')" icon="magnifying-glass" class="sm:max-w-xs" />
     </x-ui.filters>
     @if ($canManage && $status === 'held')
-        <div class="flex flex-wrap items-end gap-3">
-            <x-date-input wire:model="depositedOn" :label="__('Deposited on')" class="max-w-44" />
-            <flux:button variant="primary" wire:click="depositSelected" :disabled="count($selected) === 0">{{ __('Deposit selected') }}</flux:button>
-        </div>
+        <x-ui.section tone="accent">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div class="flex flex-wrap items-end gap-3">
+                    <x-date-input wire:model="depositedOn" :label="__('Deposited on')" class="max-w-44" />
+                    <span class="pb-2 text-sm tabular-nums text-zinc-600 dark:text-zinc-300">{{ __(':n selected', ['n' => count($selected)]) }}</span>
+                </div>
+                <flux:button variant="primary" wire:click="depositSelected" :disabled="count($selected) === 0">{{ __('Deposit selected') }}</flux:button>
+            </div>
+            <flux:error name="selected" />
+            <flux:error name="deposited_on" />
+        </x-ui.section>
+    @else
+        <flux:error name="selected" />
+        <flux:error name="deposited_on" />
     @endif
-    <flux:error name="selected" />
-    <flux:error name="deposited_on" />
 
     <x-ui.table>
         <flux:table :paginate="$cheques">

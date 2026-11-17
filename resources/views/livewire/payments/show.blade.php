@@ -21,6 +21,7 @@
         </x-slot:facts>
     </x-ui.summary>
 
+    <x-ui.section :title="__('Allocations')" :hint="__('Which invoice lines this payment settled.')" flush>
     <x-ui.table>
         <flux:table>
             <flux:table.columns>
@@ -41,17 +42,24 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
-    <flux:modal name="reverse-payment" class="md:w-96">
+    </x-ui.section>
+
+    <flux:modal name="reverse-payment" class="md:w-[28rem]">
         <form wire:submit="requestReversal" class="space-y-4">
-            <flux:heading size="lg">{{ __('Reverse :n', ['n' => $payment->number]) }}</flux:heading>
-            <flux:text>{{ __('Every allocation is undone and the invoices are owed again. Management approves.') }}</flux:text>
+            <div>
+                <flux:heading size="lg">{{ __('Reverse :n', ['n' => $payment->number]) }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('Every allocation is undone and the invoices are owed again. Management approves.') }}</flux:text>
+            </div>
             <flux:textarea wire:model="reversalReason" :label="__('Reason')" rows="3" />
             <flux:error name="reversalReason" />
-            <flux:button variant="danger" type="submit">{{ __('Send for approval') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="danger" type="submit">{{ __('Send for approval') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 
-    <flux:modal name="refund-credit" class="md:w-96">
+    <flux:modal name="refund-credit" class="md:w-[32rem]">
         <form wire:submit="refundCredit" class="space-y-4">
             <flux:heading size="lg">{{ __('Refund credit — up to :c BHD', ['c' => $credit]) }}</flux:heading>
             <flux:input wire:model="refund.amount" inputmode="decimal" :label="__('Amount (BHD)')" />
@@ -66,7 +74,10 @@
                 <x-date-input wire:model="refund.cheque_date" :label="__('Cheque date')" />
             @endif
             @foreach (['amount', 'method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="refund.{{ $f }}" />@endforeach
-            <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="refundCredit">{{ __('Pay refund') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="refundCredit">{{ __('Pay refund') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 </section>

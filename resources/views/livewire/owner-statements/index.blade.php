@@ -1,7 +1,7 @@
 @php
     $filtered = $status !== '' || $building || $contract;
 @endphp
-<div class="space-y-4">
+<div class="space-y-6">
     <x-ui.page-header :title="__('Owner statements')" />
 
     <x-ui.filters :clear="$filtered ? route('owner-statements.index') : null">

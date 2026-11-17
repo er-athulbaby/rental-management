@@ -2,13 +2,15 @@
     <x-ui.page-header :title="__('Manual invoice — :name', ['name' => $customer->name_en])" :back="route('invoices.index')" />
 
     <form wire:submit="save" class="space-y-6">
-        <x-ui.section>
-            <x-date-input wire:model="form.due_date" :label="__('Due date')" class="max-w-48" aria-required="true" />
+        <x-ui.section :title="__('Details')">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-date-input wire:model="form.due_date" :label="__('Due date')" aria-required="true" />
+            </div>
         </x-ui.section>
 
-        <x-ui.section>
+        <x-ui.section :title="__('Lines')" :hint="__('Tax is calculated when the invoice is issued.')">
             @foreach ($lines as $i => $line)
-                <flux:card class="space-y-3" wire:key="line-{{ $i }}">
+                <div class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/40" wire:key="line-{{ $i }}">
                     <flux:input wire:model="lines.{{ $i }}.description" :label="__('Description')" aria-required="true" />
                     <div class="grid gap-3 sm:grid-cols-4">
                         <flux:select wire:model="lines.{{ $i }}.charge_type" :label="__('Type')" aria-required="true">
@@ -29,14 +31,13 @@
                     @if (count($lines) > 1)
                         <flux:button size="sm" variant="ghost" wire:click="removeLine({{ $i }})">{{ __('Remove line') }}</flux:button>
                     @endif
-                </flux:card>
+                </div>
             @endforeach
             <flux:error name="lines" />
 
             <div class="flex flex-wrap gap-2">
                 <flux:button wire:click="addLine">{{ __('Add line') }}</flux:button>
             </div>
-            <flux:text size="sm">{{ __('Tax is calculated when the invoice is issued.') }}</flux:text>
         </x-ui.section>
 
         <x-ui.form-actions :cancel="route('invoices.index')">

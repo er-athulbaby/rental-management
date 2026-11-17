@@ -24,6 +24,7 @@
     </x-ui.summary>
 
     @if ($out->purpose->value === 'vendor_bill')
+        <x-ui.section :title="__('Expenses')" flush>
         <x-ui.table>
             <flux:table>
                 <flux:table.columns>
@@ -42,10 +43,12 @@
                 </flux:table.rows>
             </flux:table>
         </x-ui.table>
+        </x-ui.section>
     @endif
 
     @if ($out->cheque)
-        <flux:card class="flex flex-wrap items-end justify-between gap-3">
+        <x-ui.section :title="__('Cheque')">
+        <div class="flex flex-wrap items-end justify-between gap-3">
             <div>{{ __('Cheque :n on :b, dated :d', ['n' => $out->cheque->cheque_no, 'b' => $out->cheque->bank_name, 'd' => $out->cheque->cheque_date->format('d/m/Y')]) }} · <x-status-badge :status="$out->cheque->status" /></div>
             @if ($canClearCheque)
                 <form wire:submit="clearCheque" class="flex items-end gap-2">
@@ -53,33 +56,48 @@
                     <flux:button type="submit">{{ __('Cleared') }}</flux:button>
                 </form>
             @endif
-        </flux:card>
+        </div>
+        </x-ui.section>
     @endif
 
-    <flux:modal name="pay" class="md:w-96">
+    <flux:modal name="pay" class="md:w-[32rem]">
         <form wire:submit="payNow" class="space-y-4">
-            <flux:heading size="lg">{{ __('Record as paid') }}</flux:heading>
-            <flux:select wire:model.live="pay.method" :label="__('Method')">
-                @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
-            </flux:select>
-            <x-date-input wire:model="pay.paid_on" :label="__('Paid on')" />
-            <flux:input wire:model="pay.reference" :label="__('Reference')" />
-            @if (($pay['method'] ?? '') === 'cheque')
-                <flux:input wire:model="pay.cheque_no" :label="__('Cheque no.')" />
-                <x-bank-select wire:model="pay.bank_name" />
-                <x-date-input wire:model="pay.cheque_date" :label="__('Cheque date')" />
-            @endif
+            <div>
+                <flux:heading size="lg">{{ __('Record as paid') }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('Say how and when this payment out was made.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <flux:select wire:model.live="pay.method" :label="__('Method')">
+                    @foreach ($methods as $m)<option value="{{ $m->value }}">{{ $m->label() }}</option>@endforeach
+                </flux:select>
+                <x-date-input wire:model="pay.paid_on" :label="__('Paid on')" />
+                <flux:input wire:model="pay.reference" :label="__('Reference')" />
+                @if (($pay['method'] ?? '') === 'cheque')
+                    <flux:input wire:model="pay.cheque_no" :label="__('Cheque no.')" />
+                    <x-bank-select wire:model="pay.bank_name" />
+                    <x-date-input wire:model="pay.cheque_date" :label="__('Cheque date')" />
+                @endif
+            </div>
             @foreach (['method', 'paid_on', 'reference', 'cheque_no', 'bank_name', 'cheque_date'] as $f)<flux:error name="pay.{{ $f }}" />@endforeach
-            <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="payNow">{{ __('Save') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="payNow">{{ __('Save') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 
-    <flux:modal name="reverse" class="md:w-96">
+    <flux:modal name="reverse" class="md:w-[28rem]">
         <form wire:submit="requestReversal" class="space-y-4">
-            <flux:heading size="lg">{{ __('Reverse :n', ['n' => $out->label()]) }}</flux:heading>
+            <div>
+                <flux:heading size="lg">{{ __('Reverse :n', ['n' => $out->label()]) }}</flux:heading>
+                <flux:text class="mt-1 text-sm">{{ __('The payment out is undone once Management approves.') }}</flux:text>
+            </div>
             <flux:textarea wire:model="reversalReason" :label="__('Reason')" rows="3" />
             <flux:error name="reversalReason" />
-            <flux:button variant="danger" type="submit">{{ __('Send for approval') }}</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="danger" type="submit">{{ __('Send for approval') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 </section>

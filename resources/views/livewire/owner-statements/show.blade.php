@@ -21,15 +21,17 @@
     </x-ui.stats>
 
     @if ($canRemit)
-        <x-ui.section :title="__('Pay the owner')">
-            <flux:text>{{ __('Owner ledger balance now: :b BHD', ['b' => \App\Support\Fils::toDecimal($live)]) }}</flux:text>
-            <flux:text>{{ $statement->contract->owner->bank_name }} · {{ $statement->contract->owner->maskedIban() }} · {{ $statement->contract->owner->account_name }}</flux:text>
+        <x-ui.section :title="__('Pay the owner')" :hint="__('Pays the owner from the ledger balance. Check the bank details before you pay.')" tone="accent">
             @if ($statement->contract->owner->bankChangedRecently())
                 <flux:callout variant="warning" icon="exclamation-triangle">
                     {{ __('Bank details changed :d by :u', ['d' => $statement->contract->owner->bank_changed_at->format('d/m/Y'), 'u' => $statement->contract->owner->bankChanger?->name]) }}
                 </flux:callout>
             @endif
-            <form wire:submit="remit" class="grid gap-3 sm:grid-cols-2">
+            <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/40">
+                <p class="font-semibold tabular-nums text-zinc-900 dark:text-white">{{ __('Owner ledger balance now: :b BHD', ['b' => \App\Support\Fils::toDecimal($live)]) }}</p>
+                <p class="mt-1 text-zinc-600 dark:text-zinc-300">{{ $statement->contract->owner->bank_name }} · {{ $statement->contract->owner->maskedIban() }} · {{ $statement->contract->owner->account_name }}</p>
+            </div>
+            <form wire:submit="remit" class="grid gap-4 sm:grid-cols-2">
                 <flux:input wire:model="remittance.amount" :label="__('Amount (BHD)')" inputmode="decimal" />
                 <flux:select wire:model.live="remittance.method" :label="__('Method')">
                     @foreach ($methods as $m)
@@ -44,11 +46,12 @@
                     <x-date-input wire:model="remittance.cheque_date" :label="__('Cheque date')" />
                 @endif
                 <flux:error name="remittance.owner_statement_id" />
-                <div class="sm:col-span-2 flex justify-end"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>
+                <div class="flex justify-end sm:col-span-2"><flux:button type="submit" variant="primary">{{ __('Record payment') }}</flux:button></div>
             </form>
         </x-ui.section>
     @endif
 
+    <x-ui.section :title="__('Entries')" flush>
     <x-ui.table>
         <flux:table>
             <flux:table.columns>
@@ -73,6 +76,7 @@
             </flux:table.rows>
         </flux:table>
     </x-ui.table>
+    </x-ui.section>
 
     @if ($approvals->isNotEmpty())
         <x-ui.section :title="__('Approval history')">
