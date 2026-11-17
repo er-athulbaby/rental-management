@@ -2,13 +2,15 @@
     <x-ui.page-header :title="$typeLabel.' — '.$agreement->label()" :hint="__('Management approves. On approval the schedule is re-billed from the effective date; issued periods are credited or invoiced.')" :back="route('agreements.show', $agreement)" />
 
     <form wire:submit="submit" class="space-y-6">
-        <x-ui.section>
+        <x-ui.section :title="__('Details')" :hint="__('Say what changes, from when, and why.')">
             <div class="grid gap-4 sm:grid-cols-2">
                 @if ($type === 'release_unit')
-                    <flux:select wire:model="form.agreement_unit_id" :label="__('Unit to release')" aria-required="true" class="sm:col-span-2">
-                        <option value="">{{ __('Choose…') }}</option>
-                        @foreach ($agreement->agreementUnits as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
-                    </flux:select>
+                    <div class="sm:col-span-2">
+                        <flux:select wire:model="form.agreement_unit_id" :label="__('Unit to release')" aria-required="true">
+                            <option value="">{{ __('Choose…') }}</option>
+                            @foreach ($agreement->agreementUnits as $au)<option value="{{ $au->id }}">{{ $au->unit->building->code }} / {{ $au->unit->code }}</option>@endforeach
+                        </flux:select>
+                    </div>
                 @endif
                 @if ($type === 'add_unit')
                     <flux:select wire:model="form.unit_id" :label="__('Unit to add')" aria-required="true">
@@ -37,8 +39,12 @@
                         <flux:error name="form.charges" />
                     </div>
                 @endif
-                <x-date-input wire:model="form.effective_date" :label="$type === 'add_unit' ? __('Let from') : __('Last day of occupancy')" aria-required="true" class="sm:col-span-2" />
-                <flux:textarea wire:model="form.reason" :label="__('Reason')" rows="3" aria-required="true" class="sm:col-span-2" />
+                <div class="sm:col-span-2">
+                    <x-date-input wire:model="form.effective_date" :label="$type === 'add_unit' ? __('Let from') : __('Last day of occupancy')" aria-required="true" />
+                </div>
+                <div class="sm:col-span-2">
+                    <flux:textarea wire:model="form.reason" :label="__('Reason')" rows="3" aria-required="true" />
+                </div>
             </div>
             @foreach (['type', 'agreement_unit_id', 'unit_id', 'deposit_amount', 'effective_date', 'reason', 'approval', 'status'] as $f)<flux:error name="form.{{ $f }}" />@endforeach
         </x-ui.section>

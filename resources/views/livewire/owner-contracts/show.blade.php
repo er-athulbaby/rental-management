@@ -45,7 +45,7 @@
         </x-slot:facts>
     </x-ui.summary>
 
-    <x-ui.section :title="__('Units (:count)', ['count' => $contract->units->count()])">
+    <x-ui.section :title="__('Units (:count)', ['count' => $contract->units->count()])" :hint="__('The units this contract covers.')">
         <p class="flex flex-wrap gap-2">
             @foreach ($contract->units as $unit)<flux:badge size="sm">{{ $unit->code }}</flux:badge>@endforeach
         </p>
@@ -53,13 +53,15 @@
 
     @php($terminationPending = $approvals->contains(fn ($a) => $a->action === \App\Enums\ApprovalAction::OwnerContractTermination && $a->status === \App\Enums\ApprovalStatus::Pending))
     @if ($canManage && $contract->status === \App\Enums\OwnerContractStatus::Active && ! $contract->terminated_on)
-        <x-ui.section :title="__('Early termination')">
+        <x-ui.section :title="__('Early termination')" :hint="__('End the contract before its end date; Management approves.')">
             @if ($terminationPending)
                 <flux:text>{{ __('An early termination is waiting for Management approval.') }}</flux:text>
             @else
                 <form wire:submit="requestTermination" class="grid gap-4 sm:grid-cols-2">
                     <x-date-input wire:model="terminatedOn" :label="__('Last day of the contract')" />
-                    <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" class="sm:col-span-2" />
+                    <div class="sm:col-span-2">
+                        <flux:textarea wire:model="terminationReason" :label="__('Reason')" rows="2" />
+                    </div>
                     <flux:button type="submit" class="justify-self-start">{{ __('Request early termination') }}</flux:button>
                 </form>
             @endif
@@ -67,10 +69,10 @@
     @endif
 
     @if ($approvals->isNotEmpty())
-        <x-ui.section :title="__('Approval history')">
-            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+        <x-ui.section :title="__('Approval history')" :hint="__('Who asked for what, and what was decided.')">
+            <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($approvals as $approval)
-                    <li class="py-2 text-sm">
+                    <li class="py-3 text-sm">
                         {{ $approval->action->label() }} · {{ str($approval->status->value)->headline() }} ·
                         {{ __('requested by :name', ['name' => $approval->requester->name]) }}
                         @if ($approval->decider) · {{ __('decided by :name', ['name' => $approval->decider->name]) }} @endif
@@ -82,7 +84,7 @@
     @endif
 
     @if ($payables->isNotEmpty())
-        <x-ui.section :title="__('Head-lease payments')">
+        <x-ui.section :title="__('Head-lease payments')" :hint="__('Rent due to the owner under this head lease.')" flush>
             <x-ui.table>
                 <flux:table>
                     <flux:table.columns>

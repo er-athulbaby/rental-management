@@ -1,6 +1,6 @@
 @use('App\Models\ReminderSend')
 @use('App\Models\ReminderSetting')
-<x-ui.section :title="__('Reminders')">
+<x-ui.section :title="__('Reminders')" :hint="__('Reminder emails sent for this record, and the ones skipped.')">
     <x-slot:actions>
         @if ($sendable)
             @if ($refusal === null)

@@ -37,12 +37,14 @@
 
     <form wire:submit="save" id="details" class="scroll-mt-20 space-y-6">
         <fieldset @disabled(! $canEdit) class="space-y-6">
-            <x-ui.section :title="__('Identity')">
+            <x-ui.section :title="__('Identity')" :hint="__('Who the tenant is, as shown on contracts and invoices.')">
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <flux:radio.group wire:model.live="form.type" :label="__('Tenant type')" variant="segmented" aria-required="true" class="sm:col-span-2">
-                        <flux:radio value="individual" :label="__('Individual')" />
-                        <flux:radio value="company" :label="__('Company')" />
-                    </flux:radio.group>
+                    <div class="sm:col-span-2">
+                        <flux:radio.group wire:model.live="form.type" :label="__('Tenant type')" variant="segmented" aria-required="true">
+                            <flux:radio value="individual" :label="__('Individual')" />
+                            <flux:radio value="company" :label="__('Company')" />
+                        </flux:radio.group>
+                    </div>
                     <flux:input wire:model="form.name_en" :label="__('Name (English)')" autocomplete="name" required />
                     <flux:input wire:model="form.name_ar" :label="__('Name (Arabic, used in contracts)')" dir="rtl" />
                     <flux:select wire:model="form.id_type" :label="__('ID type')" aria-required="true">
@@ -53,29 +55,33 @@
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Contact')">
+            <x-ui.section :title="__('Contact')" :hint="__('How to reach the tenant.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <flux:input wire:model="form.mobile" :label="__('Mobile')" type="tel" autocomplete="tel" required />
                     <flux:input wire:model="form.email" :label="__('Email')" type="email" autocomplete="email" />
                     @if (($form['type'] ?? '') === 'company')
                         <flux:input wire:model="form.contact_person" :label="__('Contact person')" />
                     @endif
-                    <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" autocomplete="street-address" class="sm:col-span-2" />
+                    <div class="sm:col-span-2">
+                        <flux:textarea wire:model="form.address" :label="__('Address')" rows="2" autocomplete="street-address" />
+                    </div>
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Emergency contact')">
+            <x-ui.section :title="__('Emergency contact')" :hint="__('Someone to call if the tenant cannot be reached.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <flux:input wire:model="form.emergency_contact_name" :label="__('Name')" />
                     <flux:input wire:model="form.emergency_contact_phone" :label="__('Phone')" type="tel" />
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Reminders and notes')">
+            <x-ui.section :title="__('Reminders and notes')" :hint="__('Reminder emails and internal notes.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <flux:switch wire:model="form.no_reminders" :label="__('Don\'t send reminders')"
                         :description="__('No automatic or manual reminder emails go to this tenant.')" class="sm:col-span-2" />
-                    <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" class="sm:col-span-2" />
+                    <div class="sm:col-span-2">
+                        <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
+                    </div>
                 </div>
             </x-ui.section>
         </fieldset>
@@ -91,7 +97,7 @@
     @endunless
 
     @if ($portal)
-        <x-ui.section :title="__('Tenant portal')" id="portal">
+        <x-ui.section :title="__('Tenant portal')" :hint="__('Sign-in access to the tenant portal.')" id="portal">
             @if ($portal['account'] === null)
                 <flux:text>{{ __('Not invited yet.') }}</flux:text>
             @elseif ($portal['account']->disabled_at)

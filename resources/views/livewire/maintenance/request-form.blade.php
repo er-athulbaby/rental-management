@@ -2,7 +2,7 @@
     <x-ui.page-header :title="__('New maintenance request')" :back="route('maintenance.requests.index')" />
 
     <form wire:submit="save" class="space-y-6">
-        <x-ui.section :title="__('Location')">
+        <x-ui.section :title="__('Location')" :hint="__('Where the problem is.')">
             <div class="grid gap-4 sm:grid-cols-2">
                 <flux:select wire:model.live="form.building_id" :label="__('Building')" aria-required="true">
                     <option value="">{{ __('Choose…') }}</option>
@@ -15,7 +15,7 @@
             </div>
         </x-ui.section>
 
-        <x-ui.section :title="__('Reported by')">
+        <x-ui.section :title="__('Reported by')" :hint="__('Who reported the problem, and how.')">
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="space-y-4 sm:col-span-2">
                     <flux:field>
@@ -46,7 +46,7 @@
             </div>
         </x-ui.section>
 
-        <x-ui.section :title="__('Problem')">
+        <x-ui.section :title="__('Problem')" :hint="__('What is wrong.')">
             <div class="grid gap-4 sm:grid-cols-2">
                 <flux:select wire:model="form.category" :label="__('Category')" aria-required="true">
                     @foreach ($categories as $c)<option value="{{ $c->value }}">{{ $c->label() }}</option>@endforeach
@@ -54,8 +54,12 @@
                 <flux:select wire:model="form.priority" :label="__('Priority')" aria-required="true">
                     @foreach ($priorities as $p)<option value="{{ $p->value }}">{{ $p->label() }}</option>@endforeach
                 </flux:select>
-                <flux:textarea wire:model="form.description" :label="__('Problem')" rows="4" aria-required="true" class="sm:col-span-2" />
-                <flux:switch wire:model="form.entry_permitted" :label="__('The vendor may enter when the tenant is out')" class="sm:col-span-2" />
+                <div class="sm:col-span-2">
+                    <flux:textarea wire:model="form.description" :label="__('Problem')" rows="4" aria-required="true" />
+                </div>
+                <div class="sm:col-span-2">
+                    <flux:switch wire:model="form.entry_permitted" :label="__('The vendor may enter when the tenant is out')" />
+                </div>
             </div>
         </x-ui.section>
 

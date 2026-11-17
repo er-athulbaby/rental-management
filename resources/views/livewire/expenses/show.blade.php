@@ -35,7 +35,9 @@
     @if ($canReverse)
       <x-ui.section :title="__('Reverse expense')" :hint="__('Marks this expense as reversed. This cannot be undone.')" tone="danger">
         <form wire:submit="reverse" class="grid gap-4 sm:grid-cols-2">
-            <flux:textarea wire:model="reason" :label="__('Reason')" rows="2" class="sm:col-span-2" />
+            <div class="sm:col-span-2">
+                <flux:textarea wire:model="reason" :label="__('Reason')" rows="2" />
+            </div>
             <flux:button type="submit" variant="danger" class="justify-self-start" wire:confirm="{{ __('Reverse this expense? This cannot be undone.') }}">{{ __('Reverse') }}</flux:button>
         </form>
       </x-ui.section>

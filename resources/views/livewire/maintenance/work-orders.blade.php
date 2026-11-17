@@ -58,7 +58,7 @@
                         <flux:table.cell class="text-end tabular-nums">{{ $wo->estimate ?? '—' }}</flux:table.cell>
                     </flux:table.row>
                 @empty
-                    <flux:table.row><flux:table.cell colspan="7">{{ __('No work orders found.') }}</flux:table.cell></flux:table.row>
+                    <flux:table.row><flux:table.cell colspan="7" class="py-8 text-center text-zinc-500 dark:text-zinc-400">{{ __('No work orders found.') }}</flux:table.cell></flux:table.row>
                 @endforelse
             </flux:table.rows>
         </flux:table>

@@ -87,7 +87,7 @@
 
     <x-ui.section-nav :items="$nav" />
 
-    <x-ui.section :title="__('Units')" id="units">
+    <x-ui.section :title="__('Units')" :hint="__('The units on this agreement, with rent, deposit and move-out.')" id="units" flush>
         <x-ui.table>
         <flux:table>
             <flux:table.columns>
@@ -118,7 +118,7 @@
         </x-ui.table>
 
     @foreach ($agreement->agreementUnits->whereNotNull('move_out_date') as $au)
-        <div class="space-y-1" wire:key="mo-{{ $au->id }}">
+        <div class="space-y-1 border-t border-zinc-200 p-4 sm:p-6 dark:border-zinc-700" wire:key="mo-{{ $au->id }}">
             <flux:heading size="sm">{{ __('Move-out photos — :u', ['u' => $au->unit->code]) }}</flux:heading>
             @if ($au->move_out_notes || $au->move_out_readings)<flux:text size="sm">{{ $au->move_out_readings }} {{ $au->move_out_notes }}</flux:text>@endif
             <livewire:documents.panel :documentable="$au" :key="'docs-au-'.$au->id" />
@@ -129,9 +129,9 @@
     @if ($showDetails)
         <div id="details" class="scroll-mt-20">
     @if ($canManage && $customFields->isNotEmpty())
-        <form wire:submit="saveDetails" class="space-y-3">
+        <form wire:submit="saveDetails" class="space-y-4">
             <x-custom-fields.section :fields="$customFields" :values="$custom" :documents="$customDocuments" />
-            <flux:button type="submit">{{ __('Save details') }}</flux:button>
+            <div class="flex justify-end"><flux:button type="submit">{{ __('Save details') }}</flux:button></div>
         </form>
     @elseif (! $canManage)
         <x-custom-fields.display :items="$customDetails" />
@@ -140,11 +140,11 @@
     @endif
 
     @if ($amendments->isNotEmpty())
-        <x-ui.section :title="__('Amendments')" id="amendments">
-            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+        <x-ui.section :title="__('Amendments')" :hint="__('Changes made after the agreement became active.')" id="amendments">
+            <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($amendments as $m)
-                    <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm" wire:key="am-{{ $m->id }}">
-                        <span>{{ $m->type->label() }} · {{ __('from :d', ['d' => $m->effective_date->format('d/m/Y')]) }} · {{ $m->status->label() }} · {{ $m->reason }}</span>
+                    <li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm" wire:key="am-{{ $m->id }}">
+                        <span class="min-w-0">{{ $m->type->label() }} · {{ __('from :d', ['d' => $m->effective_date->format('d/m/Y')]) }} · {{ $m->status->label() }} · {{ $m->reason }}</span>
                         @if ($canManage && $m->status->value === 'draft')
                             <span class="flex gap-2">
                                 <flux:button size="sm" :href="route('agreements.amend.edit', $m)" wire:navigate>{{ __('Edit') }}</flux:button>
@@ -158,7 +158,7 @@
     @endif
 
     @if ($showNotice)
-        <x-ui.section :title="__('Notice and move-out')" id="notice">
+        <x-ui.section :title="__('Notice and move-out')" :hint="__('Record the tenant\'s notice, or the day they hand back the keys.')" id="notice">
         <details wire:ignore.self class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" @if ($errors->hasAny(['noticeTarget', 'noticeDate', 'plannedExit'])) open @endif>
             <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
                 <span><span class="block text-sm font-medium text-zinc-900 dark:text-white">{{ __('Record notice') }}</span><span class="block text-xs text-zinc-500">{{ __('The tenant has said they are leaving, and when.') }}</span></span>
@@ -194,7 +194,7 @@
     @endif
 
     @if ($invoices->isNotEmpty())
-        <x-ui.section :title="__('Invoices')" id="invoices">
+        <x-ui.section :title="__('Invoices')" :hint="__('Rent and other charges billed on this agreement.')" id="invoices" flush>
             <x-ui.table>
                 <flux:table>
                     <flux:table.rows>
@@ -214,26 +214,30 @@
     @endif
 
     @if ($chequesToReturn->isNotEmpty())
-        <x-ui.section :title="__('Cheques to return')" id="cheques">
+        <x-ui.section :title="__('Cheques to return')" :hint="__('Held cheques still to be handed back to the tenant.')" id="cheques">
+            <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
             @foreach ($chequesToReturn as $cheque)
-                <div class="text-sm"><flux:link :href="route('cheques.show', $cheque)" wire:navigate>{{ $cheque->cheque_no }}</flux:link> · {{ $cheque->bank_name }} · {{ $cheque->cheque_date->format('d/m/Y') }} · <span class="tabular-nums">{{ $cheque->amount }}</span> · {{ $cheque->status->label() }}</div>
+                <li class="py-3 text-sm" wire:key="chq-{{ $cheque->id }}"><flux:link :href="route('cheques.show', $cheque)" wire:navigate>{{ $cheque->cheque_no }}</flux:link> · {{ $cheque->bank_name }} · {{ $cheque->cheque_date->format('d/m/Y') }} · <span class="tabular-nums">{{ $cheque->amount }}</span> · {{ $cheque->status->label() }}</li>
             @endforeach
+            </ul>
         </x-ui.section>
     @endif
 
     @if ($settlements->isNotEmpty())
-        <x-ui.section :title="__('Deposit settlements')" id="settlements">
+        <x-ui.section :title="__('Deposit settlements')" :hint="__('Settlements of the deposit paid on this agreement.')" id="settlements">
+            <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
             @foreach ($settlements as $st)
-                <div class="text-sm"><flux:link :href="route('deposit-settlements.show', $st)" wire:navigate>{{ $st->label() }}</flux:link> · {{ $st->status->label() }}</div>
+                <li class="py-3 text-sm" wire:key="st-{{ $st->id }}"><flux:link :href="route('deposit-settlements.show', $st)" wire:navigate>{{ $st->label() }}</flux:link> · {{ $st->status->label() }}</li>
             @endforeach
+            </ul>
         </x-ui.section>
     @endif
 
     @if ($approvals->isNotEmpty())
-        <x-ui.section :title="__('Approval history')" id="approvals">
-            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700">
+        <x-ui.section :title="__('Approval history')" :hint="__('Who asked for what, and what was decided.')" id="approvals">
+            <ul class="-my-2 divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($approvals as $approval)
-                    <li class="py-2 text-sm">
+                    <li class="py-3 text-sm">
                         {{ $approval->action->label() }} · {{ str($approval->status->value)->headline() }} · {{ __('requested by :name', ['name' => $approval->requester->name]) }}
                         @if ($approval->decider) · {{ __('decided by :name', ['name' => $approval->decider->name]) }} @endif
                         @if ($approval->comment) — {{ $approval->comment }} @endif
@@ -251,16 +255,25 @@
         <livewire:documents.panel :documentable="$agreement" :key="'docs-agreement-'.$agreement->id" />
     </div>
 
-    <flux:modal name="renew" class="md:w-96">
+    <flux:modal name="renew" class="md:w-[32rem]">
         <form wire:submit="renew" class="space-y-4">
-            <flux:heading size="lg">{{ __('Renew from :d', ['d' => $agreement->end_date->addDay()->format('d/m/Y')]) }}</flux:heading>
-            <flux:checkbox.group wire:model="renewUnits" :label="__('Units to carry')">
-                @foreach ($agreement->agreementUnits as $au)<flux:checkbox value="{{ $au->unit_id }}" :label="$au->unit->building->code.' / '.$au->unit->code" />@endforeach
-            </flux:checkbox.group>
-            <x-date-input wire:model="renewEnd" :label="__('New end date')" />
+            <div>
+                <flux:heading size="lg">{{ __('Renew from :d', ['d' => $agreement->end_date->addDay()->format('d/m/Y')]) }}</flux:heading>
+                <flux:text size="sm" class="mt-1">{{ __('A draft opens with the current rents and deposits; change them before sending it for approval.') }}</flux:text>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <flux:checkbox.group wire:model="renewUnits" :label="__('Units to carry')">
+                        @foreach ($agreement->agreementUnits as $au)<flux:checkbox value="{{ $au->unit_id }}" :label="$au->unit->building->code.' / '.$au->unit->code" />@endforeach
+                    </flux:checkbox.group>
+                </div>
+                <x-date-input wire:model="renewEnd" :label="__('New end date')" />
+            </div>
             <flux:error name="renewUnits" />
-            <flux:text size="sm">{{ __('A draft opens with the current rents and deposits; change them before sending it for approval.') }}</flux:text>
-            <flux:button variant="primary" type="submit">{{ __('Create renewal draft') }}</flux:button>
+            <div class="flex flex-wrap justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button variant="primary" type="submit">{{ __('Create renewal draft') }}</flux:button>
+            </div>
         </form>
     </flux:modal>
 </section>

@@ -4,7 +4,7 @@
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <form wire:submit="save" class="space-y-6">
             <flux:error name="form.status" />
-            <x-ui.section :title="__('Tenant')">
+            <x-ui.section :title="__('Tenant')" :hint="__('Who is renting.')">
                 @if ($customerLabel)
                     <flux:text>{{ $customerLabel }}</flux:text>
                 @endif
@@ -21,7 +21,7 @@
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Terms')">
+            <x-ui.section :title="__('Terms')" :hint="__('Dates, billing and notice.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <x-date-input wire:model="form.start_date" :label="__('Start date')" aria-required="true" />
                     <x-date-input wire:model="form.end_date" :label="__('End date')" aria-required="true" />
@@ -31,14 +31,16 @@
                     <flux:input wire:model="form.billing_day" type="number" min="1" max="28" :label="__('Billing day (optional, 1–28)')" />
                     <flux:input wire:model="form.grace_days" type="number" min="0" :label="__('Grace days (blank = company default)')" />
                     <flux:input wire:model="form.notice_period_days" type="number" min="0" :label="__('Notice period (days)')" />
-                    <flux:select wire:model="form.contract_template_id" :label="__('Contract template')" class="sm:col-span-2">
-                        <option value="">{{ __('Default template') }}</option>
-                        @foreach ($templates as $t)<option value="{{ $t->id }}">{{ $t->name }}</option>@endforeach
-                    </flux:select>
+                    <div class="sm:col-span-2">
+                        <flux:select wire:model="form.contract_template_id" :label="__('Contract template')">
+                            <option value="">{{ __('Default template') }}</option>
+                            @foreach ($templates as $t)<option value="{{ $t->id }}">{{ $t->name }}</option>@endforeach
+                        </flux:select>
+                    </div>
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Units')">
+            <x-ui.section :title="__('Units')" :hint="__('The units let and their charges.')">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <flux:select wire:model.live="pickBuilding" :label="__('Building')" class="sm:max-w-56">
                         <option value="">{{ __('Choose…') }}</option>

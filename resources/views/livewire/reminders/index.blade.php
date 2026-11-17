@@ -3,7 +3,7 @@
 @php
     $filtered = filled($type) || filled($status) || filled($building);
 @endphp
-<section class="w-full space-y-4">
+<section class="w-full space-y-6">
     <x-ui.page-header :title="__('Reminders')" :hint="__('Every reminder emailed to tenants, automatic or sent by hand, and the ones skipped.')">
         <x-slot:actions>
             <flux:button icon="arrow-down-tray" wire:click="export">{{ __('Export to Excel') }}</flux:button>
@@ -53,7 +53,7 @@
                         <flux:table.cell>{{ $row->manual ? __('Manual · :name', ['name' => $row->sender?->name]) : __('Automatic') }}</flux:table.cell>
                     </flux:table.row>
                 @empty
-                    <flux:table.row><flux:table.cell colspan="8">{{ $valid ? __('No reminders in this period.') : __('Fix the filters above to see reminders.') }}</flux:table.cell></flux:table.row>
+                    <flux:table.row><flux:table.cell colspan="8" class="py-8 text-center text-zinc-500 dark:text-zinc-400">{{ $valid ? __('No reminders in this period.') : __('Fix the filters above to see reminders.') }}</flux:table.cell></flux:table.row>
                 @endforelse
             </flux:table.rows>
         </flux:table>

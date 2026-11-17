@@ -18,10 +18,12 @@
 
         <x-ui.section :title="__('Terms')">
             <div class="grid gap-4 sm:grid-cols-2">
-                <flux:radio.group wire:model.live="form.type" :label="__('Arrangement')" variant="segmented" aria-required="true" class="sm:col-span-2">
-                    <flux:radio value="managed" :label="__('Managed')" />
-                    <flux:radio value="leased" :label="__('Leased')" />
-                </flux:radio.group>
+                <div class="sm:col-span-2">
+                    <flux:radio.group wire:model.live="form.type" :label="__('Arrangement')" variant="segmented" aria-required="true">
+                        <flux:radio value="managed" :label="__('Managed')" />
+                        <flux:radio value="leased" :label="__('Leased')" />
+                    </flux:radio.group>
+                </div>
 
                 <x-date-input wire:model="form.start_date" :label="__('Start date')" aria-required="true" />
                 <x-date-input wire:model="form.end_date" :label="__('End date')" aria-required="true" />
@@ -67,7 +69,9 @@
                     @foreach ($predecessors as $p)<option value="{{ $p->id }}">{{ $p->number }}</option>@endforeach
                 </flux:select>
 
-                <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" class="sm:col-span-2" />
+                <div class="sm:col-span-2">
+                    <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
+                </div>
             </div>
         </x-ui.section>
 

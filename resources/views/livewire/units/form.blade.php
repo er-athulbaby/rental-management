@@ -14,21 +14,23 @@
 
     <form wire:submit="save" class="space-y-6">
         <fieldset @disabled(! $canEdit) class="space-y-6">
-            <x-ui.section :title="__('Location')">
+            <x-ui.section :title="__('Location')" :hint="__('Which building the unit is in, and where.')">
                 <div class="grid items-end gap-4 sm:grid-cols-2">
-                    <flux:select wire:model="form.building_id" :label="__('Building')" :disabled="(bool) $unit" aria-required="true" class="sm:col-span-2">
-                        <option value="">{{ __('Choose…') }}</option>
-                        @foreach ($buildings as $building)
-                            <option value="{{ $building->id }}">{{ $building->code }} — {{ $building->name }}</option>
-                        @endforeach
-                    </flux:select>
+                    <div class="sm:col-span-2">
+                        <flux:select wire:model="form.building_id" :label="__('Building')" :disabled="(bool) $unit" aria-required="true">
+                            <option value="">{{ __('Choose…') }}</option>
+                            @foreach ($buildings as $building)
+                                <option value="{{ $building->id }}">{{ $building->code }} — {{ $building->name }}</option>
+                            @endforeach
+                        </flux:select>
+                    </div>
                     <flux:input wire:model="form.code" :label="__('Unit code')" :required="(bool) $unit"
                         :description="$unit ? null : __('Leave blank to number it from the floor: 101, 102, G01.')" />
                     <flux:input wire:model="form.floor" :label="__('Floor')" />
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Details')">
+            <x-ui.section :title="__('Details')" :hint="__('What the unit is and what it contains.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <flux:select wire:model="form.use" :label="__('Use')" aria-required="true">
                         @foreach ($uses as $use)<option value="{{ $use->value }}">{{ str($use->value)->headline() }}</option>@endforeach
@@ -46,7 +48,7 @@
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Money')">
+            <x-ui.section :title="__('Money')" :hint="__('The list prices used when the unit is let.')">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <flux:input wire:model="form.list_rent" :label="__('List rent / month (BHD)')" inputmode="decimal" required />
                     <flux:input wire:model="form.list_deposit" :label="__('List deposit (BHD)')" inputmode="decimal" />
@@ -58,10 +60,16 @@
                 </div>
             </x-ui.section>
 
-            <x-ui.section :title="__('Availability')">
-                <flux:checkbox wire:model="form.blocked" :label="__('Blocked (not available to let)')" />
-                <flux:input wire:model="form.blocked_reason" :label="__('Blocked reason')" />
-                <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
+            <x-ui.section :title="__('Availability')" :hint="__('Block a unit to keep it off the market.')">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <flux:checkbox wire:model="form.blocked" :label="__('Blocked (not available to let)')" />
+                    </div>
+                    <flux:input wire:model="form.blocked_reason" :label="__('Blocked reason')" />
+                    <div class="sm:col-span-2">
+                        <flux:textarea wire:model="form.notes" :label="__('Notes')" rows="2" />
+                    </div>
+                </div>
             </x-ui.section>
         </fieldset>
         @if ($canEdit)

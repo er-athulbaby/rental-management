@@ -3,7 +3,7 @@
         :hint="__('Hello, :name', ['name' => auth()->user()->name]).' · '.now('Asia/Bahrain')->format('l d/m/Y')" />
 
     @if ($tiles === [])
-        <flux:text>{{ __('Welcome. Use the menu to get started.') }}</flux:text>
+        <x-ui.section><x-ui.empty :title="__('Welcome. Use the menu to get started.')" /></x-ui.section>
     @else
         <x-ui.stats>
             @foreach ($tiles as $tile)
@@ -14,7 +14,7 @@
     @endif
 
     @if ($tiles !== [] || $attention !== [])
-        <x-ui.section :title="__('Needs attention')">
+        <x-ui.section :title="__('Needs attention')" :hint="__('Things waiting for someone to act.')">
             @if ($attention === [])
                 <flux:text>{{ __('Nothing needs attention.') }}</flux:text>
             @else
@@ -23,8 +23,8 @@
                         <li wire:key="attention-{{ $loop->index }}">
                             <a href="{{ $item['url'] }}" wire:navigate class="flex items-center justify-between gap-3 py-2 text-sm hover:text-accent-content">
                                 <span>{{ $item['label'] }}</span>
-                                <span class="flex items-center gap-1 font-semibold tabular-nums">
-                                    {{ $item['count'] }}
+                                <span class="flex items-center gap-2 font-semibold tabular-nums">
+                                    <flux:badge size="sm">{{ $item['count'] }}</flux:badge>
                                     <flux:icon.chevron-right variant="micro" class="text-zinc-400 dark:text-zinc-500 rtl:rotate-180" />
                                 </span>
                             </a>
@@ -63,7 +63,7 @@
     @endif
 
     @if ($urgent)
-        <x-ui.section :title="__('Urgent maintenance')">
+        <x-ui.section :title="__('Urgent maintenance')" :hint="__('Urgent requests that are still open.')">
             <x-slot:actions>
                 <flux:link :href="route('maintenance.requests.index', ['priority' => 'urgent', 'tab' => 'open'])" wire:navigate class="text-xs">{{ __('Urgent: :n', ['n' => $urgent['count']]) }}</flux:link>
             </x-slot:actions>
