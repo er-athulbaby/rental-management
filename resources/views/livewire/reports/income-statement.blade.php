@@ -1,7 +1,7 @@
 <div class="space-y-4">
     <x-ui.page-header :title="__('Income statement')">
         <x-slot:actions>
-            <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
+            <flux:button :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:button>
         </x-slot:actions>
     </x-ui.page-header>
 

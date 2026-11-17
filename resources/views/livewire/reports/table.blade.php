@@ -24,7 +24,7 @@
     <x-ui.page-header :title="$title">
         <x-slot:actions>
             <flux:button icon="arrow-down-tray" wire:click="export">{{ __('Export to Excel') }}</flux:button>
-            <flux:link :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:link>
+            <flux:button :href="route('reports.index')" wire:navigate>{{ __('All reports') }}</flux:button>
         </x-slot:actions>
     </x-ui.page-header>
 
