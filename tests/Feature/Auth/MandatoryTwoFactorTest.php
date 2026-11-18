@@ -104,3 +104,11 @@ test('an abandoned, unconfirmed setup is still cleared', function () {
 
     expect($user->fresh()->two_factor_secret)->toBeNull();
 });
+
+test('a demo server can lift mandatory 2FA, production cannot', function () {
+    config(['app.two_factor_required' => false]);
+    $this->actingAs(financeUser())->get(route('dashboard'))->assertOk();
+
+    app()->detectEnvironment(fn () => 'production');
+    $this->get(route('dashboard'))->assertRedirect(route('security.edit'));
+});

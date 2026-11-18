@@ -20,6 +20,9 @@ return [
     // Release tag. The deploy script writes `git describe --tags` to VERSION in each release (spec §13.2).
     'version' => env('APP_VERSION') ?: (is_file(base_path('VERSION')) ? trim((string) file_get_contents(base_path('VERSION'))) : (GitVersion::read(base_path()) ?? 'dev')),
 
+    // Demo servers only: RMS_TWO_FACTOR_REQUIRED=false lifts mandatory 2FA. Ignored when APP_ENV=production.
+    'two_factor_required' => (bool) env('RMS_TWO_FACTOR_REQUIRED', true),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

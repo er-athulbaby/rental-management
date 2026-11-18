@@ -85,9 +85,13 @@ class User extends Authenticatable
             ]))->save();
     }
 
-    /** Spec §8.6: holders of a sensitive permission must use 2FA. Follows roles granted later. */
+    /** Spec §8.6: holders of a sensitive permission must use 2FA. Follows roles granted later. A demo server may lift it; production never. */
     public function requiresTwoFactor(): bool
     {
+        if (! config('app.two_factor_required') && ! app()->isProduction()) {
+            return false;
+        }
+
         return $this->hasAnyPermission(PermissionName::twoFactorRequired());
     }
 
