@@ -36,7 +36,7 @@ Server size: 2 vCPU, 4 GB RAM, Ubuntu 26.04, PHP 8.5, MySQL 26.7. No Redis.
 
 **With Laravel Forge (standard):** follow [`deploy/README.md` §2](../deploy/README.md#2-provision-a-server) exactly — Custom VPS, `provision-mysql.sh`, zero-downtime site on the `release` branch, shared `storage`, SSL, `.env`, queue worker, scheduler with heartbeats, monitors, uptime check on `/health`.
 
-**Without Forge** (a plain VPS, e.g. Hostinger KVM): do the same steps by hand — see [Appendix A](#appendix-a-plain-vps-without-forge).
+**Without Forge** (a plain VPS, e.g. Hostinger KVM): do the same steps by hand — see [Appendix A](#appendix-a-plain-vps-without-forge). On **AWS EC2**, start with [Appendix D](#appendix-d-aws-ec2), then follow Appendix A.
 
 - [ ] Server created, firewall allows only SSH (22), HTTP (80) and HTTPS (443).
 - [ ] MySQL installed and users created with `deploy/provision-mysql.sh` (both passwords in the vault).
@@ -220,3 +220,55 @@ The timezone is fixed to Asia/Bahrain in the code; there is no setting for it.
 | `php artisan rms:reports:send-scheduled` | Emails saved reports whose schedule is due (also runs every 15 minutes). |
 | `php artisan rms:reminders:send` | Emails today's tenant reminders (also runs daily at 08:00). Does nothing until a type is switched on under Administration → Tenant reminders, or while `MAIL_MAILER` is `log` or `array`. |
 | `GET /health` | `{"status":"up"}` when the app and database are working. |
+
+## Appendix D: AWS EC2
+
+EC2 is a plain VPS: create the server as below, then follow [Appendix A](#appendix-a-plain-vps-without-forge) and [Appendix B](#appendix-b-env-for-a-company) as written. Only the AWS-specific parts are here.
+
+**Create the instance** (EC2 console → Launch instance)
+
+| Setting | Value |
+|---|---|
+| Region | Middle East (Bahrain), `me-south-1` — closest to users, data stays in Bahrain |
+| Image | Ubuntu 26.04 LTS |
+| Instance type | `t3.medium` (2 vCPU, 4 GB) |
+| Storage | 30–40 GB gp3, **Encrypted** ticked |
+| Key pair | create one; the `.pem` file goes in the vault |
+
+- [ ] **Security group:** SSH (22) from the vendor's IP only; HTTP (80) and HTTPS (443) from anywhere. Nothing else — MySQL stays closed.
+- [ ] **Elastic IP** allocated and associated with the instance, so the address survives a stop/start.
+- [ ] Client's DNS: an **A record** for the hostname pointing at the Elastic IP (before running `certbot`).
+
+**First login and swap**
+
+```bash
+ssh -i company.pem ubuntu@<elastic-ip>
+```
+
+Add 2 GB of swap; `npm run build` can run out of memory on 4 GB:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Then continue with Appendix A (packages, `provision-mysql.sh`, code, Nginx, `certbot`, worker, scheduler).
+
+**Code from GitHub.** The repository is private. On the server, create an SSH key for the deploy user (`ssh-keygen -t ed25519`) and add the public key to the repository as a read-only **Deploy key** (GitHub → Settings → Deploy keys). Clone with the `git@github.com:` address.
+
+**Database.** Keep MySQL on the instance (`provision-mysql.sh`), not RDS. The app relies on database triggers and separate `rms_app` / `rms_migrate` users; RDS needs a custom parameter group (`log_bin_trust_function_creators`) for triggers and may not offer the same MySQL version.
+
+**Email.** AWS blocks outbound port 25 on EC2. Use the company's mail provider on port 587 (`MAIL_PORT=587`), or Amazon SES — SES starts in sandbox mode and needs a production-access request before it can mail staff and tenants.
+
+**Backups.**
+- Backups must live at a different provider from the server, so an S3 bucket in the same AWS account does not meet that rule. Use another S3-compatible provider (e.g. Backblaze B2, Wasabi) for `BACKUP_S3_*`, or at minimum S3 in another region under a separate AWS account.
+- In addition, add daily EBS snapshots of the volume (EC2 → Lifecycle Manager, keep 7). They restore the whole server quickly but do not replace the app backup.
+
+**`.env` notes.** `TRUSTED_PROXIES` stays empty while users reach the instance directly. If you later put an Application Load Balancer in front, set it to the VPC's CIDR (e.g. `10.0.0.0/16`), never `*`, and run the portal sign-in IP check from the go-live runbook again.
+
+**Checks**
+
+- [ ] `https://<host>/health` answers `{"status":"up", ...}`.
+- [ ] `sudo supervisorctl status` shows `rms-worker RUNNING`.
+- [ ] A test password-reset email arrives.
+- [ ] Next morning: `php artisan backup:list` shows last night's backup at the other provider.
