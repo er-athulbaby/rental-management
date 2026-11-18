@@ -36,7 +36,7 @@ Server size: 2 vCPU, 4 GB RAM, Ubuntu 26.04, PHP 8.5, MySQL 26.7. No Redis.
 
 **With Laravel Forge (standard):** follow [`deploy/README.md` §2](../deploy/README.md#2-provision-a-server) exactly — Custom VPS, `provision-mysql.sh`, zero-downtime site on the `release` branch, shared `storage`, SSL, `.env`, queue worker, scheduler with heartbeats, monitors, uptime check on `/health`.
 
-**Without Forge** (a plain VPS, e.g. Hostinger KVM): do the same steps by hand — see [Appendix A](#appendix-a-plain-vps-without-forge). On **AWS EC2**, start with [Appendix D](#appendix-d-aws-ec2), then follow Appendix A.
+**Without Forge** (a plain VPS, e.g. Hostinger KVM): do the same steps by hand — see [Appendix A](#appendix-a-plain-vps-without-forge). On **AWS EC2**, start with [Appendix D](#appendix-d-aws-ec2), then follow Appendix A. For a demo server, see [Appendix E](#appendix-e-demo-instance).
 
 - [ ] Server created, firewall allows only SSH (22), HTTP (80) and HTTPS (443).
 - [ ] MySQL installed and users created with `deploy/provision-mysql.sh` (both passwords in the vault).
@@ -272,3 +272,46 @@ Then continue with Appendix A (packages, `provision-mysql.sh`, code, Nginx, `cer
 - [ ] `sudo supervisorctl status` shows `rms-worker RUNNING`.
 - [ ] A test password-reset email arrives.
 - [ ] Next morning: `php artisan backup:list` shows last night's backup at the other provider.
+
+## Appendix E: demo instance
+
+A server for showing the system to prospects, loaded with the demo data from `database/seeders/DemoSeeder.php`. Build it like [Appendix D](#appendix-d-aws-ec2) (or A), with these differences. Never put a real client's data on it.
+
+**Differences from a company server**
+
+| Item | Demo value |
+|---|---|
+| `APP_ENV` / `APP_DEBUG` | `staging` / `false` — the demo seeder refuses to run in `production` |
+| Branch | `main` |
+| `MAIL_MAILER` | `log` — demo users have `@rms.test` addresses; password links are written to `storage/logs/laravel.log` |
+| `BACKUP_DISKS` | `backups` (local); leave `BACKUP_S3_*` and `HEARTBEAT_*` empty |
+| Approvals | `php artisan rms:setting require_different_approver false`, so one person can request and approve |
+| Access | optionally limit port 443 in the security group to the prospects' IPs |
+
+**Load the demo data**
+
+The seeder needs `admin@rms.test` and `manager@rms.test` to exist first.
+
+1. Install with the demo admin:
+
+```bash
+php artisan rms:install --company="Demo Rentals WLL" --admin-name="Demo Admin" --admin-email=admin@rms.test --vendor-email=support@rms.test
+```
+
+2. Open the password link from `storage/logs/laravel.log`, sign in as the admin and set up two-factor login.
+3. **Administration → Users:** add `manager@rms.test` with the **Management** role, and set its password the same way.
+4. Load the data:
+
+```bash
+php artisan db:seed --class=DemoSeeder --force
+```
+
+It prints `Demo data loaded.` and creates the Finance, Property Manager and Leasing demo users (`finance@`, `pm@`, `leasing@rms.test`). Their passwords are in `storage/app/private/local-install-credentials.txt` on the server. Running it again does nothing (`Demo data already loaded`).
+
+5. Before the first demo, sign in once as each demo user and set up two-factor login where the role requires it (Admin, Management, Finance).
+6. **Take an EBS snapshot** (EC2 → Volumes → Create snapshot). To reset the demo after a meeting, restore from it instead of reinstalling.
+
+**Notes**
+
+- The demo data is dated around October 2026. The scheduler keeps running, so invoices fall due, items go overdue and reminders appear on their own.
+- Stop the instance between demos to save cost; the Elastic IP keeps the address (AWS charges a small hourly fee for it while the instance is stopped).
