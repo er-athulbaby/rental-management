@@ -286,6 +286,8 @@ A server for showing the system to prospects, loaded with the demo data from `da
 | `MAIL_MAILER` | `log` — demo users have `@rms.test` addresses; password links are written to `storage/logs/laravel.log` |
 | `BACKUP_DISKS` | `backups` (local); leave `BACKUP_S3_*` and `HEARTBEAT_*` empty |
 | Approvals | `php artisan rms:setting require_different_approver false`, so one person can request and approve |
+| Two-factor | `RMS_TWO_FACTOR_REQUIRED=false` lifts mandatory 2FA for every role. Works only while `APP_ENV` is not `production` |
+| Without a domain (IP only) | `APP_URL=http://<elastic-ip>`, `SESSION_SECURE_COOKIE=false` (otherwise every form shows "419 Page Expired"), Nginx `server_name _;`, and skip `certbot`. Traffic is unencrypted: limit port 80 to known IPs |
 | Access | optionally limit port 443 in the security group to the prospects' IPs |
 
 **Load the demo data**
@@ -298,7 +300,13 @@ The seeder needs `admin@rms.test` and `manager@rms.test` to exist first.
 php artisan rms:install --company="Demo Rentals WLL" --admin-name="Demo Admin" --admin-email=admin@rms.test --vendor-email=support@rms.test
 ```
 
-2. Open the password link from `storage/logs/laravel.log`, sign in as the admin and set up two-factor login.
+2. Open the password link from `storage/logs/laravel.log` and set the admin password, or set it directly:
+
+```bash
+php artisan tinker --execute="AppModelsUser::where('email','admin@rms.test')->first()->forceFill(['password' => 'choose-one'])->save();"
+```
+
+   Then sign in as the admin (and set up two-factor login unless `RMS_TWO_FACTOR_REQUIRED=false`).
 3. **Administration → Users:** add `manager@rms.test` with the **Management** role, and set its password the same way.
 4. Load the data:
 
@@ -308,10 +316,11 @@ php artisan db:seed --class=DemoSeeder --force
 
 It prints `Demo data loaded.` and creates the Finance, Property Manager and Leasing demo users (`finance@`, `pm@`, `leasing@rms.test`). Their passwords are in `storage/app/private/local-install-credentials.txt` on the server. Running it again does nothing (`Demo data already loaded`).
 
-5. Before the first demo, sign in once as each demo user and set up two-factor login where the role requires it (Admin, Management, Finance).
+5. Before the first demo, sign in once as each demo user. With 2FA still required, set it up for Admin, Management and Finance.
 6. **Take an EBS snapshot** (EC2 → Volumes → Create snapshot). To reset the demo after a meeting, restore from it instead of reinstalling.
 
 **Notes**
 
+- `deploy/provision-mysql.sh` stops unless MySQL is exactly 26.7; Oracle's repository may install a newer 26.x (26.10 works for a demo). If it stops, run its SQL block by hand with `sudo mysql -u root`, keeping `SET PERSIST log_bin_trust_function_creators = 1` (the triggers need it).
 - The demo data is dated around October 2026. The scheduler keeps running, so invoices fall due, items go overdue and reminders appear on their own.
 - Stop the instance between demos to save cost; the Elastic IP keeps the address (AWS charges a small hourly fee for it while the instance is stopped).
