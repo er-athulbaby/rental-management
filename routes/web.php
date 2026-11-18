@@ -5,7 +5,7 @@ use App\Http\Controllers\VerifyAgreementController;
 use App\Livewire\Dashboard;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::redirect('/', '/dashboard')->name('home');
 Route::get('v/{token}', VerifyAgreementController::class)->middleware('throttle:30,1')->name('agreements.verify');
 
 Route::middleware(['auth:web'])->group(function () {
